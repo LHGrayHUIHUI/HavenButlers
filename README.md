@@ -172,8 +172,8 @@ make test-performance
 
 ## 📞 联系我们
 
-- **技术支持**：[技术团队邮箱]
-- **产品咨询**：[产品团队邮箱]
+- **技术支持**：[LHGray@163.com]
+- **产品咨询**：[LHGray@163.com]
 - **Bug报告**：[GitHub Issues]
 
 ---
