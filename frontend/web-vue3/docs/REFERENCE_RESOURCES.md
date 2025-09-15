@@ -2,73 +2,68 @@
 
 ## 核心组件库参考
 
-### 1. UIVerse.io 组件集合
+### 1. UIVerse.io 组件库
 
-官网：https://uiverse.io/elements
+官网：https://uiverse.io/
 
-#### 推荐组件清单
+#### 使用说明
+UIVerse.io 是一个开源CSS/HTML组件库，提供各种创意UI组件。由于组件更新频繁，建议：
+1. 访问主站搜索所需组件类型
+2. 根据实际需求选择合适的组件
+3. 复制代码并转换为Vue3组件格式
 
-##### 按钮效果
-- **发光按钮**：https://uiverse.io/Pradeepsaranbishnoi/light-pig-38
+#### 推荐搜索关键词
+- **按钮效果**：`button`、`switch`、`toggle`
   - 适用场景：设备开关控制、场景激活
-  - Material Design 3 兼容性：高
+  - 搜索建议：`glow button`（发光按钮）、`ripple button`（波纹按钮）
   
-- **波纹扩散按钮**：https://uiverse.io/adamgiebl/shy-kangaroo-64  
-  - 适用场景：确认操作、提交表单
-  - 特点：符合Material Motion动效规范
+- **卡片设计**：`card`、`flip`、`glass`
+  - 适用场景：设备状态展示、数据统计
+  - 搜索建议：`3d card`（3D卡片）、`glassmorphism`（玻璃态）
 
-- **磁性悬停按钮**：https://uiverse.io/alexmaracinaru/spotty-fox-26
-  - 适用场景：主要操作引导
-  - 交互体验：流畅的hover效果
+- **加载动画**：`loader`、`spinner`、`progress`
+  - 适用场景：设备连接、数据同步
+  - 搜索建议：`circle loader`（环形加载）、`progress bar`（进度条）
 
-##### 卡片设计
-- **3D翻转卡片**：https://uiverse.io/Javierrocadev/honest-cow-48
-  - 适用场景：设备状态展示
-  - 特点：正反面信息切换
+- **输入组件**：`input`、`form`、`text field`
+  - 适用场景：表单输入、搜索框
+  - 搜索建议：`floating label`（浮动标签）、`material input`（Material风格）
 
-- **玻璃态卡片**：https://uiverse.io/joe-watson-sbf/tidy-cat-31
-  - 适用场景：数据统计展示
-  - 视觉效果：半透明毛玻璃效果
-
-- **悬浮展开卡片**：https://uiverse.io/MuhammadHasann/yellow-pig-17
-  - 适用场景：设备详情预览
-  - 交互：hover时展开更多信息
-
-##### 加载动画
-- **智能家居加载器**：https://uiverse.io/G4b413l/tidy-earwig-75
-  - 适用场景：设备连接中、数据同步
-  - 动画风格：科技感
-
-- **环形进度**：https://uiverse.io/Nawsome/tender-frog-91
-  - 适用场景：任务执行进度
-  - 可定制性：支持百分比显示
-
-##### 输入组件
-- **浮动标签输入框**：https://uiverse.io/cssbuttons-io/funny-donkey-26
-  - 适用场景：表单输入
-  - Material Design 3：完全符合规范
-
-- **语音输入按钮**：https://uiverse.io/mrhyddenn/sour-goose-40
-  - 适用场景：AI对话输入
-  - 特点：动态波形反馈
-
-##### 开关组件  
-- **iOS风格开关**：https://uiverse.io/Madflows/rude-lionfish-23
+- **开关组件**：`toggle`、`switch`、`checkbox`
   - 适用场景：设备开关、功能切换
-  - 动画：平滑过渡
+  - 搜索建议：`ios switch`（iOS风格）、`animated toggle`（动画开关）
 
-- **智能开关**：https://uiverse.io/abrahamcalsin/modern-mouse-26
-  - 适用场景：场景模式切换
-  - 视觉：渐变色彩
-
-##### 通知组件
-- **Toast提示**：https://uiverse.io/Yaya12085/ugly-eagle-78
+- **通知组件**：`toast`、`notification`、`alert`
   - 适用场景：操作反馈、系统通知
-  - 位置：可配置显示位置
+  - 搜索建议：`toast message`、`popup notification`
 
-- **弹出气泡**：https://uiverse.io/Galahhad/smart-falcon-51
-  - 适用场景：实时消息提醒
-  - 动画：优雅进出场
+### 2. 稳定的CSS组件库推荐
+
+#### CSS框架和组件
+- **Tailwind UI**：https://tailwindui.com/components
+  - 专业的组件模板库（付费）
+  - 提供完整的Vue3集成示例
+
+- **Headless UI**：https://headlessui.com/
+  - 无样式的交互组件
+  - 完全支持Vue3，可自定义样式
+
+- **DaisyUI**：https://daisyui.com/
+  - 基于Tailwind CSS的组件库
+  - 开源免费，主题丰富
+
+- **Flowbite**：https://flowbite.com/
+  - Tailwind CSS组件库
+  - 提供Vue3集成指南
+
+#### Material Design组件
+- **Material Design 官方组件**：https://github.com/material-components/material-web
+  - Google官方Web Components
+  - 可在Vue3中使用
+
+- **Material Design Icons**：https://materialdesignicons.com/
+  - 完整的MD图标库
+  - 支持Vue3组件形式使用
 
 ## Vue3 生态推荐
 
