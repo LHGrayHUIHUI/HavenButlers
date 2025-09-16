@@ -1,0 +1,126 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: storage-service
+
+  # MySQL配置
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DB:smarthome}?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      pool-name: StorageHikariPool
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 20000
+      connection-test-query: SELECT 1
+
+  # JPA配置
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
+
+  # MongoDB配置
+  data:
+    mongodb:
+      uri: mongodb://${MONGODB_USER:}${MONGODB_PASSWORD:}${MONGODB_HOST:localhost}:${MONGODB_PORT:27017}/${MONGODB_DB:smarthome}
+      auto-index-creation: true
+
+    # Redis配置（使用common模块的RedisUtils）
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 10000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-wait: -1ms
+          max-idle: 8
+          min-idle: 0
+
+  # Nacos配置
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+      config:
+        server-addr: ${NACOS_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        file-extension: yaml
+
+# MinIO配置
+minio:
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin}
+  bucket-name: ${MINIO_BUCKET:smarthome}
+  secure: false
+
+# 集成infrastructure配置
+base:
+  exception:
+    enabled: true
+  trace:
+    enabled: true
+  response:
+    include-timestamp: true
+    include-trace-id: true
+
+common:
+  redis:
+    enabled: true
+    key-prefix: "storage:"
+    default-timeout: 3600
+  security:
+    jwt-enabled: false  # 存储服务内部调用，不直接处理JWT
+  thread-pool:
+    enabled: true
+    core-pool-size: 10
+    max-pool-size: 50
+
+# 存储服务特定配置
+storage:
+  encryption:
+    enabled: true
+    algorithm: AES
+    key: ${ENCRYPT_KEY:HavenButlerStorageEncryptionKey2025}
+
+  cache:
+    enabled: true
+    local-cache-size: 1000
+    local-cache-ttl: 600
+
+  isolation:
+    enabled: true  # 启用家庭数据隔离
+    strict-mode: true  # 严格模式，禁止跨家庭访问
+
+# Actuator配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# 日志配置
+logging:
+  level:
+    com.haven: DEBUG
+    org.springframework.data: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

@@ -1,0 +1,38 @@
+server:
+  port: 8888
+
+spring:
+  application:
+    name: admin-service
+  security:
+    user:
+      name: admin
+      password: admin123
+
+  boot:
+    admin:
+      ui:
+        title: HavenButler Admin Console
+        brand: HavenButler管理控制台
+
+# Actuator配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: '*'
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# 日志配置
+logging:
+  level:
+    com.haven: DEBUG
+    de.codecentric.boot.admin: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

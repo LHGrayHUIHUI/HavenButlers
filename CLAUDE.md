@@ -5,19 +5,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 项目概述
 
 这是HavenButler智能家庭服务平台项目，采用多语言混合架构：
-- **核心业务层**：Java + Spring Cloud/Spring Boot（账户、消息、存储、AI、NLP服务）
-- **多语言适配层**：Python（IoT设备SDK）、Go（OCR引擎）、C++（ASR语音）
-- **前端**：Vue3 Web端、小程序/APP、智能音箱
-- **边缘计算**：Go + C++家庭边缘网关
+
+### 🎯 当前开发状态 (2025-01-16)
+- **✅ 已完成**：Infrastructure基础设施层 + Gateway网关 + 6个核心微服务
+- **🚧 进行中**：文档体系完善、开发面板优化
+- **📋 规划中**：多语言适配层、边缘网关、前端应用
+
+### 🏗️ 技术架构详情
+- **✅ 核心业务层**：Java 17 + Spring Cloud 2023.0.1（Account、Message、Storage、AI、NLP、File-Manager）
+- **✅ 基础设施层**：Infrastructure (Base-Model、Common、Admin)
+- **📋 多语言适配层**：Python（IoT设备SDK）、Go（OCR引擎）、C++（ASR语音）
+- **📋 前端层**：Vue3 Web端、小程序/APP、智能音箱
+- **📋 边缘计算层**：Go + C++家庭边缘网关
 
 ## 核心架构层级
 
-1. **前端层**：Vue3、小程序/APP、智能音箱交互
-2. **接入层**：Java Gateway + Go边缘网关
-3. **核心业务层**：全Java微服务（Account、Message、Storage、AI、NLP）
+### ✅ 已实现层级
+1. **基础支撑层**：Infrastructure (Base-Model、Common、Admin)、Nacos配置中心
+2. **接入层**：Java Gateway (路由、鉴权、限流)
+3. **核心业务层**：6个Java微服务 (Account、Message、Storage、AI、NLP、File-Manager)
+
+### 📋 规划中层级
 4. **多语言适配层**：Python IoT、Go OCR、C++ ASR
-5. **基础支撑层**：Admin、Common、Nacos配置中心
-6. **外部生态层**：Matter设备、大模型、通知渠道
+5. **前端层**：Vue3、小程序/APP、智能音箱交互
+6. **边缘计算层**：Go边缘网关、本地处理
+7. **外部生态层**：Matter设备、大模型、通知渠道
 
 ## BMAD工具使用
 
@@ -57,16 +69,57 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 常用命令
 
-由于项目尚在早期阶段，暂无构建脚本。未来预期命令：
+### 已实现的Java服务
 
-### Java服务
+#### 构建和启动
 ```bash
-# 构建
+# 1. 构建基础设施层
+cd infrastructure
 mvn clean package
-# 启动服务
-java -jar target/service-name.jar
-# 测试
-mvn test
+
+# 2. 启动依赖服务
+docker-compose up -d
+
+# 3. 启动各微服务
+cd gateway && mvn spring-boot:run &                    # 端口8080
+cd services/storage-service && mvn spring-boot:run &   # 端口8081
+cd services/account-service && mvn spring-boot:run &   # 端口8082
+cd services/message-service && mvn spring-boot:run &   # 端口8083
+cd services/ai-service && mvn spring-boot:run &        # 端口8084
+cd services/nlp-service && mvn spring-boot:run &       # 端口8085
+cd services/file-manager-service && mvn spring-boot:run & # 端口8086
+
+# 4. 启动管理面板
+cd infrastructure/admin && mvn spring-boot:run &       # 端口8888
+```
+
+#### 测试验证
+```bash
+# 健康检查
+curl http://localhost:8080/actuator/health  # Gateway
+curl http://localhost:8081/actuator/health  # Storage
+curl http://localhost:8082/actuator/health  # Account
+curl http://localhost:8083/actuator/health  # Message
+curl http://localhost:8084/actuator/health  # AI
+curl http://localhost:8085/actuator/health  # NLP
+curl http://localhost:8086/actuator/health  # File-Manager
+
+# 管理面板
+http://localhost:8888 (admin/admin123)
+```
+
+#### 开发面板查看
+```bash
+# 查看各服务开发状态
+cat services/account-service/dev-panel.md
+cat services/ai-service/dev-panel.md
+cat services/nlp-service/dev-panel.md
+cat services/message-service/dev-panel.md
+cat services/storage-service/dev-panel.md
+cat services/file-manager-service/dev-panel.md
+
+# 查看项目总览
+cat dev-dashboard/project-overview.md
 ```
 
 ### Python适配层

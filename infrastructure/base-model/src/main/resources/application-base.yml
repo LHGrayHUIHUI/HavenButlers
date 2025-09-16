@@ -1,0 +1,34 @@
+# BaseModel基础配置
+base-model:
+  version: 1.0.0
+  trace:
+    enabled: true
+    prefix: "tr"
+    exclude-paths:
+      - "/health"
+      - "/actuator/**"
+      - "/swagger-ui/**"
+      - "/v3/api-docs/**"
+  exception:
+    enabled: true
+    include-stack-trace: false
+  log:
+    enabled: true
+    level: INFO
+    format: JSON
+  response:
+    include-timestamp: true
+    include-trace-id: true
+  encrypt:
+    enabled: true
+    algorithm: AES
+
+# 日志配置
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] [%X{traceId}] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] [%X{traceId}] %-5level %logger{36} - %msg%n"
+  level:
+    com.haven: DEBUG
+    org.springframework: INFO
+    org.springframework.web: DEBUG

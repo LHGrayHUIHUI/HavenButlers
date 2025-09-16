@@ -1,0 +1,33 @@
+# Common公共组件配置
+common:
+  version: 1.0.0
+  redis:
+    enabled: true
+    default-timeout: 3600
+    key-prefix: "haven:"
+  security:
+    enabled: true
+    jwt-enabled: true
+    jwt-expiration: 86400000 # 24小时
+    jwt-secret: "HavenButlerSecretKeyForJWTGenerationAndValidation2025"
+  thread-pool:
+    enabled: true
+    core-pool-size: 10
+    max-pool-size: 50
+    queue-capacity: 100
+    keep-alive-seconds: 60
+  mq:
+    enabled: false
+    exchange-prefix: "haven."
+    queue-prefix: "haven."
+
+# Redis配置
+spring:
+  redis:
+    timeout: 10000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-wait: -1ms
+        max-idle: 8
+        min-idle: 0

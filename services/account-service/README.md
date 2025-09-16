@@ -8,6 +8,7 @@
 ## 技术栈
 - **主开发语言**：Java 17
 - **核心框架**：Spring Cloud 2023.0.1, Spring Boot 3.1.0
+- **基础组件**：集成 infrastructure/base-model 和 infrastructure/common
 - **通信协议**：gRPC (内部), HTTP/JSON (外部)
 - **数据存储**：通过 storage-service 统一访问
 
@@ -232,6 +233,64 @@ docker-compose -f docker/integration-test.yml up --abort-on-container-exit
 3. **Token验证失败**：检查JWT密钥配置
 4. **性能问题**：监控 JVM 内存和 GC 情况
 
+## Infrastructure集成
+
+### 依赖的基础模块
+本服务集成了以下infrastructure基础模块：
+
+1. **base-model模块** - [查看文档](../../infrastructure/base-model/README.md)
+   - 统一响应格式：所有API返回ResponseWrapper
+   - 全局异常处理：BusinessException、AuthException
+   - 链路追踪：自动生成和传递TraceID
+   - 自定义注解：@TraceLog记录操作日志
+
+2. **common模块** - [查看文档](../../infrastructure/common/README.md)
+   - JWT工具：JwtUtils生成和验证Token
+   - Redis工具：用户会话、Token黑名单管理
+   - 分布式锁：防止并发登录问题
+   - 限流组件：@RateLimit防止暴力破解
+
+### 配置说明
+```yaml
+# application.yml中已配置
+base:
+  exception:
+    enabled: true  # 启用全局异常处理
+  trace:
+    enabled: true  # 启用链路追踪
+
+common:
+  security:
+    jwt-enabled: true
+    jwt-secret: ${JWT_SECRET}
+    jwt-expiration: 7200000  # 2小时
+  redis:
+    enabled: true
+    key-prefix: "account:"
+```
+
+### 使用示例
+```java
+// 主类已导入基础配置
+@Import({BaseModelAutoConfiguration.class, CommonAutoConfiguration.class})
+public class AccountServiceApplication {
+    // 自动集成所有基础功能
+}
+
+// 控制器示例
+@RestController
+public class AuthController {
+    @PostMapping("/login")
+    @TraceLog("用户登录")
+    @RateLimit(window = 300, limit = 5)  // 5分钟内最多5次
+    public ResponseWrapper<LoginResponse> login(@RequestBody LoginRequest request) {
+        // 自动处理异常、生成TraceID、限流保护
+        LoginResponse response = authService.login(request);
+        return ResponseWrapper.success(response);
+    }
+}
+```
+
 ## 安全要求
 - 密码必须加密存储（BCrypt）
 - 敏感操作需要二次验证
@@ -239,4 +298,4 @@ docker-compose -f docker/integration-test.yml up --abort-on-container-exit
 - 异常登录检测和告警
 
 ## 更新历史
-- v1.0.0 (2025-01-15): 初始版本，基础认证功能
+- v1.0.0 (2025-01-16): 初始版本，基础认证功能，集成infrastructure基础模块

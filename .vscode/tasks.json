@@ -1,0 +1,29 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "更新文档",
+            "type": "shell",
+            "command": "./scripts/update-docs-reminder.sh",
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "检查文档同步",
+            "type": "shell",
+            "command": "./scripts/check-docs-sync.sh",
+            "group": "test"
+        },
+        {
+            "label": "同步文档版本",
+            "type": "shell",
+            "command": "./scripts/sync-doc-versions.sh",
+            "group": "build"
+        }
+    ]
+}

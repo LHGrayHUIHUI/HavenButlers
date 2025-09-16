@@ -342,5 +342,406 @@ public class LogUtils {
 - 版本更新需要通知所有依赖服务
 - 不要引入重量级依赖
 
+## 已实现功能清单
+
+✅ **核心常量**
+- CommonConstants: 系统、缓存、消息队列、线程池、安全等常量定义
+
+✅ **Redis组件**
+- RedisUtils: 基础Redis操作工具
+- RedisCache: 高级缓存管理器（支持批量操作、Hash、List、Set、ZSet）
+- DistributedLock: 分布式锁实现（支持可重入、自动续期、重试机制）
+
+✅ **安全组件**
+- JwtUtils: JWT令牌生成和验证
+- AuthFilter: 认证过滤器
+
+✅ **工具类**
+- HttpUtils: HTTP请求工具（GET/POST/PUT/DELETE）
+- ThreadPoolUtils: 线程池管理工具
+
+✅ **自动配置**
+- CommonAutoConfiguration: Spring Boot自动配置
+- 完整的配置属性类
+- META-INF/spring.factories自动配置文件
+
+## 集成使用指南
+
+### 1. Maven依赖引入
+
+```xml
+<dependency>
+    <groupId>com.haven</groupId>
+    <artifactId>common</artifactId>
+    <version>1.0.0</version>
+</dependency>
+```
+
+### 2. 配置文件
+
+在`application.yml`中添加：
+
+```yaml
+# 引入common配置
+spring:
+  profiles:
+    include: common
+
+  # Redis配置（如果使用Redis功能）
+  redis:
+    host: localhost
+    port: 6379
+    password:
+    database: 0
+    timeout: 10000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-wait: -1ms
+        max-idle: 8
+        min-idle: 0
+
+# Common模块配置
+common:
+  redis:
+    enabled: true                # 启用Redis功能
+    default-timeout: 3600        # 默认超时时间（秒）
+    key-prefix: "haven:"         # 键前缀
+  security:
+    enabled: true                # 启用安全功能
+    jwt-enabled: true            # 启用JWT
+    jwt-expiration: 86400000     # JWT过期时间（毫秒）
+    jwt-secret: "your-secret"    # JWT密钥（生产环境请修改）
+  thread-pool:
+    enabled: true                # 启用线程池
+    core-pool-size: 10           # 核心线程数
+    max-pool-size: 50            # 最大线程数
+    queue-capacity: 100          # 队列容量
+    keep-alive-seconds: 60       # 线程存活时间
+```
+
+### 3. 使用示例
+
+#### Redis缓存操作
+
+```java
+@Service
+public class UserService {
+
+    @Autowired
+    private RedisUtils redisUtils;
+
+    @Autowired
+    private RedisCache redisCache;
+
+    // 基础缓存操作
+    public void cacheUser(UserDTO user) {
+        String key = "user:" + user.getUserId();
+        redisUtils.set(key, user, 3600, TimeUnit.SECONDS);
+    }
+
+    public UserDTO getUser(String userId) {
+        String key = "user:" + userId;
+        return redisUtils.get(key, UserDTO.class);
+    }
+
+    // 批量操作
+    public void batchCacheUsers(List<UserDTO> users) {
+        Map<String, Object> map = new HashMap<>();
+        users.forEach(user -> map.put("user:" + user.getUserId(), user));
+        redisCache.setBatch(map, 3600, TimeUnit.SECONDS);
+    }
+
+    // Hash操作
+    public void cacheUserField(String userId, String field, Object value) {
+        String key = "user:hash:" + userId;
+        redisCache.hashSet(key, field, value);
+    }
+
+    // List操作
+    public void addUserAction(String userId, String action) {
+        String key = "user:actions:" + userId;
+        redisCache.listRightPush(key, action);
+    }
+
+    // Set操作
+    public void addUserTag(String userId, String tag) {
+        String key = "user:tags:" + userId;
+        redisCache.setAdd(key, tag);
+    }
+
+    // ZSet操作（排行榜）
+    public void updateUserScore(String userId, double score) {
+        redisCache.zSetAdd("user:ranking", userId, score);
+    }
+}
+```
+
+#### 分布式锁
+
+```java
+@Service
+public class OrderService {
+
+    @Autowired
+    private DistributedLock distributedLock;
+
+    public void createOrder(String orderId) {
+        String lockKey = "order:create:" + orderId;
+
+        // 方式1：手动获取和释放锁
+        String lockValue = distributedLock.tryLock(lockKey, 30, TimeUnit.SECONDS);
+        if (lockValue == null) {
+            throw new BusinessException("获取锁失败");
+        }
+
+        try {
+            // 业务逻辑
+            processOrder(orderId);
+
+            // 如果需要续期
+            distributedLock.renewLock(lockKey, lockValue, 30);
+
+        } finally {
+            distributedLock.releaseLock(lockKey, lockValue);
+        }
+    }
+
+    public void quickProcess(String id) {
+        // 方式2：使用Lambda表达式
+        boolean success = distributedLock.executeWithLock(
+            "quick:" + id,
+            10, TimeUnit.SECONDS,
+            () -> {
+                // 业务逻辑
+                doQuickProcess(id);
+            }
+        );
+
+        if (!success) {
+            throw new BusinessException("处理失败");
+        }
+    }
+
+    public String processWithResult(String id) {
+        // 方式3：带返回值的执行
+        return distributedLock.executeWithLock(
+            "result:" + id,
+            10, TimeUnit.SECONDS,
+            () -> {
+                // 业务逻辑
+                return "Result: " + id;
+            }
+        );
+    }
+
+    public void retryProcess(String id) {
+        // 方式4：带重试的锁
+        String lockValue = distributedLock.tryLockWithRetry(
+            "retry:" + id,
+            30, TimeUnit.SECONDS,
+            3,  // 最大重试3次
+            1000  // 重试间隔1秒
+        );
+
+        if (lockValue == null) {
+            throw new BusinessException("多次重试后仍无法获取锁");
+        }
+
+        try {
+            // 业务逻辑
+        } finally {
+            distributedLock.releaseLock("retry:" + id, lockValue);
+        }
+    }
+}
+```
+
+#### JWT使用
+
+```java
+@RestController
+@RequestMapping("/api/v1/auth")
+public class AuthController {
+
+    @Autowired
+    private JwtUtils jwtUtils;
+
+    @PostMapping("/login")
+    public ResponseWrapper<Map<String, String>> login(@RequestBody LoginDTO loginDTO) {
+        // 验证用户名密码
+        UserDTO user = validateUser(loginDTO);
+
+        // 生成JWT令牌
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("username", user.getUsername());
+        claims.put("familyId", user.getCurrentFamilyId());
+        claims.put("roles", user.getRoles());
+
+        String token = jwtUtils.generateToken(user.getUserId(), claims);
+
+        Map<String, String> result = new HashMap<>();
+        result.put("token", token);
+        result.put("userId", user.getUserId());
+
+        return ResponseWrapper.success(result);
+    }
+
+    @GetMapping("/validate")
+    public ResponseWrapper<Boolean> validateToken(
+            @RequestHeader("X-Auth-Token") String token) {
+
+        boolean valid = jwtUtils.validateToken(token) &&
+                       !jwtUtils.isTokenExpired(token);
+
+        return ResponseWrapper.success(valid);
+    }
+
+    @PostMapping("/refresh")
+    public ResponseWrapper<String> refreshToken(
+            @RequestHeader("X-Auth-Token") String oldToken) {
+
+        if (!jwtUtils.validateToken(oldToken)) {
+            throw new AuthException("无效的令牌");
+        }
+
+        String newToken = jwtUtils.refreshToken(oldToken);
+        return ResponseWrapper.success(newToken);
+    }
+
+    @GetMapping("/user-info")
+    public ResponseWrapper<Map<String, Object>> getUserInfo(
+            @RequestHeader("X-Auth-Token") String token) {
+
+        Claims claims = jwtUtils.getClaimsFromToken(token);
+        if (claims == null) {
+            throw new AuthException("无法解析令牌");
+        }
+
+        Map<String, Object> userInfo = new HashMap<>();
+        userInfo.put("userId", claims.getSubject());
+        userInfo.put("username", claims.get("username"));
+        userInfo.put("familyId", claims.get("familyId"));
+        userInfo.put("roles", claims.get("roles"));
+        userInfo.put("expiration", claims.getExpiration());
+
+        return ResponseWrapper.success(userInfo);
+    }
+}
+```
+
+#### 线程池使用
+
+```java
+@Service
+public class AsyncService {
+
+    @PostConstruct
+    public void init() {
+        // 创建不同类型的线程池
+        ThreadPoolUtils.createFixedThreadPool("data-process", 10);
+        ThreadPoolUtils.createCachedThreadPool("io-tasks");
+        ThreadPoolUtils.createScheduledThreadPool("scheduled", 5);
+    }
+
+    public void asyncProcess(List<String> dataList) {
+        // 异步执行任务
+        ThreadPoolUtils.executeAsync("data-process", () -> {
+            dataList.forEach(this::processData);
+        });
+    }
+
+    public CompletableFuture<String> asyncCompute(String input) {
+        // 异步计算并返回结果
+        return ThreadPoolUtils.submitAsync("data-process", () -> {
+            // 复杂计算
+            return "Result: " + input;
+        });
+    }
+
+    public void batchProcess(List<String> items) {
+        ExecutorService executor = ThreadPoolUtils.getThreadPool("data-process");
+
+        List<CompletableFuture<Void>> futures = items.stream()
+            .map(item -> CompletableFuture.runAsync(
+                () -> processItem(item), executor))
+            .collect(Collectors.toList());
+
+        // 等待所有任务完成
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+            .join();
+    }
+
+    @PreDestroy
+    public void cleanup() {
+        // 关闭线程池
+        ThreadPoolUtils.shutdownAll();
+    }
+}
+```
+
+#### HTTP工具使用
+
+```java
+@Service
+public class ExternalApiService {
+
+    public String callExternalApi() {
+        // GET请求
+        String result = HttpUtils.get("https://api.example.com/data");
+
+        // GET请求带参数
+        Map<String, String> params = new HashMap<>();
+        params.put("key", "value");
+        params.put("page", "1");
+        result = HttpUtils.get("https://api.example.com/search", params);
+
+        // POST JSON
+        UserDTO user = new UserDTO();
+        String json = JsonUtil.toJson(user);
+        result = HttpUtils.postJson("https://api.example.com/users", json);
+
+        // POST表单
+        Map<String, String> formData = new HashMap<>();
+        formData.put("username", "test");
+        formData.put("password", "123456");
+        result = HttpUtils.postForm("https://api.example.com/login", formData);
+
+        // 带请求头
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Authorization", "Bearer token");
+        headers.put("X-Custom-Header", "value");
+        result = HttpUtils.get("https://api.example.com/protected", null, headers);
+
+        return result;
+    }
+}
+```
+
+## 注意事项
+
+1. **Redis配置**：使用Redis功能前需要配置Redis连接信息
+2. **JWT密钥**：生产环境必须修改默认的JWT密钥
+3. **线程池**：使用后记得关闭线程池释放资源
+4. **分布式锁**：注意设置合理的超时时间
+5. **性能优化**：Redis批量操作比单个操作效率高
+
+## 故障排查
+
+### Redis连接失败
+- 检查Redis服务是否启动
+- 确认连接配置正确
+- 检查防火墙和网络连接
+
+### JWT验证失败
+- 检查令牌格式是否正确
+- 确认密钥配置一致
+- 检查令牌是否过期
+
+### 分布式锁获取失败
+- 检查Redis连接状态
+- 调整锁超时时间
+- 使用重试机制
+
 ## 更新历史
-- v1.0.0 (2025-01-15): 初始版本，基础公共组件
+- v1.0.0 (2025-01-16): 初始版本发布，完整实现Redis、安全、工具类等功能

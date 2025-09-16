@@ -8,6 +8,7 @@
 ## 技术栈
 - **主开发语言**：Java 17
 - **核心框架**：Spring Cloud 2023.0.1, Spring Boot 3.1.0
+- **基础组件**：集成 infrastructure/base-model 和 infrastructure/common
 - **通信协议**：HTTP/JSON (对内)，gRPC (高频调用)
 - **数据存储**：
   - MySQL 8.0 - 结构化业务数据
@@ -292,9 +293,65 @@ mongodb:
 3. **数据不一致**：检查同步机制
 4. **存储空间不足**：自动清理和告警
 
+## Infrastructure集成
+
+### 依赖的基础模块
+本服务集成了以下infrastructure基础模块：
+
+1. **base-model模块** - [查看文档](../../infrastructure/base-model/README.md)
+   - 统一响应格式：所有API返回ResponseWrapper
+   - 全局异常处理：BusinessException、SystemException
+   - 链路追踪：自动生成和传递TraceID
+   - 基础实体：BaseEntity、分页模型
+
+2. **common模块** - [查看文档](../../infrastructure/common/README.md)
+   - Redis工具：RedisUtils、RedisCache用于缓存
+   - 分布式锁：DistributedLock防止并发操作
+   - ID生成器：IdGenerator生成唯一ID
+   - 线程池：ThreadPoolUtils异步处理
+
+### 配置说明
+```yaml
+# application.yml中已配置
+base:
+  exception:
+    enabled: true  # 启用全局异常处理
+  trace:
+    enabled: true  # 启用链路追踪
+
+common:
+  redis:
+    enabled: true
+    key-prefix: "storage:"  # Redis键前缀
+  thread-pool:
+    enabled: true
+    core-pool-size: 10
+```
+
+### 使用示例
+```java
+// 主类已导入基础配置
+@Import({BaseModelAutoConfiguration.class, CommonAutoConfiguration.class})
+public class StorageServiceApplication {
+    // 自动集成所有基础功能
+}
+
+// 控制器示例
+@RestController
+public class StorageController {
+    @PostMapping("/api/v1/storage/save")
+    public ResponseWrapper<String> saveData(@RequestBody StorageRequest request) {
+        // 自动处理异常、生成TraceID
+        String id = storageService.save(request);
+        return ResponseWrapper.success(id);
+    }
+}
+```
+
 ## 依赖关系
 - **直接依赖**：
-  - `base-model:1.0.0` (必需) - 基础组件
+  - `infrastructure/base-model:1.0.0` (必需) - 基础模型和工具
+  - `infrastructure/common:1.0.0` (必需) - 公共组件
   - `nacos:2.3.0` (必需) - 配置中心
 - **被依赖方**：
   - 所有微服务都依赖storage-service进行数据操作

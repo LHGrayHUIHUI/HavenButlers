@@ -240,5 +240,54 @@ http://localhost:8888
 3. **指标没有数据**：检查Prometheus配置
 4. **链路不完整**：检查TraceID传递
 
+## 开发指南
+
+### 快速集成
+
+```java
+// 1. 添加依赖
+<dependency>
+    <groupId>com.haven</groupId>
+    <artifactId>admin</artifactId>
+    <version>1.0.0</version>
+</dependency>
+
+// 2. 配置Admin客户端
+@Configuration
+public class AdminClientConfig {
+    @Bean
+    public ApplicationRunner adminRegistrar() {
+        return args -> {
+            // 自动注册到Admin服务
+        };
+    }
+}
+```
+
+### 核心API
+
+```java
+// 服务管理API
+@Autowired
+private ServiceManageService serviceManageService;
+
+// 获取服务列表
+List<ServiceInfo> services = serviceManageService.getAllServices();
+
+// 获取服务健康状态
+Map<String, Object> health = serviceManageService.getServiceHealth("account-service");
+
+// 告警服务API
+@Autowired
+private AlertService alertService;
+
+// 创建告警规则
+AlertRule rule = new AlertRule();
+rule.setName("高CPU告警");
+rule.setMetricName("cpu.usage");
+rule.setThreshold(0.8);
+alertService.createAlertRule(rule);
+```
+
 ## 更新历史
 - v1.0.0 (2025-01-15): 初始版本，基础管理功能

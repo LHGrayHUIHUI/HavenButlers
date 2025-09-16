@@ -8,6 +8,7 @@
 ## 技术栈
 - **主开发语言**：Java 17
 - **核心框架**：Spring Cloud Gateway 4.0.7, Spring Boot 3.1.0
+- **基础组件**：集成 infrastructure/base-model 和 infrastructure/common
 - **通信协议**：HTTP/HTTPS (外部), HTTP/gRPC (内部)
 - **数据存储**：通过 storage-service 统一访问
 
@@ -237,5 +238,49 @@ public class CustomGatewayFilter implements GlobalFilter, Ordered {
 ### 动态路由配置
 通过Nacos配置中心动态更新路由规则，无需重启服务。
 
+## Infrastructure集成
+
+### 依赖的基础模块
+本服务集成了以下infrastructure基础模块：
+
+1. **base-model模块** - [查看文档](../infrastructure/base-model/README.md)
+   - 统一响应格式：ResponseWrapper
+   - 全局异常处理：自动转换异常为标准响应
+   - 链路追踪：自动生成和传递TraceID
+   - 错误码规范：使用标准ErrorCode
+
+2. **common模块** - [查看文档](../infrastructure/common/README.md)
+   - Redis工具：用于限流计数、JWT黑名单
+   - JWT工具：Token生成和验证
+   - 分布式锁：防止并发问题
+   - 限流组件：RateLimitAspect
+
+### 配置说明
+```yaml
+# application.yml中已配置
+base:
+  exception:
+    enabled: true  # 启用全局异常处理
+  trace:
+    enabled: true  # 启用链路追踪
+
+common:
+  redis:
+    enabled: true
+    key-prefix: "gateway:"  # Redis键前缀
+  security:
+    jwt-enabled: true
+    jwt-secret: ${JWT_SECRET}  # JWT密钥
+```
+
+### 使用示例
+```java
+// 主类已导入基础配置
+@Import({BaseModelAutoConfiguration.class, CommonAutoConfiguration.class})
+public class GatewayApplication {
+    // 自动集成所有基础功能
+}
+```
+
 ## 更新历史
-- v1.0.0 (2025-01-15): 初始版本，基础网关功能
+- v1.0.0 (2025-01-15): 初始版本，基础网关功能，集成infrastructure基础模块
