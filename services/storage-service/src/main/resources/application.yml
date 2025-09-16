@@ -1,16 +1,16 @@
 server:
-  port: 8080
+  port: 8081
 
 spring:
   application:
     name: storage-service
 
-  # MySQL配置
+  # PostgreSQL配置
   datasource:
-    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DB:smarthome}?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
-    username: ${MYSQL_USER:root}
-    password: ${MYSQL_PASSWORD:password}
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:postgresql://${POSTGRESQL_HOST:localhost}:${POSTGRESQL_PORT:5432}/${POSTGRESQL_DB:smarthome}
+    username: ${POSTGRESQL_USER:postgres}
+    password: ${POSTGRESQL_PASSWORD:password}
+    driver-class-name: org.postgresql.Driver
     hikari:
       pool-name: StorageHikariPool
       maximum-pool-size: 20
@@ -26,7 +26,7 @@ spring:
     show-sql: false
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.MySQL8Dialect
+        dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
 
   # MongoDB配置
@@ -93,6 +93,65 @@ common:
 
 # 存储服务特定配置
 storage:
+  # 文件存储配置 - 支持多种存储模式
+  file:
+    # 存储模式：local(本地文件系统) | minio(MinIO对象存储) | cloud(云存储)
+    storage-type: ${STORAGE_TYPE:local}
+
+    # 本地文件存储配置
+    local:
+      base-path: ${STORAGE_LOCAL_PATH:/data/haven-storage}  # 本地存储根目录
+      auto-create-dirs: true                               # 自动创建目录
+      max-file-size: 100MB                                # 单文件最大大小
+      allowed-extensions: "pdf,doc,docx,txt,jpg,jpeg,png,gif,mp4,avi,mp3,wav,zip,rar"
+
+    # MinIO对象存储配置
+    minio:
+      bucket-prefix: "family"                              # 桶名前缀
+      auto-create-bucket: true                            # 自动创建桶
+
+    # 云存储配置（预留，支持阿里云OSS、腾讯云COS等）
+    cloud:
+      provider: ${CLOUD_PROVIDER:}                        # aliyun | tencent | aws
+      region: ${CLOUD_REGION:}
+      access-key: ${CLOUD_ACCESS_KEY:}
+      secret-key: ${CLOUD_SECRET_KEY:}
+      bucket: ${CLOUD_BUCKET:}
+
+  # 数据库连接管理配置
+  database:
+    default-timeout: 30
+    max-connections: 100
+    # 支持的数据库类型
+    supported-types: "mysql,postgresql,mongodb"
+
+    mysql:
+      base-url: "jdbc:mysql://localhost:3306"
+      username: "root"
+      password: "password"
+
+    postgresql:
+      base-url: "jdbc:postgresql://localhost:5432"
+      username: "postgres"
+      password: "password"
+
+  # 知识库配置
+  knowledge:
+    embedding:
+      model: "text-embedding-ada-002"           # 向量化模型
+      api-endpoint: ${EMBEDDING_API:}           # 向量化服务端点
+    chunk:
+      size: 512                                 # 文档分块大小
+      overlap: 50                               # 分块重叠大小
+    vector:
+      dimension: 1536                           # 向量维度
+
+  # 向量标签配置
+  vector-tag:
+    similarity:
+      threshold: 0.7                            # 相似度阈值
+    max-tags-per-file: 10                      # 每文件最大标签数
+
   encryption:
     enabled: true
     algorithm: AES

@@ -67,7 +67,7 @@ HavenButler/
 ├── services/              # ✅ 核心业务服务 (已完成)
 │   ├── account-service/   # ✅ 账户管理 - 用户认证、权限控制
 │   ├── message-service/   # ✅ 消息通知 - 多渠道消息发送
-│   ├── storage-service/   # ✅ 数据存储 - 统一数据访问
+│   ├── storage-service/   # ✅ PaaS存储平台 - DBaaS+文件存储+向量数据库
 │   ├── ai-service/       # ✅ AI模型接入 - 大模型调用
 │   ├── nlp-service/      # ✅ 自然语言处理 - 语音指令解析
 │   └── file-manager-service/ # ✅ 文件管理 - 文件上传下载
