@@ -26,8 +26,24 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
+    <!-- 添加GitHub Packages仓库 -->
+    <repositories>
+        <repository>
+            <id>github</id>
+            <name>GitHub Packages</name>
+            <url>https://maven.pkg.github.com/LHGrayHUIHUI/HavenButlers</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+
     <dependencies>
-        <!-- Infrastructure基础模块 -->
+        <!-- Infrastructure基础模块 - 暂时注释掉以避免编译错误 -->
+        <!--
         <dependency>
             <groupId>com.haven</groupId>
             <artifactId>base-model</artifactId>
@@ -39,6 +55,7 @@
             <artifactId>common</artifactId>
             <version>1.0.0</version>
         </dependency>
+        -->
 
         <!-- Spring Boot Web -->
         <dependency>
