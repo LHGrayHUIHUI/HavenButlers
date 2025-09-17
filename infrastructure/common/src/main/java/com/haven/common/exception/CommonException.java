@@ -26,11 +26,11 @@ public class CommonException extends BaseException {
      */
     public static class LockException extends CommonException {
         public LockException(String message) {
-            super(ErrorCode.LOCK_ERROR.getCode(), message);
+            super(ErrorCode.SYSTEM_ERROR.getCode(), message);
         }
 
         public LockException(String message, Throwable cause) {
-            super(ErrorCode.LOCK_ERROR.getCode(), message, cause);
+            super(ErrorCode.SYSTEM_ERROR.getCode(), message, cause);
         }
     }
 
@@ -39,11 +39,11 @@ public class CommonException extends BaseException {
      */
     public static class MqException extends CommonException {
         public MqException(String message) {
-            super(ErrorCode.MQ_ERROR.getCode(), message);
+            super(ErrorCode.MESSAGE_QUEUE_ERROR.getCode(), message);
         }
 
         public MqException(String message, Throwable cause) {
-            super(ErrorCode.MQ_ERROR.getCode(), message, cause);
+            super(ErrorCode.MESSAGE_QUEUE_ERROR.getCode(), message, cause);
         }
     }
 

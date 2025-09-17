@@ -11,6 +11,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Date;
 import java.util.UUID;
 
 /**
@@ -54,7 +55,7 @@ public class MessageSender {
                     .setContentType(MessageProperties.CONTENT_TYPE_JSON)
                     .setContentEncoding("UTF-8")
                     .setMessageId(messageId)
-                    .setTimestamp(System.currentTimeMillis())
+                    .setTimestamp(new Date())
                     .build();
 
             rabbitTemplate.convertAndSend(exchange, routingKey, message);
@@ -99,7 +100,7 @@ public class MessageSender {
                     .setContentType(MessageProperties.CONTENT_TYPE_JSON)
                     .setContentEncoding("UTF-8")
                     .setMessageId(messageId)
-                    .setTimestamp(System.currentTimeMillis())
+                    .setTimestamp(new Date())
                     .setHeader("x-delay", delayMs)
                     .build();
 
@@ -131,7 +132,7 @@ public class MessageSender {
                     .setContentType(MessageProperties.CONTENT_TYPE_JSON)
                     .setContentEncoding("UTF-8")
                     .setMessageId(messageId)
-                    .setTimestamp(System.currentTimeMillis())
+                    .setTimestamp(new Date())
                     .setPriority(priority)
                     .build();
 

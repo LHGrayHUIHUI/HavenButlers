@@ -472,5 +472,615 @@ public class CustomAspect {
 - 检查@EnableAspectJAutoProxy是否启用
 - 确认目标方法不是private或final
 
+## GitHub Packages Maven配置
+
+### 1. 认证配置
+
+在`~/.m2/settings.xml`中添加GitHub认证信息：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+          http://maven.apache.org/xsd/settings-1.0.0.xsd">
+
+    <servers>
+        <server>
+            <id>github</id>
+            <username>你的GitHub用户名</username>
+            <password>你的GitHub Personal Access Token</password>
+        </server>
+    </servers>
+
+</settings>
+```
+
+**获取GitHub Personal Access Token步骤**：
+1. 访问 GitHub > Settings > Developer settings > Personal access tokens > Tokens (classic)
+2. 点击 "Generate new token (classic)"
+3. 勾选以下权限：
+   - ✅ `read:packages` - 读取包权限
+   - ✅ `write:packages` - 发布包权限（如果需要）
+   - ✅ `repo` - 仓库访问权限
+4. 生成token并复制到settings.xml中
+
+### 2. 项目pom.xml配置
+
+在你的微服务项目中配置仓库地址和依赖：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <!-- 添加GitHub Packages仓库 -->
+    <repositories>
+        <repository>
+            <id>github</id>
+            <name>GitHub Packages</name>
+            <url>https://maven.pkg.github.com/LHGrayHUIHUI/HavenButlers</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <!-- HavenButler base-model依赖 -->
+        <dependency>
+            <groupId>com.haven</groupId>
+            <artifactId>base-model</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+
+        <!-- 其他依赖... -->
+    </dependencies>
+
+</project>
+```
+
+### 3. 完整的微服务集成示例
+
+#### 3.1 项目结构
+```
+your-service/
+├── src/main/java/com/haven/yourservice/
+│   ├── YourServiceApplication.java
+│   ├── controller/
+│   │   └── YourController.java
+│   ├── service/
+│   │   └── YourService.java
+│   └── config/
+│       └── ServiceConfig.java
+├── src/main/resources/
+│   ├── application.yml
+│   └── application-prod.yml
+└── pom.xml
+```
+
+#### 3.2 主启动类配置
+```java
+package com.haven.yourservice;
+
+import com.haven.base.config.BaseModelAutoConfiguration;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Import;
+
+/**
+ * 微服务启动类
+ *
+ * @author HavenButler
+ */
+@SpringBootApplication
+@Import(BaseModelAutoConfiguration.class) // 显式导入base-model配置
+public class YourServiceApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(YourServiceApplication.class, args);
+    }
+}
+```
+
+#### 3.3 完整的Controller示例
+```java
+package com.haven.yourservice.controller;
+
+import com.haven.base.common.response.ResponseWrapper;
+import com.haven.base.common.response.ErrorCode;
+import com.haven.base.common.exception.BusinessException;
+import com.haven.base.annotation.TraceLog;
+import com.haven.base.annotation.RateLimit;
+import com.haven.base.model.dto.PageRequest;
+import com.haven.base.model.dto.PageResponse;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import java.util.List;
+
+/**
+ * 示例控制器 - 展示base-model完整使用方式
+ *
+ * @author HavenButler
+ */
+@Slf4j
+@RestController
+@RequestMapping("/api/v1/demo")
+@RequiredArgsConstructor
+@Validated
+public class DemoController {
+
+    private final DemoService demoService;
+
+    /**
+     * 查询单个数据
+     * 展示：统一响应格式、异常处理、日志追踪
+     */
+    @GetMapping("/{id}")
+    @TraceLog(value = "查询数据详情", module = "演示模块")
+    public ResponseWrapper<DemoDTO> getById(@PathVariable @NotNull Long id) {
+        DemoDTO data = demoService.findById(id);
+        if (data == null) {
+            throw new BusinessException(ErrorCode.DATA_NOT_FOUND, "数据不存在");
+        }
+        return ResponseWrapper.success(data);
+    }
+
+    /**
+     * 分页查询
+     * 展示：分页处理、参数验证
+     */
+    @GetMapping("/list")
+    @TraceLog("分页查询数据")
+    public ResponseWrapper<PageResponse<DemoDTO>> getPage(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "20") Integer size,
+            @RequestParam(required = false) String keyword) {
+
+        PageRequest pageRequest = PageRequest.of(page, size);
+        pageRequest.setKeyword(keyword);
+        pageRequest.setSortField("createTime");
+        pageRequest.setSortOrder("DESC");
+
+        PageResponse<DemoDTO> result = demoService.findPage(pageRequest);
+        return ResponseWrapper.success(result);
+    }
+
+    /**
+     * 创建数据
+     * 展示：参数校验、限流控制
+     */
+    @PostMapping
+    @TraceLog(value = "创建数据", module = "演示模块", type = "CREATE")
+    @RateLimit(limit = 10, window = 60) // 每分钟最多10次
+    public ResponseWrapper<DemoDTO> create(@RequestBody @Valid DemoDTO demo) {
+        DemoDTO created = demoService.create(demo);
+        return ResponseWrapper.success("创建成功", created);
+    }
+
+    /**
+     * 更新数据
+     * 展示：业务异常处理
+     */
+    @PutMapping("/{id}")
+    @TraceLog(value = "更新数据", type = "UPDATE")
+    public ResponseWrapper<Void> update(
+            @PathVariable Long id,
+            @RequestBody @Valid DemoDTO demo) {
+
+        boolean success = demoService.update(id, demo);
+        if (!success) {
+            throw new BusinessException(ErrorCode.OPERATION_NOT_ALLOWED, "更新失败");
+        }
+        return ResponseWrapper.success("更新成功");
+    }
+
+    /**
+     * 删除数据
+     * 展示：权限控制（需要在Service层实现）
+     */
+    @DeleteMapping("/{id}")
+    @TraceLog(value = "删除数据", type = "DELETE")
+    public ResponseWrapper<Void> delete(@PathVariable Long id) {
+        demoService.delete(id);
+        return ResponseWrapper.success("删除成功");
+    }
+
+    /**
+     * 批量操作
+     * 展示：限流、参数校验
+     */
+    @PostMapping("/batch")
+    @RateLimit(limit = 5, window = 300) // 5分钟最多5次批量操作
+    public ResponseWrapper<Integer> batchProcess(@RequestBody List<Long> ids) {
+        if (ids.size() > 100) {
+            throw new BusinessException(ErrorCode.PARAM_OUT_OF_RANGE, "批量操作不能超过100条");
+        }
+        int processed = demoService.batchProcess(ids);
+        return ResponseWrapper.success("批量处理完成", processed);
+    }
+}
+```
+
+#### 3.4 Service层示例
+```java
+package com.haven.yourservice.service;
+
+import com.haven.base.common.exception.BusinessException;
+import com.haven.base.common.exception.SystemException;
+import com.haven.base.common.response.ErrorCode;
+import com.haven.base.utils.TraceIdUtil;
+import com.haven.base.utils.ValidationUtil;
+import com.haven.base.utils.EncryptUtil;
+import com.haven.base.annotation.TraceLog;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * 业务服务层 - 展示base-model工具类使用
+ *
+ * @author HavenButler
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class DemoService {
+
+    private final StorageServiceClient storageClient; // 假设的存储服务客户端
+
+    /**
+     * 数据验证示例
+     */
+    @TraceLog("验证用户数据")
+    public void validateUserData(UserDTO user) {
+        // 使用ValidationUtil进行参数校验
+        if (!ValidationUtil.isValidPhone(user.getPhone())) {
+            throw new BusinessException(ErrorCode.PARAM_FORMAT_ERROR, "手机号格式不正确");
+        }
+
+        if (!ValidationUtil.isValidEmail(user.getEmail())) {
+            throw new BusinessException(ErrorCode.PARAM_FORMAT_ERROR, "邮箱格式不正确");
+        }
+
+        // 自定义业务校验
+        if (user.getAge() < 18) {
+            throw new BusinessException(ErrorCode.PARAM_OUT_OF_RANGE, "用户年龄不能小于18岁");
+        }
+    }
+
+    /**
+     * 敏感数据处理示例
+     */
+    @TraceLog(value = "处理敏感数据", ignoreParamIndexes = {1}) // 不记录密码参数
+    public void processSensitiveData(String userId, String password) {
+        try {
+            // 生成TraceID用于跟踪
+            String traceId = TraceIdUtil.getCurrentOrGenerate();
+            log.info("处理用户敏感数据, traceId: {}, userId: {}", traceId, userId);
+
+            // 密码加密
+            String hashedPassword = EncryptUtil.hashPassword(password);
+
+            // 敏感信息脱敏后记录
+            String maskedUserId = ValidationUtil.maskIdCard(userId);
+            log.info("用户数据处理完成, maskedUserId: {}", maskedUserId);
+
+            // 调用存储服务保存
+            storageClient.saveUserPassword(userId, hashedPassword);
+
+        } catch (Exception e) {
+            log.error("处理敏感数据失败: {}", e.getMessage(), e);
+            throw new SystemException(ErrorCode.SYSTEM_ERROR, "数据处理失败");
+        }
+    }
+
+    /**
+     * 分页查询示例
+     */
+    public PageResponse<UserDTO> findUsers(PageRequest pageRequest) {
+        try {
+            // 参数校验
+            if (pageRequest.getPage() < 1) {
+                throw new BusinessException(ErrorCode.PARAM_ERROR, "页码不能小于1");
+            }
+
+            if (pageRequest.getSize() > 100) {
+                throw new BusinessException(ErrorCode.PARAM_OUT_OF_RANGE, "每页数量不能超过100");
+            }
+
+            // 调用存储服务
+            return storageClient.findUsersPage(pageRequest);
+
+        } catch (BusinessException e) {
+            throw e; // 业务异常直接抛出
+        } catch (Exception e) {
+            log.error("查询用户列表失败", e);
+            throw new SystemException(ErrorCode.DATABASE_ERROR, "查询失败");
+        }
+    }
+
+    /**
+     * 事务处理示例
+     */
+    @Transactional(rollbackFor = Exception.class)
+    @TraceLog(value = "批量更新用户状态", type = "BATCH_UPDATE")
+    public int batchUpdateUserStatus(List<Long> userIds, String status) {
+        if (userIds.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAM_MISSING, "用户ID列表不能为空");
+        }
+
+        int updatedCount = 0;
+        for (Long userId : userIds) {
+            try {
+                // 检查用户状态
+                UserDTO user = storageClient.findUserById(userId);
+                if (user == null) {
+                    log.warn("用户不存在，跳过更新: {}", userId);
+                    continue;
+                }
+
+                // 更新状态
+                storageClient.updateUserStatus(userId, status);
+                updatedCount++;
+
+            } catch (Exception e) {
+                log.error("更新用户状态失败, userId: {}", userId, e);
+                throw new SystemException(ErrorCode.SYSTEM_ERROR, "批量更新失败");
+            }
+        }
+
+        return updatedCount;
+    }
+}
+```
+
+#### 3.5 配置文件 application.yml
+```yaml
+# 服务基本配置
+server:
+  port: 8080
+  servlet:
+    context-path: /your-service
+
+spring:
+  application:
+    name: your-service
+  profiles:
+    active: dev
+    include: base  # 引入base-model的配置
+
+# BaseModel完整配置
+base-model:
+  # 版本信息
+  version: 1.0.0
+
+  # 链路追踪配置
+  trace:
+    enabled: true                    # 启用TraceID追踪
+    prefix: "tr"                     # TraceID前缀
+    header-name: "X-Trace-Id"        # HTTP头名称
+    exclude-paths:                   # 排除路径
+      - "/actuator/**"               # 健康检查
+      - "/swagger-ui/**"             # API文档
+      - "/v3/api-docs/**"           # OpenAPI文档
+      - "/health"                    # 简单健康检查
+      - "/favicon.ico"              # 图标
+    include-request-params: true     # 是否记录请求参数
+    include-response-body: false     # 是否记录响应体（生产环境建议false）
+    max-body-size: 1024             # 最大记录的body大小（字节）
+
+  # 全局异常处理配置
+  exception:
+    enabled: true                    # 启用全局异常处理
+    include-stack-trace: false      # 是否包含堆栈信息（生产环境false）
+    include-error-detail: true      # 是否包含错误详情
+    default-error-message: "系统繁忙，请稍后重试"  # 默认错误消息
+
+  # 日志配置
+  log:
+    enabled: true                    # 启用日志追踪
+    level: INFO                      # 日志级别
+    format: JSON                     # 日志格式: JSON/SIMPLE
+    include-headers: false          # 是否记录HTTP头
+    include-payload: true           # 是否记录请求/响应载荷
+    max-payload-size: 2048         # 最大载荷大小（字节）
+
+  # 响应配置
+  response:
+    include-timestamp: true          # 响应包含时间戳
+    include-trace-id: true          # 响应包含TraceID
+    include-server-info: false      # 是否包含服务器信息
+    success-message: "操作成功"       # 默认成功消息
+
+  # 加密配置
+  encrypt:
+    enabled: true                    # 启用加密功能
+    algorithm: "AES"                 # 默认加密算法
+    key-size: 256                   # 密钥长度
+    # 注意：实际密钥应该从配置中心获取，不要硬编码
+    # default-key: "your-aes-key"   # 默认密钥（仅测试用）
+
+  # 限流配置
+  rate-limit:
+    enabled: true                    # 启用限流
+    default-limit: 1000             # 默认限制次数
+    default-window: 3600            # 默认时间窗口（秒）
+    redis-key-prefix: "rate_limit:" # Redis key前缀
+
+  # 参数校验配置
+  validation:
+    enabled: true                    # 启用参数校验
+    fail-fast: true                 # 快速失败模式
+    include-field-error: true       # 包含字段错误信息
+
+# 监控配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# 日志配置
+logging:
+  level:
+    com.haven: INFO
+    com.haven.base: DEBUG           # base-model调试日志
+    org.springframework.web: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId}] %logger{50} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId}] %logger{50} - %msg%n"
+```
+
+#### 3.6 生产环境配置 application-prod.yml
+```yaml
+# 生产环境配置
+base-model:
+  trace:
+    include-request-params: false    # 生产环境不记录请求参数
+    include-response-body: false     # 不记录响应体
+
+  exception:
+    include-stack-trace: false      # 生产环境不暴露堆栈信息
+    include-error-detail: false     # 不暴露错误详情
+
+  log:
+    level: WARN                     # 生产环境只记录警告以上级别
+    include-payload: false          # 不记录载荷
+    include-headers: false          # 不记录头信息
+
+  encrypt:
+    # 从环境变量或配置中心获取密钥
+    default-key: ${ENCRYPT_KEY:}
+
+# 日志配置
+logging:
+  level:
+    root: WARN
+    com.haven: INFO
+    com.haven.base: WARN            # 生产环境减少base-model日志
+```
+
+### 4. 验证集成是否成功
+
+#### 4.1 启动检查
+```bash
+# 1. 编译项目
+mvn clean compile
+
+# 2. 启动服务
+mvn spring-boot:run
+
+# 3. 检查日志是否包含base-model初始化信息
+# 应该能看到类似以下日志：
+# BaseModelAutoConfiguration - base-model配置加载完成，版本: 1.0.0
+# TraceIdInterceptor - TraceID拦截器注册成功
+# GlobalExceptionHandler - 全局异常处理器启用
+```
+
+#### 4.2 功能验证
+```bash
+# 测试TraceID生成
+curl -H "Content-Type: application/json" \
+     http://localhost:8080/your-service/api/v1/demo/1
+
+# 响应应该包含traceId字段：
+# {
+#   "code": 0,
+#   "message": "操作成功",
+#   "data": {...},
+#   "traceId": "tr-20250116-143022-a3b5c7",
+#   "timestamp": 1705396202000
+# }
+
+# 测试异常处理
+curl http://localhost:8080/your-service/api/v1/demo/999999
+
+# 应该返回标准错误格式：
+# {
+#   "code": 40001,
+#   "message": "数据不存在",
+#   "data": null,
+#   "traceId": "tr-20250116-143030-b4c6d8",
+#   "timestamp": 1705396210000
+# }
+```
+
+#### 4.3 监控检查
+```bash
+# 检查健康状态
+curl http://localhost:8080/your-service/actuator/health
+
+# 检查指标
+curl http://localhost:8080/your-service/actuator/metrics
+```
+
+### 5. 常见问题排查
+
+#### 问题1：依赖下载失败
+```
+错误：Could not find artifact com.haven:base-model:jar:1.0.0
+```
+**解决方案**：
+1. 检查 `~/.m2/settings.xml` 中的GitHub认证配置
+2. 确认Personal Access Token具有 `read:packages` 权限
+3. 验证仓库URL是否正确：`https://maven.pkg.github.com/LHGrayHUIHUI/HavenButlers`
+
+#### 问题2：自动配置不生效
+```
+错误：No bean of type 'GlobalExceptionHandler' found
+```
+**解决方案**：
+1. 确认启动类包路径包含 `com.haven` 或添加 `@ComponentScan("com.haven")`
+2. 或者显式导入：`@Import(BaseModelAutoConfiguration.class)`
+
+#### 问题3：TraceID不生成
+```
+问题：响应中没有traceId字段
+```
+**解决方案**：
+1. 检查配置：`base-model.trace.enabled=true`
+2. 确认请求路径不在 `exclude-paths` 中
+3. 检查是否有其他拦截器冲突
+
+#### 问题4：全局异常处理不工作
+```
+问题：异常没有被统一处理
+```
+**解决方案**：
+1. 确认配置：`base-model.exception.enabled=true`
+2. 检查是否有其他 `@RestControllerAdvice` 覆盖
+3. 验证异常类型是否继承自 `BaseException`
+
+### 6. 技术支持
+
+如果在集成过程中遇到问题，请按以下步骤排查：
+
+1. **查看启动日志**：确认base-model相关组件是否正常加载
+2. **检查配置文件**：对比本文档中的配置示例
+3. **验证依赖版本**：确保使用的是正确的base-model版本
+4. **环境检查**：确认Java版本≥17，Maven版本≥3.6
+5. **网络检查**：确认能访问GitHub Packages
+
+更多技术细节请参考源码中的JavaDoc注释和单元测试用例。
+
 ## 更新历史
 - v1.0.0 (2025-01-16): 初始版本发布，完整实现所有基础功能

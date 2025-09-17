@@ -1,6 +1,5 @@
 package com.haven.base.common.response;
 
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 /**
@@ -15,7 +14,6 @@ import lombok.Getter;
  * @author HavenButler
  */
 @Getter
-@AllArgsConstructor
 public enum ErrorCode {
 
     // ========== 成功响应 ==========
@@ -103,6 +101,14 @@ public enum ErrorCode {
      * 错误消息
      */
     private final String message;
+
+    /**
+     * 构造函数
+     */
+    ErrorCode(int code, String message) {
+        this.code = code;
+        this.message = message;
+    }
 
     /**
      * 根据错误码获取错误枚举

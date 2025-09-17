@@ -45,13 +45,13 @@ public class RateLimitAspect {
 
             // 第一次访问，设置过期时间
             if (count == 1) {
-                redisUtils.expire(key, rateLimit.window());
+                redisUtils.expire(key, rateLimit.window(), java.util.concurrent.TimeUnit.SECONDS);
             }
 
             // 检查是否超过限制
             if (count > rateLimit.limit()) {
                 log.warn("限流触发: key={}, count={}, limit={}", key, count, rateLimit.limit());
-                throw new BusinessException(ErrorCode.TOO_MANY_REQUESTS,
+                throw new BusinessException(ErrorCode.RATE_LIMIT_ERROR,
                         StringUtils.defaultIfBlank(rateLimit.message(), "请求过于频繁，请稍后再试"));
             }
 

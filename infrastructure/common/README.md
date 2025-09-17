@@ -266,6 +266,114 @@ public class LogUtils {
 }
 ```
 
+## GitHub Packages Maven配置
+
+### 1. 认证配置
+
+在`~/.m2/settings.xml`中添加GitHub认证信息：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+          http://maven.apache.org/xsd/settings-1.0.0.xsd">
+
+    <servers>
+        <server>
+            <id>github</id>
+            <username>你的GitHub用户名</username>
+            <password>你的GitHub Personal Access Token</password>
+        </server>
+    </servers>
+
+</settings>
+```
+
+**获取GitHub Personal Access Token步骤**：
+1. 访问 GitHub > Settings > Developer settings > Personal access tokens > Tokens (classic)
+2. 点击 "Generate new token (classic)"
+3. 勾选以下权限：
+   - ✅ `read:packages` - 读取包权限
+   - ✅ `write:packages` - 发布包权限（如果需要）
+   - ✅ `repo` - 仓库访问权限
+4. 生成token并复制到settings.xml中
+
+### 2. 项目pom.xml配置
+
+在你的微服务项目中配置仓库地址和依赖：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <!-- 添加GitHub Packages仓库 -->
+    <repositories>
+        <repository>
+            <id>github</id>
+            <name>GitHub Packages</name>
+            <url>https://maven.pkg.github.com/LHGrayHUIHUI/HavenButlers</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <!-- HavenButler base-model依赖 -->
+        <dependency>
+            <groupId>com.haven</groupId>
+            <artifactId>base-model</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+
+        <!-- HavenButler common依赖 -->
+        <dependency>
+            <groupId>com.haven</groupId>
+            <artifactId>common</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+
+        <!-- 其他依赖... -->
+    </dependencies>
+
+</project>
+```
+
+### 3. 依赖层级说明
+
+Common模块的依赖关系：
+```
+你的微服务
+    ↓
+common (公共组件库)
+    ↓
+base-model (基础模型库)
+    ↓
+Spring Boot 3.1.0 + Java 17
+```
+
+- **base-model**: 提供基础的响应包装、异常处理、工具类
+- **common**: 在base-model基础上提供Redis、安全、消息队列等高级功能
+- **你的微服务**: 使用common提供的所有功能
+
+### 4. 自动配置激活
+
+Common模块会自动配置以下组件：
+- ✅ **RedisUtils**: Redis工具类（需要Redis连接配置）
+- ✅ **RedisCache**: Redis缓存管理器
+- ✅ **DistributedLock**: 分布式锁
+- ✅ **JwtUtils**: JWT工具类
+- ✅ **ThreadPoolUtils**: 线程池工具类
+- ✅ **HttpUtils**: HTTP客户端工具
+- ✅ **MessageSender**: 消息发送器（需要RabbitMQ配置）
+
 ## Maven依赖
 
 ```xml
@@ -742,6 +850,80 @@ public class ExternalApiService {
 - 检查Redis连接状态
 - 调整锁超时时间
 - 使用重试机制
+
+### 常见问题排查
+
+#### 问题1：依赖下载失败
+```
+错误：Could not find artifact com.haven:common:jar:1.0.0
+```
+**解决方案**：
+1. 检查 `~/.m2/settings.xml` 中的GitHub认证配置
+2. 确认Personal Access Token具有 `read:packages` 权限
+3. 验证仓库URL是否正确：`https://maven.pkg.github.com/LHGrayHUIHUI/HavenButlers`
+
+#### 问题2：自动配置不生效
+```
+错误：No bean of type 'RedisUtils' found
+```
+**解决方案**：
+1. 确认启动类包路径包含 `com.haven` 或添加 `@ComponentScan("com.haven")`
+2. 检查相关配置是否启用：`common.redis.enabled=true`
+3. 确认依赖正确导入且没有冲突
+
+#### 问题3：Redis连接失败
+```
+错误：Unable to connect to Redis
+```
+**解决方案**：
+1. 检查Redis服务是否启动：`redis-cli ping`
+2. 验证连接配置：host、port、password等
+3. 检查防火墙和网络连接
+4. 确认Redis配置格式正确
+
+#### 问题4：JWT验证失败
+```
+错误：JWT signature does not match locally computed signature
+```
+**解决方案**：
+1. 检查所有服务使用相同的JWT密钥
+2. 确认密钥配置正确且没有特殊字符问题
+3. 验证时间同步（JWT有时间敏感性）
+4. 检查算法是否一致（默认使用HS256）
+
+#### 问题5：分布式锁获取失败
+```
+错误：无法获取分布式锁
+```
+**解决方案**：
+1. 检查Redis连接状态
+2. 调整锁超时时间（避免设置过短）
+3. 使用重试机制：`tryLockWithRetry`
+4. 检查锁键是否冲突
+5. 监控锁使用情况，避免死锁
+
+### 技术支持
+
+如果在集成过程中遇到问题，请按以下步骤排查：
+
+1. **查看启动日志**：确认common相关组件是否正常加载
+2. **检查配置文件**：对比本文档中的配置示例
+3. **验证依赖版本**：确保使用的是正确的common版本
+4. **环境检查**：确认Java版本≥17，Maven版本≥3.6
+5. **网络检查**：确认能访问GitHub Packages和Redis/RabbitMQ等服务
+
+更多技术细节请参考源码中的JavaDoc注释和单元测试用例。
+
+### 版本兼容性
+
+| Common版本 | Base-Model版本 | Spring Boot版本 | Java版本 |
+|------------|----------------|-----------------|----------|
+| 1.0.0      | 1.0.0         | 3.1.0          | 17+      |
+
+**升级注意事项**：
+- Spring Boot 3.x 使用 Jakarta EE，不兼容 javax 命名空间
+- Java 17 是最低要求版本
+- Redis客户端使用Lettuce，配置与Jedis略有不同
 
 ## 更新历史
 - v1.0.0 (2025-01-16): 初始版本发布，完整实现Redis、安全、工具类等功能
