@@ -1,6 +1,9 @@
 package com.haven.admin.config;
 
+import com.haven.admin.model.AlertRule;
 import com.haven.admin.service.AlertService;
+import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Autowired;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.actuate.autoconfigure.endpoint.web.CorsEndpointProperties;
 import org.springframework.boot.actuate.autoconfigure.endpoint.web.WebEndpointProperties;
@@ -17,7 +20,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
-import javax.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -31,6 +33,9 @@ import java.util.List;
 @Configuration
 @EnableScheduling
 public class AdminConfiguration {
+
+    @Autowired
+    private AlertService alertService;
 
     @PostConstruct
     public void init() {
@@ -50,70 +55,75 @@ public class AdminConfiguration {
      * 初始化默认告警规则
      */
     private void initDefaultAlertRules() {
-        AlertService alertService = alertService();
 
         // CPU使用率告警
-        alertService.addAlertRule(AlertService.AlertRule.builder()
-                .ruleId("cpu-high")
-                .ruleName("CPU使用率过高")
-                .metricName("system.cpu.usage")
-                .operator(AlertService.ComparisonOperator.GREATER_THAN)
-                .threshold(0.8)
-                .level(AlertService.AlertLevel.WARNING)
-                .messageTemplate("CPU使用率达到%.1f%%")
-                .build());
+        AlertRule cpuRule = new AlertRule();
+        cpuRule.setName("CPU使用率过高");
+        cpuRule.setDescription("监控系统CPU使用率");
+        cpuRule.setServiceName("system");
+        cpuRule.setMetricName("system.cpu.usage");
+        cpuRule.setOperator(AlertRule.Operator.GREATER_THAN);
+        cpuRule.setThreshold(80.0);
+        cpuRule.setLevel(AlertRule.AlertLevel.WARNING);
+        cpuRule.setMessageTemplate("CPU使用率达到%.1f%%");
+        cpuRule.setNotifyType(AlertRule.NotifyType.EMAIL);
+        alertService.createAlertRule(cpuRule);
 
         // 内存使用率告警
-        alertService.addAlertRule(AlertService.AlertRule.builder()
-                .ruleId("memory-high")
-                .ruleName("内存使用率过高")
-                .metricName("system.memory.usage")
-                .operator(AlertService.ComparisonOperator.GREATER_THAN)
-                .threshold(0.85)
-                .level(AlertService.AlertLevel.WARNING)
-                .messageTemplate("内存使用率达到%.1f%%")
-                .build());
+        AlertRule memoryRule = new AlertRule();
+        memoryRule.setName("内存使用率过高");
+        memoryRule.setDescription("监控系统内存使用率");
+        memoryRule.setServiceName("system");
+        memoryRule.setMetricName("system.memory.usage");
+        memoryRule.setOperator(AlertRule.Operator.GREATER_THAN);
+        memoryRule.setThreshold(85.0);
+        memoryRule.setLevel(AlertRule.AlertLevel.WARNING);
+        memoryRule.setMessageTemplate("内存使用率达到%.1f%%");
+        memoryRule.setNotifyType(AlertRule.NotifyType.EMAIL);
+        alertService.createAlertRule(memoryRule);
 
         // 磁盘使用率告警
-        alertService.addAlertRule(AlertService.AlertRule.builder()
-                .ruleId("disk-high")
-                .ruleName("磁盘使用率过高")
-                .metricName("disk.usage")
-                .operator(AlertService.ComparisonOperator.GREATER_THAN)
-                .threshold(0.9)
-                .level(AlertService.AlertLevel.CRITICAL)
-                .messageTemplate("磁盘使用率达到%.1f%%")
-                .build());
+        AlertRule diskRule = new AlertRule();
+        diskRule.setName("磁盘使用率过高");
+        diskRule.setDescription("监控磁盘使用率");
+        diskRule.setServiceName("system");
+        diskRule.setMetricName("disk.usage");
+        diskRule.setOperator(AlertRule.Operator.GREATER_THAN);
+        diskRule.setThreshold(90.0);
+        diskRule.setLevel(AlertRule.AlertLevel.CRITICAL);
+        diskRule.setMessageTemplate("磁盘使用率达到%.1f%%");
+        diskRule.setNotifyType(AlertRule.NotifyType.SMS);
+        alertService.createAlertRule(diskRule);
 
         // API错误率告警
-        alertService.addAlertRule(AlertService.AlertRule.builder()
-                .ruleId("api-error-rate")
-                .ruleName("API错误率过高")
-                .metricName("api.error.rate")
-                .operator(AlertService.ComparisonOperator.GREATER_THAN)
-                .threshold(0.05)
-                .level(AlertService.AlertLevel.WARNING)
-                .messageTemplate("API错误率达到%.1f%%")
-                .build());
+        AlertRule apiErrorRule = new AlertRule();
+        apiErrorRule.setName("API错误率过高");
+        apiErrorRule.setDescription("监控API接口错误率");
+        apiErrorRule.setServiceName("gateway");
+        apiErrorRule.setMetricName("api.error.rate");
+        apiErrorRule.setOperator(AlertRule.Operator.GREATER_THAN);
+        apiErrorRule.setThreshold(5.0);
+        apiErrorRule.setLevel(AlertRule.AlertLevel.WARNING);
+        apiErrorRule.setMessageTemplate("API错误率达到%.1f%%");
+        apiErrorRule.setNotifyType(AlertRule.NotifyType.WEBHOOK);
+        alertService.createAlertRule(apiErrorRule);
 
         // 响应时间告警
-        alertService.addAlertRule(AlertService.AlertRule.builder()
-                .ruleId("response-slow")
-                .ruleName("响应时间过长")
-                .metricName("http.response.time")
-                .operator(AlertService.ComparisonOperator.GREATER_THAN)
-                .threshold(2000)
-                .level(AlertService.AlertLevel.WARNING)
-                .messageTemplate("平均响应时间达到%.0fms")
-                .build());
+        AlertRule responseTimeRule = new AlertRule();
+        responseTimeRule.setName("响应时间过长");
+        responseTimeRule.setDescription("监控HTTP响应时间");
+        responseTimeRule.setServiceName("gateway");
+        responseTimeRule.setMetricName("http.response.time");
+        responseTimeRule.setOperator(AlertRule.Operator.GREATER_THAN);
+        responseTimeRule.setThreshold(2000.0);
+        responseTimeRule.setLevel(AlertRule.AlertLevel.WARNING);
+        responseTimeRule.setMessageTemplate("平均响应时间达到%.0fms");
+        responseTimeRule.setNotifyType(AlertRule.NotifyType.EMAIL);
+        alertService.createAlertRule(responseTimeRule);
 
         log.info("默认告警规则初始化完成");
     }
 
-    @Bean
-    public AlertService alertService() {
-        return new AlertService();
-    }
 
     /**
      * 解决Spring Boot Admin与Actuator端点映射问题

@@ -235,14 +235,7 @@ public class ServiceManageService {
         int end = Math.min(start + pageRequest.getSize(), logs.size());
         List<String> pageLogs = logs.subList(start, end);
 
-        PageResponse<String> response = new PageResponse<>();
-        response.setContent(pageLogs);
-        response.setTotalElements((long) logs.size());
-        response.setTotalPages((logs.size() + pageRequest.getSize() - 1) / pageRequest.getSize());
-        response.setPage(pageRequest.getPage());
-        response.setSize(pageRequest.getSize());
-
-        return response;
+        return PageResponse.of(pageLogs, (long) logs.size(), pageRequest);
     }
 
     /**

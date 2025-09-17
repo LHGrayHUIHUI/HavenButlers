@@ -6,6 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 /**
  * Admin管理服务启动类
  *
+ *
  * @author HavenButler
  */
 @SpringBootApplication

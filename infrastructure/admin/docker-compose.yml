@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  admin-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: admin-service:latest
+    container_name: haven-admin-service
+    ports:
+      - "8888:8888"  # 映射到主机8888端口
+    networks:
+      - haven-network
+    environment:
+      # Spring Boot配置
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_APPLICATION_NAME=admin-service
+      - SERVER_PORT=8888
+
+      # 管理配置
+      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,metrics,prometheus
+      - MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS=when-authorized
+
+      # Spring Boot Admin配置
+      - SPRING_BOOT_ADMIN_UI_TITLE=HavenButler管理中心
+      - SPRING_BOOT_ADMIN_UI_BRAND=HavenButler
+
+      # 安全配置
+      - SPRING_SECURITY_USER_NAME=admin
+      - SPRING_SECURITY_USER_PASSWORD=havenbutler2025
+      - SPRING_SECURITY_USER_ROLES=ADMIN
+
+      # 日志配置
+      - LOGGING_LEVEL_ROOT=INFO
+      - LOGGING_LEVEL_COM_HAVEN=DEBUG
+      - LOGGING_PATTERN_CONSOLE=%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId}] %logger{50} - %msg%n
+
+      # 时区设置
+      - TZ=Asia/Shanghai
+    volumes:
+      - admin-logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    depends_on: []  # admin服务通常不依赖其他服务
+    labels:
+      - "com.haven.service=admin"
+      - "com.haven.version=1.0.0"
+      - "com.haven.description=HavenButler管理服务"
+
+volumes:
+  admin-logs:
+    driver: local
+
+networks:
+  haven-network:
+    external: true  # 使用外部网络，与其他服务共享
