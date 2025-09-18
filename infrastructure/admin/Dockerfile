@@ -1,5 +1,5 @@
 # 简单的Spring Boot应用Dockerfile
-FROM openjdk:17-jre-slim
+FROM eclipse-temurin:17-jre
 
 # 复制jar文件
 COPY target/admin-service-*.jar app.jar
