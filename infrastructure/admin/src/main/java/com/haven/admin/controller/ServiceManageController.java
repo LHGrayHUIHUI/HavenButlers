@@ -3,11 +3,13 @@ package com.haven.admin.controller;
 import com.haven.admin.model.ServiceInfo;
 import com.haven.admin.model.ServiceMetrics;
 import com.haven.admin.service.ServiceManageService;
+import com.haven.admin.service.NacosServiceManager;
 import com.haven.base.common.response.ResponseWrapper;
 import com.haven.base.model.dto.PageRequest;
 import com.haven.base.model.dto.PageResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,6 +27,7 @@ import java.util.Map;
 public class ServiceManageController {
 
     private final ServiceManageService serviceManageService;
+    private final NacosServiceManager nacosServiceManager;
 
     /**
      * 获取所有服务列表
@@ -138,6 +141,87 @@ public class ServiceManageController {
     @PostMapping("/health-check")
     public ResponseWrapper<Map<String, String>> healthCheck() {
         Map<String, String> result = serviceManageService.performHealthCheck();
+        return ResponseWrapper.success(result);
+    }
+
+    // =============== Nacos专用API ===============
+
+    /**
+     * 获取Nacos中的所有服务名称
+     */
+    @GetMapping("/nacos/services")
+    public ResponseWrapper<List<String>> getNacosServices() {
+        List<String> services = nacosServiceManager.getAllServiceNames();
+        return ResponseWrapper.success(services);
+    }
+
+    /**
+     * 获取指定服务的所有实例（Nacos）
+     */
+    @GetMapping("/nacos/{serviceName}/instances")
+    public ResponseWrapper<List<ServiceInstance>> getServiceInstances(@PathVariable String serviceName) {
+        List<ServiceInstance> instances = nacosServiceManager.getServiceInstances(serviceName);
+        return ResponseWrapper.success(instances);
+    }
+
+    /**
+     * 获取服务详细信息（包含Nacos特有信息）
+     */
+    @GetMapping("/nacos/{serviceName}/details")
+    public ResponseWrapper<Map<String, Object>> getNacosServiceDetails(@PathVariable String serviceName) {
+        Map<String, Object> details = nacosServiceManager.getServiceDetails(serviceName);
+        return ResponseWrapper.success(details);
+    }
+
+    /**
+     * 获取Nacos服务健康状态
+     */
+    @GetMapping("/nacos/{serviceName}/health")
+    public ResponseWrapper<Map<String, Object>> getNacosServiceHealth(@PathVariable String serviceName) {
+        Map<String, Object> health = nacosServiceManager.getServiceHealth(serviceName);
+        return ResponseWrapper.success(health);
+    }
+
+    /**
+     * 获取系统整体健康状态
+     */
+    @GetMapping("/nacos/system/health")
+    public ResponseWrapper<Map<String, Object>> getSystemHealth() {
+        Map<String, Object> systemHealth = nacosServiceManager.getSystemHealth();
+        return ResponseWrapper.success(systemHealth);
+    }
+
+    /**
+     * 临时下线服务实例（维护模式）
+     */
+    @PostMapping("/nacos/{serviceName}/deregister")
+    public ResponseWrapper<Boolean> deregisterInstance(
+            @PathVariable String serviceName,
+            @RequestParam String ip,
+            @RequestParam int port) {
+        boolean result = nacosServiceManager.deregisterInstance(serviceName, ip, port);
+        if (result) {
+            log.info("临时下线服务实例成功: {}:{}:{}", serviceName, ip, port);
+        } else {
+            log.error("临时下线服务实例失败: {}:{}:{}", serviceName, ip, port);
+        }
+        return ResponseWrapper.success(result);
+    }
+
+    /**
+     * 重新上线服务实例
+     */
+    @PostMapping("/nacos/{serviceName}/register")
+    public ResponseWrapper<Boolean> registerInstance(
+            @PathVariable String serviceName,
+            @RequestParam String ip,
+            @RequestParam int port) {
+        boolean result = nacosServiceManager.registerInstance(serviceName, ip, port);
+        if (result) {
+            log.info("重新上线服务实例成功: {}:{}:{}", serviceName, ip, port);
+        } else {
+            log.error("重新上线服务实例失败: {}:{}:{}", serviceName, ip, port);
+        }
         return ResponseWrapper.success(result);
     }
 }

@@ -15,6 +15,26 @@ spring:
         title: HavenButler Admin Console
         brand: HavenButler管理控制台
 
+  # Nacos配置
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:havenbutler}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        enabled: true
+        service: ${spring.application.name}
+        metadata:
+          management.context-path: /actuator
+          version: 1.0.0
+          zone: admin
+      config:
+        server-addr: ${NACOS_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:havenbutler}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        file-extension: yaml
+        enabled: true
+
 # Actuator配置
 management:
   endpoints:
@@ -28,6 +48,20 @@ management:
     export:
       prometheus:
         enabled: true
+
+# Prometheus配置
+prometheus:
+  url: ${PROMETHEUS_URL:http://localhost:9090}
+
+# 告警配置
+alert:
+  notification:
+    webhook:
+      url: ${ALERT_WEBHOOK_URL:}
+    email:
+      enabled: ${ALERT_EMAIL_ENABLED:false}
+    sms:
+      enabled: ${ALERT_SMS_ENABLED:false}
 
 # 日志配置
 logging:

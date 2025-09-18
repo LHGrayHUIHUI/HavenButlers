@@ -18,11 +18,11 @@ spring:
     admin:
       ui:
         title: "HavenButler管理中心"
-        brand: "HavenButler"
+        brand: "HavenButler管理控制台"
         favicon: "classpath:/static/favicon.ico"
         login-icon: "classpath:/static/logo.png"
       discovery:
-        enabled: false  # 暂时禁用服务发现
+        enabled: true  # 启用服务发现，与Nacos集成
       monitor:
         default-timeout: 10000
         default-retries: 3
@@ -34,16 +34,36 @@ spring:
       password: ${SPRING_SECURITY_USER_PASSWORD:havenbutler2025}
       roles: ${SPRING_SECURITY_USER_ROLES:ADMIN}
 
+  # Nacos配置 - Docker环境
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:nacos:8848}
+        namespace: ${NACOS_NAMESPACE:havenbutler}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        enabled: true
+        service: ${spring.application.name}
+        metadata:
+          management.context-path: /actuator
+          version: 1.0.0
+          zone: admin
+      config:
+        server-addr: ${NACOS_ADDR:nacos:8848}
+        namespace: ${NACOS_NAMESPACE:havenbutler}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        file-extension: yaml
+        enabled: true
+
 # 监控端点配置
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus,beans,env,configprops
+        include: '*'
       base-path: /actuator
   endpoint:
     health:
-      show-details: when-authorized
+      show-details: always
       show-components: always
   health:
     rabbit:
@@ -75,6 +95,20 @@ logging:
       max-file-size: 100MB
       max-history: 30
       total-size-cap: 3GB
+
+# Prometheus配置 - Docker环境
+prometheus:
+  url: ${PROMETHEUS_URL:http://prometheus:9090}
+
+# 告警配置 - Docker环境
+alert:
+  notification:
+    webhook:
+      url: ${ALERT_WEBHOOK_URL:}
+    email:
+      enabled: ${ALERT_EMAIL_ENABLED:false}
+    sms:
+      enabled: ${ALERT_SMS_ENABLED:false}
 
 # Base-Model配置
 base-model:

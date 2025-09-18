@@ -74,6 +74,11 @@ public class Alert {
     private Instant timestamp;
 
     /**
+     * 创建时间
+     */
+    private LocalDateTime createTime;
+
+    /**
      * 告警状态
      */
     private AlertStatus status;
@@ -99,11 +104,35 @@ public class Alert {
     private Map<String, Object> metadata;
 
     /**
+     * 当前值（兼容性方法）
+     */
+    public Double getCurrentValue() {
+        return this.value;
+    }
+
+    public void setCurrentValue(Double currentValue) {
+        this.value = currentValue;
+    }
+
+    /**
+     * 备注（兼容性方法）
+     */
+    public String getRemark() {
+        return this.handleRemark;
+    }
+
+    public void setRemark(String remark) {
+        this.handleRemark = remark;
+    }
+
+    /**
      * 告警状态
      */
     public enum AlertStatus {
+        ACTIVE("活跃"),
         PENDING("待处理"),
         PROCESSING("处理中"),
+        HANDLED("已处理"),
         RESOLVED("已解决"),
         IGNORED("已忽略");
 

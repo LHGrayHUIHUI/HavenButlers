@@ -7,8 +7,8 @@ import com.haven.storage.file.adapter.LocalStorageAdapter;
 import com.haven.storage.file.adapter.MinIOStorageAdapter;
 import com.haven.storage.file.adapter.CloudStorageAdapter;
 import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -41,16 +41,20 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class FamilyFileStorageService {
 
     @Value("${storage.file.storage-type:local}")
     private String storageType;
 
     // 存储适配器实例
-    private final LocalStorageAdapter localStorageAdapter;
-    private final MinIOStorageAdapter minioStorageAdapter;
-    private final CloudStorageAdapter cloudStorageAdapter;
+    @Autowired(required = false)
+    private LocalStorageAdapter localStorageAdapter;
+
+    @Autowired(required = false)
+    private MinIOStorageAdapter minioStorageAdapter;
+
+    @Autowired(required = false)
+    private CloudStorageAdapter cloudStorageAdapter;
 
     // 当前使用的存储适配器
     private StorageAdapter currentStorageAdapter;
@@ -68,16 +72,28 @@ public class FamilyFileStorageService {
     public void initializeStorageAdapter() {
         switch (storageType.toLowerCase()) {
             case "local":
+                if (localStorageAdapter == null) {
+                    throw new IllegalStateException("LocalStorageAdapter未配置，无法使用本地存储");
+                }
                 currentStorageAdapter = localStorageAdapter;
                 break;
             case "minio":
+                if (minioStorageAdapter == null) {
+                    throw new IllegalStateException("MinIOStorageAdapter未配置，无法使用MinIO存储");
+                }
                 currentStorageAdapter = minioStorageAdapter;
                 break;
             case "cloud":
+                if (cloudStorageAdapter == null) {
+                    throw new IllegalStateException("CloudStorageAdapter未配置，无法使用云存储");
+                }
                 currentStorageAdapter = cloudStorageAdapter;
                 break;
             default:
                 log.warn("未知的存储类型：{}，使用本地存储作为默认选项", storageType);
+                if (localStorageAdapter == null) {
+                    throw new IllegalStateException("LocalStorageAdapter未配置，无法使用默认本地存储");
+                }
                 currentStorageAdapter = localStorageAdapter;
                 break;
         }

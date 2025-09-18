@@ -4,7 +4,7 @@ services:
   # PostgreSQL数据库
   postgres:
     image: postgres:15-alpine
-    container_name: storage-postgres
+    container_name: postgres
     environment:
       POSTGRES_DB: smarthome
       POSTGRES_USER: postgres
@@ -14,12 +14,12 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - storage-network
+      - haven-network
 
   # MongoDB数据库
   mongodb:
     image: mongo:6.0
-    container_name: storage-mongodb
+    container_name: mongodb
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: password
@@ -29,24 +29,24 @@ services:
     volumes:
       - mongo_data:/data/db
     networks:
-      - storage-network
+      - haven-network
 
   # Redis缓存
   redis:
     image: redis:7-alpine
-    container_name: storage-redis
+    container_name: redis
     command: redis-server --appendonly yes --requirepass password
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
     networks:
-      - storage-network
+      - haven-network
 
   # MinIO对象存储
   minio:
     image: minio/minio:latest
-    container_name: storage-minio
+    container_name: minio
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin
@@ -57,12 +57,12 @@ services:
     volumes:
       - minio_data:/data
     networks:
-      - storage-network
+      - haven-network
 
   # Nacos服务注册中心
   nacos:
     image: nacos/nacos-server:v2.3.0-slim
-    container_name: storage-nacos
+    container_name: nacos
     platform: linux/amd64
     environment:
       MODE: standalone
@@ -73,7 +73,7 @@ services:
     volumes:
       - nacos_data:/home/nacos/data
     networks:
-      - storage-network
+      - haven-network
 
   # Storage Service
   storage-service:
@@ -114,7 +114,7 @@ services:
       - minio
       - nacos
     networks:
-      - storage-network
+      - haven-network
     restart: unless-stopped
 
 volumes:
@@ -126,5 +126,5 @@ volumes:
   storage_data:
 
 networks:
-  storage-network:
-    driver: bridge
+  haven-network:
+    external: true
