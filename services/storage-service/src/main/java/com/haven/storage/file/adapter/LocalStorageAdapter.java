@@ -110,7 +110,7 @@ public class LocalStorageAdapter implements StorageAdapter {
             log.info("文件上传成功：familyId={}, fileId={}, fileName={}, size={}",
                     familyId, fileId, fileName, file.getSize());
 
-            return FileUploadResult.success(metadata);
+            return FileUploadResult.success(metadata, "tr-" + System.currentTimeMillis());
 
         } catch (IOException e) {
             log.error("文件上传失败：familyId={}, fileName={}, error={}",
@@ -140,7 +140,12 @@ public class LocalStorageAdapter implements StorageAdapter {
             log.info("文件下载成功：familyId={}, fileId={}, size={}",
                     familyId, fileId, fileContent.length);
 
-            return FileDownloadResult.success(fileContent, fileName, getContentType(fileName));
+            // 创建临时的FileMetadata用于返回
+            FileMetadata tempMetadata = new FileMetadata();
+            tempMetadata.setOriginalName(fileName);
+            tempMetadata.setContentType(getContentType(fileName));
+
+            return FileDownloadResult.success(fileContent, tempMetadata, "tr-" + System.currentTimeMillis());
 
         } catch (IOException e) {
             log.error("文件下载失败：familyId={}, fileId={}, error={}",

@@ -8,6 +8,7 @@ import com.haven.storage.knowledge.*;
 import com.haven.storage.vectortag.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -357,7 +358,7 @@ public class StorageController {
         if (success) {
             return ResponseWrapper.success("存储方式切换成功：" + storageType);
         } else {
-            return ResponseWrapper.error("存储方式切换失败");
+            return ResponseWrapper.<String>error(40001, "存储方式切换失败", null);
         }
     }
 
@@ -390,7 +391,7 @@ public class StorageController {
         if (accessUrl != null) {
             return ResponseWrapper.success(accessUrl);
         } else {
-            return ResponseWrapper.error("无法生成文件访问URL");
+            return ResponseWrapper.<String>error(40002, "无法生成文件访问URL", null);
         }
     }
 

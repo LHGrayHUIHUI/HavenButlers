@@ -67,7 +67,7 @@ public class PersonalKnowledgeBaseService {
             knowledgeBase.setDescription(request.getDescription());
             knowledgeBase.setCategory(request.getCategory());
             knowledgeBase.setCreatedBy(request.getCreatorUserId());
-            knowledgeBase.setCreatedAt(LocalDateTime.now());
+            // setCreatedAt会通过BaseEntity自动设置
             knowledgeBase.setLastUpdated(LocalDateTime.now());
             knowledgeBase.setDocumentCount(0);
             knowledgeBase.setVectorCount(0);
@@ -269,7 +269,7 @@ public class PersonalKnowledgeBaseService {
 
             // 计算标签统计
             Map<String, Integer> tagStats = vectors.stream()
-                    .flatMap(v -> v.getMetadata().getOrDefault("tags", new ArrayList<String>()).stream())
+                    .flatMap(v -> ((List<String>) v.getMetadata().getOrDefault("tags", new ArrayList<String>())).stream())
                     .collect(Collectors.groupingBy(
                             tag -> (String) tag,
                             Collectors.collectingAndThen(Collectors.counting(), Math::toIntExact)

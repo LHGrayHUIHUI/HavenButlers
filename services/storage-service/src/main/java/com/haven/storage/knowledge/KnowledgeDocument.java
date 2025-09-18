@@ -3,6 +3,7 @@ package com.haven.storage.knowledge;
 import com.haven.base.model.entity.BaseEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -20,4 +21,5 @@ public class KnowledgeDocument extends BaseEntity {
     private String fileId;
     private String addedBy;
     private List<String> tags;
+    private LocalDateTime addedAt;      // 添加时间
 }

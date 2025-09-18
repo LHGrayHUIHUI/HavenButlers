@@ -21,4 +21,5 @@ public class DatabaseConnectionInfo extends BaseEntity {
     private String driverClassName;
     private Integer maxConnections;
     private Integer connectionTimeout;
+    private String traceId;          // 链路追踪ID
 }

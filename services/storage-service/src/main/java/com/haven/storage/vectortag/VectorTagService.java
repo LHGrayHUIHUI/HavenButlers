@@ -103,7 +103,7 @@ public class VectorTagService {
                     vectorTag.setTagVector(keywordVector);
                     vectorTag.setSimilarityScore(similarity);
                     vectorTag.setTagType(determineTagType(keyword));
-                    vectorTag.setCreatedAt(LocalDateTime.now());
+                    // setCreatedAt会通过BaseEntity自动设置
                     vectorTag.setUserId(request.getUserId());
 
                     vectorTags.add(vectorTag);
@@ -133,7 +133,7 @@ public class VectorTagService {
                         vectorTag.setTagVector(tagVector);
                         vectorTag.setSimilarityScore(similarity);
                         vectorTag.setTagType(TagType.RECOMMENDED);
-                        vectorTag.setCreatedAt(LocalDateTime.now());
+                        // setCreatedAt会通过BaseEntity自动设置
                         vectorTag.setUserId(request.getUserId());
 
                         vectorTags.add(vectorTag);

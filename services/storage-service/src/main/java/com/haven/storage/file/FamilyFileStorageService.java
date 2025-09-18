@@ -6,13 +6,14 @@ import com.haven.storage.file.adapter.StorageAdapter;
 import com.haven.storage.file.adapter.LocalStorageAdapter;
 import com.haven.storage.file.adapter.MinIOStorageAdapter;
 import com.haven.storage.file.adapter.CloudStorageAdapter;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.annotation.PostConstruct;
+
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -170,7 +171,7 @@ public class FamilyFileStorageService {
             // 按文件夹过滤
             List<FileMetadata> folderFiles = allFiles.stream()
                     .filter(file -> file.getFolderPath().equals(folderPath))
-                    .sorted(Comparator.comparing(FileMetadata::getCreatedAt).reversed())
+                    .sorted(Comparator.comparing(FileMetadata::getUploadTime).reversed())
                     .collect(Collectors.toList());
 
             // 获取文件夹列表
@@ -226,7 +227,7 @@ public class FamilyFileStorageService {
                 log.info("文件删除成功: family={}, fileId={}, storageType={}, TraceID={}",
                         familyId, fileId, currentStorageAdapter.getStorageType(), traceId);
 
-                return FileDeleteResult.success(metadata != null ? metadata.getOriginalName() : "文件");
+                return FileDeleteResult.success(metadata != null ? metadata.getOriginalName() : "文件", traceId);
             } else {
                 return FileDeleteResult.failure("文件删除失败");
             }
@@ -264,7 +265,7 @@ public class FamilyFileStorageService {
                     .filter(file -> file.getFileName().toLowerCase().contains(keyword.toLowerCase()) ||
                                    (file.getTags() != null && file.getTags().stream()
                                            .anyMatch(tag -> tag.toLowerCase().contains(keyword.toLowerCase()))))
-                    .sorted(Comparator.comparing(FileMetadata::getCreatedAt).reversed())
+                    .sorted(Comparator.comparing(FileMetadata::getUploadTime).reversed())
                     .collect(Collectors.toList());
 
             FileSearchResult searchResult = new FileSearchResult();

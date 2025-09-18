@@ -21,10 +21,15 @@ public class FileUploadResult {
     }
 
     public static FileUploadResult error(String errorMessage, String traceId) {
+        FileUploadResult result = failure(errorMessage);
+        result.traceId = traceId;
+        return result;
+    }
+
+    public static FileUploadResult failure(String errorMessage) {
         FileUploadResult result = new FileUploadResult();
         result.success = false;
         result.errorMessage = errorMessage;
-        result.traceId = traceId;
         return result;
     }
 }

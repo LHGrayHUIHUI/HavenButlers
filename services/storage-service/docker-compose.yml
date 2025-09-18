@@ -1,0 +1,130 @@
+version: '3.8'
+
+services:
+  # PostgreSQL数据库
+  postgres:
+    image: postgres:15-alpine
+    container_name: storage-postgres
+    environment:
+      POSTGRES_DB: smarthome
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - storage-network
+
+  # MongoDB数据库
+  mongodb:
+    image: mongo:6.0
+    container_name: storage-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: smarthome
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - storage-network
+
+  # Redis缓存
+  redis:
+    image: redis:7-alpine
+    container_name: storage-redis
+    command: redis-server --appendonly yes --requirepass password
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - storage-network
+
+  # MinIO对象存储
+  minio:
+    image: minio/minio:latest
+    container_name: storage-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - storage-network
+
+  # Nacos服务注册中心
+  nacos:
+    image: nacos/nacos-server:v2.3.0-slim
+    container_name: storage-nacos
+    platform: linux/amd64
+    environment:
+      MODE: standalone
+      SPRING_DATASOURCE_PLATFORM: embedded
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+    volumes:
+      - nacos_data:/home/nacos/data
+    networks:
+      - storage-network
+
+  # Storage Service
+  storage-service:
+    image: haven-storage-service:1.0.0
+    container_name: storage-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      POSTGRESQL_HOST: postgres
+      POSTGRESQL_PORT: 5432
+      POSTGRESQL_DB: smarthome
+      POSTGRESQL_USER: postgres
+      POSTGRESQL_PASSWORD: password
+      MONGODB_HOST: mongodb
+      MONGODB_PORT: 27017
+      MONGODB_DB: smarthome
+      MONGODB_USER: admin
+      MONGODB_PASSWORD: password
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: password
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: smarthome
+      NACOS_ADDR: nacos:8848
+      NACOS_NAMESPACE: public
+      NACOS_GROUP: DEFAULT_GROUP
+      STORAGE_TYPE: minio
+      STORAGE_LOCAL_PATH: /data/haven-storage
+    ports:
+      - "8081:8081"
+    volumes:
+      - storage_data:/data/haven-storage
+    depends_on:
+      - postgres
+      - mongodb
+      - redis
+      - minio
+      - nacos
+    networks:
+      - storage-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  mongo_data:
+  redis_data:
+  minio_data:
+  nacos_data:
+  storage_data:
+
+networks:
+  storage-network:
+    driver: bridge

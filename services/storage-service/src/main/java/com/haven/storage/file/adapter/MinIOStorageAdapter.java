@@ -5,9 +5,12 @@ import com.haven.storage.file.FileDownloadResult;
 import com.haven.storage.file.FileMetadata;
 import io.minio.*;
 import io.minio.errors.*;
+import io.minio.messages.Item;
+import io.minio.http.Method;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -39,6 +42,7 @@ import java.util.stream.StreamSupport;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "storage.file.storage-type", havingValue = "minio")
 public class MinIOStorageAdapter implements StorageAdapter {
 
     private final MinioClient minioClient;
@@ -120,7 +124,7 @@ public class MinIOStorageAdapter implements StorageAdapter {
             log.info("MinIO文件上传成功：familyId={}, fileId={}, bucket={}, object={}, size={}",
                     familyId, fileId, bucketName, objectName, file.getSize());
 
-            return FileUploadResult.success(metadata);
+            return FileUploadResult.success(metadata, "tr-" + System.currentTimeMillis());
 
         } catch (Exception e) {
             log.error("MinIO文件上传失败：familyId={}, fileName={}, error={}",
@@ -161,7 +165,12 @@ public class MinIOStorageAdapter implements StorageAdapter {
             log.info("MinIO文件下载成功：familyId={}, fileId={}, size={}",
                     familyId, fileId, fileContent.length);
 
-            return FileDownloadResult.success(fileContent, fileName, contentType);
+            // 创建临时的FileMetadata用于返回
+            FileMetadata tempMetadata = new FileMetadata();
+            tempMetadata.setOriginalName(fileName);
+            tempMetadata.setContentType(contentType);
+
+            return FileDownloadResult.success(fileContent, tempMetadata, "tr-" + System.currentTimeMillis());
 
         } catch (Exception e) {
             log.error("MinIO文件下载失败：familyId={}, fileId={}, error={}",
