@@ -58,23 +58,6 @@ services:
       - minio_data:/data
     networks:
       - haven-network
-
-  # Nacos服务注册中心
-  nacos:
-    image: nacos/nacos-server:v2.3.0-slim
-    container_name: nacos
-    platform: linux/amd64
-    environment:
-      MODE: standalone
-      SPRING_DATASOURCE_PLATFORM: embedded
-    ports:
-      - "8848:8848"
-      - "9848:9848"
-    volumes:
-      - nacos_data:/home/nacos/data
-    networks:
-      - haven-network
-
   # Storage Service
   storage-service:
     image: haven-storage-service:1.0.0
@@ -98,8 +81,8 @@ services:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
       MINIO_BUCKET: smarthome
-      NACOS_ADDR: nacos:8848
-      NACOS_NAMESPACE: public
+      NACOS_ADDR: nacos-admin:8848
+      NACOS_NAMESPACE: havenbutler
       NACOS_GROUP: DEFAULT_GROUP
       STORAGE_TYPE: minio
       STORAGE_LOCAL_PATH: /data/haven-storage
@@ -109,10 +92,7 @@ services:
       - storage_data:/data/haven-storage
     depends_on:
       - postgres
-      - mongodb
       - redis
-      - minio
-      - nacos
     networks:
       - haven-network
     restart: unless-stopped

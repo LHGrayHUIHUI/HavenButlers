@@ -3,7 +3,7 @@ package com.haven.admin.controller;
 import com.haven.admin.model.ServiceInfo;
 import com.haven.admin.model.ServiceMetrics;
 import com.haven.admin.service.ServiceManageService;
-import com.haven.admin.service.NacosServiceManager;
+import com.haven.admin.service.AdminNacosServiceManager;
 import com.haven.base.common.response.ResponseWrapper;
 import com.haven.base.model.dto.PageRequest;
 import com.haven.base.model.dto.PageResponse;
@@ -27,7 +27,7 @@ import java.util.Map;
 public class ServiceManageController {
 
     private final ServiceManageService serviceManageService;
-    private final NacosServiceManager nacosServiceManager;
+    private final AdminNacosServiceManager adminNacosServiceManager;
 
     /**
      * 获取所有服务列表
@@ -151,7 +151,7 @@ public class ServiceManageController {
      */
     @GetMapping("/nacos/services")
     public ResponseWrapper<List<String>> getNacosServices() {
-        List<String> services = nacosServiceManager.getAllServiceNames();
+        List<String> services = adminNacosServiceManager.getAllServiceNames();
         return ResponseWrapper.success(services);
     }
 
@@ -160,7 +160,7 @@ public class ServiceManageController {
      */
     @GetMapping("/nacos/{serviceName}/instances")
     public ResponseWrapper<List<ServiceInstance>> getServiceInstances(@PathVariable String serviceName) {
-        List<ServiceInstance> instances = nacosServiceManager.getServiceInstances(serviceName);
+        List<ServiceInstance> instances = adminNacosServiceManager.getServiceInstances(serviceName);
         return ResponseWrapper.success(instances);
     }
 
@@ -169,7 +169,7 @@ public class ServiceManageController {
      */
     @GetMapping("/nacos/{serviceName}/details")
     public ResponseWrapper<Map<String, Object>> getNacosServiceDetails(@PathVariable String serviceName) {
-        Map<String, Object> details = nacosServiceManager.getServiceDetails(serviceName);
+        Map<String, Object> details = adminNacosServiceManager.getServiceDetails(serviceName);
         return ResponseWrapper.success(details);
     }
 
@@ -178,7 +178,7 @@ public class ServiceManageController {
      */
     @GetMapping("/nacos/{serviceName}/health")
     public ResponseWrapper<Map<String, Object>> getNacosServiceHealth(@PathVariable String serviceName) {
-        Map<String, Object> health = nacosServiceManager.getServiceHealth(serviceName);
+        Map<String, Object> health = adminNacosServiceManager.getServiceHealth(serviceName);
         return ResponseWrapper.success(health);
     }
 
@@ -187,7 +187,7 @@ public class ServiceManageController {
      */
     @GetMapping("/nacos/system/health")
     public ResponseWrapper<Map<String, Object>> getSystemHealth() {
-        Map<String, Object> systemHealth = nacosServiceManager.getSystemHealth();
+        Map<String, Object> systemHealth = adminNacosServiceManager.getSystemHealth();
         return ResponseWrapper.success(systemHealth);
     }
 
@@ -199,7 +199,7 @@ public class ServiceManageController {
             @PathVariable String serviceName,
             @RequestParam String ip,
             @RequestParam int port) {
-        boolean result = nacosServiceManager.deregisterInstance(serviceName, ip, port);
+        boolean result = adminNacosServiceManager.deregisterInstance(serviceName, ip, port);
         if (result) {
             log.info("临时下线服务实例成功: {}:{}:{}", serviceName, ip, port);
         } else {
@@ -216,7 +216,7 @@ public class ServiceManageController {
             @PathVariable String serviceName,
             @RequestParam String ip,
             @RequestParam int port) {
-        boolean result = nacosServiceManager.registerInstance(serviceName, ip, port);
+        boolean result = adminNacosServiceManager.registerInstance(serviceName, ip, port);
         if (result) {
             log.info("重新上线服务实例成功: {}:{}:{}", serviceName, ip, port);
         } else {

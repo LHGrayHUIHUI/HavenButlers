@@ -5,6 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.scheduling.annotation.EnableScheduling;
+import de.codecentric.boot.admin.server.config.EnableAdminServer;
 
 /**
  * Admin管理服务启动类
@@ -20,6 +21,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * @version 1.0.0
  */
 @SpringBootApplication
+@EnableAdminServer
 @EnableDiscoveryClient
 @EnableFeignClients
 @EnableScheduling
