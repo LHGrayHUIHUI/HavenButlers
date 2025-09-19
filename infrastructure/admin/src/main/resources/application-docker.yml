@@ -1,4 +1,4 @@
-# Docker环境配置
+# Docker环境配置 - 本地最小化配置，主要配置从Nacos加载
 server:
   port: 8888
 
@@ -6,40 +6,15 @@ spring:
   application:
     name: admin-service
 
-  # 禁用自动配置
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
-      - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
-
-  # Spring Boot Admin服务端配置
-  boot:
-    admin:
-      ui:
-        title: "HavenButler管理中心"
-        brand: "HavenButler管理控制台"
-        favicon: "classpath:/static/favicon.ico"
-        login-icon: "classpath:/static/logo.png"
-      discovery:
-        enabled: true  # 启用服务发现，与Nacos集成
-      monitor:
-        default-timeout: 10000
-        default-retries: 3
-
-  # 安全配置
-  security:
-    user:
-      name: ${SPRING_SECURITY_USER_NAME:admin}
-      password: ${SPRING_SECURITY_USER_PASSWORD:havenbutler2025}
-      roles: ${SPRING_SECURITY_USER_ROLES:ADMIN}
+  config:
+    import: optional:nacos:
 
   # Nacos配置 - Docker环境
   cloud:
     nacos:
       discovery:
         server-addr: ${NACOS_ADDR:nacos:8848}
-        namespace: ${NACOS_NAMESPACE:havenbutler}
+        namespace: ${NACOS_NAMESPACE:public}
         group: ${NACOS_GROUP:DEFAULT_GROUP}
         enabled: true
         service: ${spring.application.name}
@@ -47,108 +22,18 @@ spring:
           management.context-path: /actuator
           version: 1.0.0
           zone: admin
+          environment: ${ENVIRONMENT:dev}
       config:
         server-addr: ${NACOS_ADDR:nacos:8848}
-        namespace: ${NACOS_NAMESPACE:havenbutler}
+        namespace: ${NACOS_NAMESPACE:public}
         group: ${NACOS_GROUP:DEFAULT_GROUP}
-        file-extension: yaml
+        file-extension: yml
         enabled: true
-
-# 监控端点配置
-management:
-  endpoints:
-    web:
-      exposure:
-        include: '*'
-      base-path: /actuator
-  endpoint:
-    health:
-      show-details: always
-      show-components: always
-  health:
-    rabbit:
-      enabled: false
-    redis:
-      enabled: false
-  metrics:
-    export:
-      prometheus:
-        enabled: true
-    tags:
-      service: admin-service
-      version: 1.0.0
-
-# 日志配置
-logging:
-  level:
-    root: INFO
-    com.haven: DEBUG
-    de.codecentric.boot.admin: INFO
-    org.springframework.security: WARN
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId}] %logger{50} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId}] %logger{50} - %msg%n"
-  file:
-    name: /app/logs/admin-service.log
-  logback:
-    rollingpolicy:
-      max-file-size: 100MB
-      max-history: 30
-      total-size-cap: 3GB
-
-# Prometheus配置 - Docker环境
-prometheus:
-  url: ${PROMETHEUS_URL:http://prometheus:9090}
-
-# 告警配置 - Docker环境
-alert:
-  notification:
-    webhook:
-      url: ${ALERT_WEBHOOK_URL:}
-    email:
-      enabled: ${ALERT_EMAIL_ENABLED:false}
-    sms:
-      enabled: ${ALERT_SMS_ENABLED:false}
-
-# Base-Model配置
-base-model:
-  version: 1.0.0
-  trace:
-    enabled: true
-    prefix: "tr"
-    exclude-paths:
-      - "/actuator/**"
-      - "/health"
-      - "/favicon.ico"
-      - "/static/**"
-      - "/css/**"
-      - "/js/**"
-      - "/images/**"
-  exception:
-    enabled: true
-    include-stack-trace: false
-  log:
-    enabled: true
-    level: INFO
-    format: JSON
-  response:
-    include-timestamp: true
-    include-trace-id: true
-
-# Common配置
-common:
-  redis:
-    enabled: false  # admin服务暂不使用Redis
-  security:
-    enabled: true
-    jwt-enabled: false  # admin服务使用basic认证
-
-# 服务信息
-info:
-  app:
-    name: "@project.name@"
-    description: "@project.description@"
-    version: "@project.version@"
-    java-version: "@java.version@"
-  build:
-    time: "@maven.build.timestamp@"
+        shared-configs:
+          - data-id: havenbutler-common.yml
+            group: DEFAULT_GROUP
+            refresh: true
+        extension-configs:
+          - data-id: admin-service-docker.yml
+            group: DEFAULT_GROUP
+            refresh: true

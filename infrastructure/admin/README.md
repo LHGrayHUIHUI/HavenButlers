@@ -21,8 +21,25 @@ cd /Users/yjlh/Documents/code/HavenButler/infrastructure/admin
 # 启动服务（包含Nacos、Prometheus、Admin）
 docker-compose up -d
 
+# 初始化Nacos配置
+./setup-nacos.sh
+
 # 验证服务
 curl http://localhost:8888/actuator/health
+```
+
+### 环境切换
+
+```bash
+# 切换到测试环境
+ENVIRONMENT=test docker-compose up -d
+
+# 切换到生产环境
+ENVIRONMENT=prod docker-compose up -d
+
+# 在Admin后台动态查看和切换环境
+curl http://localhost:8888/api/environment/current
+curl http://localhost:8888/api/environment/available
 ```
 
 ### 访问地址

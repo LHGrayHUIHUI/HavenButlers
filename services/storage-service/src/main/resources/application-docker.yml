@@ -1,4 +1,4 @@
-# Storage服务本地最小化配置，主要配置从Nacos加载
+# Docker环境配置 - 本地最小化配置，主要配置从Nacos加载
 server:
   port: 8081
 
@@ -6,11 +6,11 @@ spring:
   application:
     name: storage-service
 
-  # Nacos配置 - 本地环境
+  # Nacos配置 - Docker环境
   cloud:
     nacos:
       discovery:
-        server-addr: ${NACOS_ADDR:nacos:8848}
+        server-addr: ${NACOS_ADDR:nacos-admin:8848}
         namespace: ${NACOS_NAMESPACE:public}
         group: ${NACOS_GROUP:DEFAULT_GROUP}
         enabled: true
@@ -19,9 +19,9 @@ spring:
           management.context-path: /actuator
           version: 1.0.0
           zone: storage
-          environment: ${ENVIRONMENT:dev}
+          environment: ${ENVIRONMENT:docker}
       config:
-        server-addr: ${NACOS_ADDR:nacos:8848}
+        server-addr: ${NACOS_ADDR:nacos-admin:8848}
         namespace: ${NACOS_NAMESPACE:public}
         group: ${NACOS_GROUP:DEFAULT_GROUP}
         file-extension: yml
@@ -31,6 +31,6 @@ spring:
             group: DEFAULT_GROUP
             refresh: true
         extension-configs:
-          - data-id: storage-service.yml
+          - data-id: storage-service-docker.yml
             group: DEFAULT_GROUP
             refresh: true
