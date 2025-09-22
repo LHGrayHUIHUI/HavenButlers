@@ -7,7 +7,7 @@ spring:
     name: admin-service
 
   config:
-    import: optional:nacos:
+    import: optional:nacos:admin-service.yml
 
   # Nacos配置 - Docker环境
   cloud:

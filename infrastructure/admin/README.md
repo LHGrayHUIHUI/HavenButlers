@@ -203,6 +203,7 @@ services:
 | SPRING_SECURITY_USER_NAME | admin | 管理员用户名 |
 | SPRING_SECURITY_USER_PASSWORD | havenbutler2025 | 管理员密码 |
 | PROMETHEUS_URL | http://prometheus:9090 | Prometheus地址 |
+| admin.allowRemoteShutdown | false | 是否允许通过 /actuator/shutdown 远程停止其他服务（不建议生产启用） |
 
 ## 📊 监控能力
 

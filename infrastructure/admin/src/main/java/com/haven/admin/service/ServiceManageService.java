@@ -16,6 +16,8 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import com.alibaba.nacos.api.config.ConfigService;
+import org.springframework.beans.factory.annotation.Value;
 
 /**
  * 服务管理服务
@@ -28,6 +30,10 @@ public class ServiceManageService {
     private final DiscoveryClient discoveryClient;
     private final RestTemplate restTemplate;
     private final Map<String, ServiceInfo> serviceCache = new ConcurrentHashMap<>();
+    private final ConfigService configService;
+
+    @Value("${admin.allowRemoteShutdown:false}")
+    private boolean allowRemoteShutdown;
 
     /**
      * 获取所有服务
@@ -116,18 +122,51 @@ public class ServiceManageService {
         if (!instances.isEmpty()) {
             ServiceInstance instance = instances.get(0);
             try {
-                String metricsUrl = String.format("http://%s:%d/actuator/metrics",
-                        instance.getHost(), instance.getPort());
-                Map<String, Object> metricsData = restTemplate.getForObject(metricsUrl, Map.class);
+                // CPU使用率（0-1）转百分比
+                Double cpuUsage = queryMetricValue(instance, "system.cpu.usage");
+                if (cpuUsage != null) {
+                    metrics.setCpuUsage(cpuUsage * 100.0);
+                }
 
-                metrics.setCpuUsage(getMetricValue(metricsData, "system.cpu.usage"));
-                metrics.setMemoryUsage(getMetricValue(metricsData, "jvm.memory.used"));
-                metrics.setMemoryMax(getMetricValue(metricsData, "jvm.memory.max"));
-                metrics.setThreadCount(getMetricValue(metricsData, "jvm.threads.live"));
-                metrics.setRequestCount(getMetricValue(metricsData, "http.server.requests.count"));
-                metrics.setRequestRate(calculateRequestRate(metricsData));
-                metrics.setErrorRate(calculateErrorRate(metricsData));
-                metrics.setResponseTime(getMetricValue(metricsData, "http.server.requests.mean"));
+                // 线程数
+                Double threadsLive = queryMetricValue(instance, "jvm.threads.live");
+                if (threadsLive != null) {
+                    metrics.setThreadCount(threadsLive);
+                }
+
+                // 堆内存使用与上限（按 id 聚合）
+                double heapUsed = sumJvmMemory(instance, "jvm.memory.used");
+                double heapMax = sumJvmMemory(instance, "jvm.memory.max");
+                if (heapUsed > 0) {
+                    metrics.setMemoryUsage(heapUsed / (1024 * 1024)); // 转MB
+                }
+                if (heapMax > 0) {
+                    metrics.setMemoryMax(heapMax / (1024 * 1024)); // 转MB
+                }
+
+                // HTTP请求统计
+                MetricDetail httpMetrics = queryMetricDetail(instance, "http.server.requests");
+                double totalCount = httpMetrics.count;
+                double totalTime = httpMetrics.totalTime; // 秒
+                if (totalCount > 0) {
+                    metrics.setRequestCount(totalCount);
+                    // 平均响应时间(ms)
+                    metrics.setResponseTime((totalTime / totalCount) * 1000.0);
+                }
+
+                // 错误率（客户端+服务端错误）
+                double clientErr = queryMetricCountWithTag(instance, "http.server.requests", "outcome", "CLIENT_ERROR");
+                double serverErr = queryMetricCountWithTag(instance, "http.server.requests", "outcome", "SERVER_ERROR");
+                double errTotal = clientErr + serverErr;
+                if (totalCount > 0) {
+                    metrics.setErrorRate(errTotal / totalCount);
+                }
+
+                // 简单请求速率：按进程启动时间估算
+                Double uptime = queryMetricValue(instance, "process.uptime");
+                if (uptime != null && uptime > 0 && totalCount > 0) {
+                    metrics.setRequestRate(totalCount / uptime);
+                }
             } catch (Exception e) {
                 log.error("获取服务指标失败: {}", serviceName, e);
             }
@@ -137,34 +176,122 @@ public class ServiceManageService {
     }
 
     /**
-     * 获取指标值
+     * 调用 /actuator/metrics/{name} 并返回首个测量值（VALUE/COUNT/TOTAL_TIME优先）
      */
-    private double getMetricValue(Map<String, Object> metricsData, String metricName) {
-        if (metricsData != null && metricsData.containsKey(metricName)) {
-            Object value = metricsData.get(metricName);
-            if (value instanceof Number) {
-                return ((Number) value).doubleValue();
+    private Double queryMetricValue(ServiceInstance instance, String metricName) {
+        try {
+            String url = String.format("http://%s:%d/actuator/metrics/%s",
+                    instance.getHost(), instance.getPort(), metricName);
+            Map<String, Object> body = restTemplate.getForObject(url, Map.class);
+            if (body == null) return null;
+            List<Map<String, Object>> measurements = (List<Map<String, Object>>) body.get("measurements");
+            if (measurements == null || measurements.isEmpty()) return null;
+            for (String stat : List.of("VALUE", "COUNT", "TOTAL_TIME", "MAX")) {
+                for (Map<String, Object> m : measurements) {
+                    if (stat.equals(String.valueOf(m.get("statistic")))) {
+                        Object v = m.get("value");
+                        if (v instanceof Number) return ((Number) v).doubleValue();
+                    }
+                }
             }
+            Object v = measurements.get(0).get("value");
+            return v instanceof Number ? ((Number) v).doubleValue() : null;
+        } catch (Exception e) {
+            return null;
         }
+    }
+
+    /**
+     * 获取 http.server.requests 的 COUNT 和 TOTAL_TIME（秒）
+     */
+    private MetricDetail queryMetricDetail(ServiceInstance instance, String metricName) {
+        MetricDetail d = new MetricDetail();
+        try {
+            String url = String.format("http://%s:%d/actuator/metrics/%s",
+                    instance.getHost(), instance.getPort(), metricName);
+            Map<String, Object> body = restTemplate.getForObject(url, Map.class);
+            if (body != null) {
+                List<Map<String, Object>> measurements = (List<Map<String, Object>>) body.get("measurements");
+                if (measurements != null) {
+                    for (Map<String, Object> m : measurements) {
+                        String stat = String.valueOf(m.get("statistic"));
+                        double val = m.get("value") instanceof Number ? ((Number) m.get("value")).doubleValue() : 0.0;
+                        if ("COUNT".equals(stat)) d.count = val;
+                        if ("TOTAL_TIME".equals(stat)) d.totalTime = val;
+                    }
+                }
+            }
+        } catch (Exception ignore) {}
+        return d;
+    }
+
+    /**
+     * 指定单个tag筛选获得 COUNT 值
+     */
+    private double queryMetricCountWithTag(ServiceInstance instance, String metricName, String tagKey, String tagValue) {
+        try {
+            String url = String.format("http://%s:%d/actuator/metrics/%s?tag=%s:%s",
+                    instance.getHost(), instance.getPort(), metricName, tagKey, tagValue);
+            Map<String, Object> body = restTemplate.getForObject(url, Map.class);
+            if (body != null) {
+                List<Map<String, Object>> measurements = (List<Map<String, Object>>) body.get("measurements");
+                if (measurements != null) {
+                    for (Map<String, Object> m : measurements) {
+                        if ("COUNT".equals(String.valueOf(m.get("statistic")))) {
+                            Object v = m.get("value");
+                            return v instanceof Number ? ((Number) v).doubleValue() : 0.0;
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignore) {}
         return 0.0;
     }
 
     /**
-     * 计算请求速率
+     * 汇总堆内存指标（按所有 id 求和）
      */
-    private double calculateRequestRate(Map<String, Object> metricsData) {
-        double totalRequests = getMetricValue(metricsData, "http.server.requests.count");
-        double uptime = getMetricValue(metricsData, "process.uptime");
-        return uptime > 0 ? totalRequests / uptime : 0;
+    private double sumJvmMemory(ServiceInstance instance, String metricName) {
+        try {
+            String base = String.format("http://%s:%d/actuator/metrics/%s",
+                    instance.getHost(), instance.getPort(), metricName);
+            Map<String, Object> body = restTemplate.getForObject(base, Map.class);
+            if (body == null) return 0.0;
+            List<Map<String, Object>> availableTags = (List<Map<String, Object>>) body.get("availableTags");
+            if (availableTags == null) return 0.0;
+            List<String> ids = null;
+            for (Map<String, Object> tag : availableTags) {
+                if ("id".equals(tag.get("tag"))) {
+                    ids = (List<String>) tag.get("values");
+                    break;
+                }
+            }
+            if (ids == null) return 0.0;
+            double sum = 0.0;
+            for (String id : ids) {
+                String url = base + "?tag=area:heap&tag=id:" + id;
+                Map<String, Object> detail = restTemplate.getForObject(url, Map.class);
+                if (detail != null) {
+                    List<Map<String, Object>> measurements = (List<Map<String, Object>>) detail.get("measurements");
+                    if (measurements != null) {
+                        for (Map<String, Object> m : measurements) {
+                            if ("VALUE".equals(String.valueOf(m.get("statistic")))) {
+                                Object v = m.get("value");
+                                if (v instanceof Number) sum += ((Number) v).doubleValue();
+                            }
+                        }
+                    }
+                }
+            }
+            return sum;
+        } catch (Exception e) {
+            return 0.0;
+        }
     }
 
-    /**
-     * 计算错误率
-     */
-    private double calculateErrorRate(Map<String, Object> metricsData) {
-        double totalRequests = getMetricValue(metricsData, "http.server.requests.count");
-        double errorRequests = getMetricValue(metricsData, "http.server.requests.error.count");
-        return totalRequests > 0 ? errorRequests / totalRequests : 0;
+    private static class MetricDetail {
+        double count = 0.0;
+        double totalTime = 0.0; // seconds
     }
 
     /**
@@ -184,6 +311,10 @@ public class ServiceManageService {
      * 停止服务
      */
     public void stopService(String serviceName) {
+        if (!allowRemoteShutdown) {
+            log.warn("已阻止远程shutdown：请通过容器编排（docker/k8s）执行停止，或设置 admin.allowRemoteShutdown=true 以启用（不推荐生产）。");
+            return;
+        }
         List<ServiceInstance> instances = discoveryClient.getInstances(serviceName);
         for (ServiceInstance instance : instances) {
             try {
@@ -242,22 +373,38 @@ public class ServiceManageService {
      * 更新服务配置
      */
     public void updateServiceConfig(String serviceName, Map<String, Object> config) {
-        List<ServiceInstance> instances = discoveryClient.getInstances(serviceName);
-        for (ServiceInstance instance : instances) {
-            try {
-                String configUrl = String.format("http://%s:%d/actuator/env",
-                        instance.getHost(), instance.getPort());
-                restTemplate.postForObject(configUrl, config, Void.class);
-
-                String refreshUrl = String.format("http://%s:%d/actuator/refresh",
-                        instance.getHost(), instance.getPort());
-                restTemplate.postForObject(refreshUrl, null, Void.class);
-
-                log.info("更新服务配置成功: {}", instance.getInstanceId());
-            } catch (Exception e) {
-                log.error("更新服务配置失败: {}", instance.getInstanceId(), e);
+        // 使用Nacos集中发布配置，客户端通过 @RefreshScope 自动刷新
+        try {
+            String dataId = serviceName + ".yml";
+            String group = "DEFAULT_GROUP";
+            String yaml = toYaml(config);
+            boolean ok = configService.publishConfig(dataId, group, yaml, "yaml");
+            if (ok) {
+                log.info("已发布Nacos配置: dataId={}, group={}", dataId, group);
+            } else {
+                log.warn("发布Nacos配置返回false: dataId={}, group={}", dataId, group);
             }
+        } catch (Exception e) {
+            log.error("通过Nacos更新服务配置失败: {}", serviceName, e);
         }
+    }
+
+    /**
+     * 简单YAML序列化（仅支持一层KV与基本类型）
+     */
+    private String toYaml(Map<String, Object> map) {
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, Object> e : map.entrySet()) {
+            sb.append(e.getKey()).append(": ");
+            Object v = e.getValue();
+            if (v instanceof Number || v instanceof Boolean) {
+                sb.append(String.valueOf(v));
+            } else {
+                sb.append('"').append(String.valueOf(v).replace("\"", "\\\"")).append('"');
+            }
+            sb.append('\n');
+        }
+        return sb.toString();
     }
 
     /**

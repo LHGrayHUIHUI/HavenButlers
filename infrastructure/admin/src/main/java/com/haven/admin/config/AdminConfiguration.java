@@ -31,7 +31,6 @@ import java.util.List;
  */
 @Slf4j
 @Configuration
-@EnableScheduling
 public class AdminConfiguration {
 
     @Autowired

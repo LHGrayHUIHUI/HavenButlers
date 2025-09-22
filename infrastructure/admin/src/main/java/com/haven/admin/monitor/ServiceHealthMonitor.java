@@ -14,6 +14,8 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 服务健康监控器
@@ -33,6 +35,9 @@ public class ServiceHealthMonitor implements HealthIndicator {
 
     @Autowired
     private RestTemplate restTemplate;
+
+    // 使用可变对象承载gauge值，避免频繁注册Gauge导致的度量污染
+    private final Map<String, AtomicInteger> instanceHealthGauges = new ConcurrentHashMap<>();
 
     /**
      * 定时检查服务健康状态
@@ -68,13 +73,9 @@ public class ServiceHealthMonitor implements HealthIndicator {
             if (response != null) {
                 String status = (String) response.get("status");
 
-                // 记录指标
-                meterRegistry.gauge(
-                    "service.health",
-                    Tags.of("service", instance.getServiceId(),
-                           "instance", instance.getInstanceId()),
-                    "UP".equals(status) ? 1 : 0
-                );
+                // 记录指标（稳定 gauge 对象，重复使用）
+                int value = "UP".equals(status) ? 1 : 0;
+                updateHealthGauge(instance, value);
 
                 // 记录日志
                 if (!"UP".equals(status)) {
@@ -90,13 +91,22 @@ public class ServiceHealthMonitor implements HealthIndicator {
                     instance.getInstanceId(), e);
 
             // 记录不可达指标
+            updateHealthGauge(instance, 0);
+        }
+    }
+
+    private void updateHealthGauge(ServiceInstance instance, int value) {
+        String key = instance.getServiceId() + "#" + instance.getInstanceId();
+        AtomicInteger holder = instanceHealthGauges.computeIfAbsent(key, k -> {
+            AtomicInteger init = new AtomicInteger(value);
             meterRegistry.gauge(
                 "service.health",
-                Tags.of("service", instance.getServiceId(),
-                       "instance", instance.getInstanceId()),
-                0
+                Tags.of("service", instance.getServiceId(), "instance", instance.getInstanceId()),
+                init
             );
-        }
+            return init;
+        });
+        holder.set(value);
     }
 
     @Override
