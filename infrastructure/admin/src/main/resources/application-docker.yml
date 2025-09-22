@@ -1,4 +1,6 @@
-# Docker环境配置 - 本地最小化配置，主要配置从Nacos加载
+# Docker环境配置 - 精简版
+# 最小化本地配置，所有业务配置从Nacos加载
+# 使用方式: java -jar admin-service.jar --spring.profiles.active=docker
 server:
   port: 8888
 
@@ -6,8 +8,9 @@ spring:
   application:
     name: admin-service
 
+  # 从Nacos加载完整配置
   config:
-    import: optional:nacos:admin-service.yml
+    import: nacos:admin-service.yml
 
   # Nacos配置 - Docker环境
   cloud:
@@ -17,12 +20,6 @@ spring:
         namespace: ${NACOS_NAMESPACE:public}
         group: ${NACOS_GROUP:DEFAULT_GROUP}
         enabled: true
-        service: ${spring.application.name}
-        metadata:
-          management.context-path: /actuator
-          version: 1.0.0
-          zone: admin
-          environment: ${ENVIRONMENT:dev}
       config:
         server-addr: ${NACOS_ADDR:nacos:8848}
         namespace: ${NACOS_NAMESPACE:public}
@@ -34,6 +31,16 @@ spring:
             group: DEFAULT_GROUP
             refresh: true
         extension-configs:
-          - data-id: admin-service-docker.yml
+          - data-id: admin-service-${ENVIRONMENT:docker}.yml
             group: DEFAULT_GROUP
             refresh: true
+
+# 最小化管理端点配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always

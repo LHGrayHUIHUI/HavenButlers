@@ -6,6 +6,9 @@ spring:
   application:
     name: storage-service
 
+  config:
+    import: optional:nacos:storage-service.yml
+
   # Nacos配置 - Docker环境
   cloud:
     nacos:

@@ -1,17 +1,37 @@
 #!/bin/bash
 
-# 简单的Nacos配置初始化脚本
-NACOS_ADDR="http://localhost:8848"
+# Nacos配置初始化脚本
+# 用于初始化HavenButler Admin服务的配置中心
 
-echo "🚀 开始配置Nacos..."
+# 配置参数
+NACOS_ADDR="${NACOS_ADDR:-http://localhost:8848}"
+NACOS_NAMESPACE="${NACOS_NAMESPACE:-public}"
+NACOS_GROUP="${NACOS_GROUP:-DEFAULT_GROUP}"
+MAX_WAIT_TIME=60  # 最大等待时间（秒）
+
+echo "======================================"
+echo "  HavenButler Admin 配置初始化工具"
+echo "======================================"
+echo ""
+echo "📍 Nacos地址: $NACOS_ADDR"
+echo "📦 命名空间: $NACOS_NAMESPACE"
+echo "👥 配置组: $NACOS_GROUP"
+echo ""
 
 # 等待Nacos启动
-echo "⏳ 等待Nacos服务启动..."
+echo "⏳ 检查Nacos服务状态..."
+wait_count=0
 while ! curl -s "$NACOS_ADDR/nacos/v1/console/health" > /dev/null; do
-    echo "   等待Nacos启动中..."
+    if [ $wait_count -gt $MAX_WAIT_TIME ]; then
+        echo "❌ 等待超时！Nacos服务未响应"
+        exit 1
+    fi
+    echo "   等待Nacos启动中... ($wait_count/$MAX_WAIT_TIME)"
     sleep 3
+    wait_count=$((wait_count + 3))
 done
-echo "✅ Nacos服务已启动"
+echo "✅ Nacos服务已就绪"
+echo ""
 
 # 创建公共配置
 echo "📝 创建公共配置..."
