@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="9378460c-4cc7-4712-9167-d5584eb24fdb" name="Changes" comment="文件存储服务修改">
+      <change afterPath="$PROJECT_DIR$/../../.gitignore" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/admin/CONFIG.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/base-model/.idea/.gitignore" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/base-model/.idea/compiler.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/base-model/.idea/encodings.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/base-model/.idea/jarRepositories.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/base-model/.idea/misc.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/base-model/.idea/vcs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/base-model/docs/nacos-config-example.yml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/config/DynamicServiceConfig.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/logging/README.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/logging/annotation/LogOperation.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/logging/aspect/LogAspect.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/logging/client/LogClient.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/logging/config/LogAsyncConfig.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/logging/config/LogAutoConfiguration.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/logging/model/LogEvent.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/base-model/src/test/java/com/haven/base/config/DynamicServiceConfigTest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/base-model/使用指南.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/API集成指南.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/故障排查指南.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/数据存储系统.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/数据库代理系统.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/统一日志系统.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/部署指南.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/haven/storage/config/RedisConfig.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/haven/storage/controller/DatabaseHealthController.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/haven/storage/controller/HealthController.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/haven/storage/knowledge/DocumentVector.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/haven/storage/knowledge/KnowledgeBaseStats.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/haven/storage/knowledge/KnowledgeGraph.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/haven/storage/knowledge/KnowledgeSearchRequest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/haven/storage/knowledge/KnowledgeSearchResult.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/haven/storage/knowledge/SearchResultItem.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/haven/storage/logging/OperationLogService.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/haven/storage/logging/controller/LogEventController.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/haven/storage/logging/controller/LogManagementController.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/haven/storage/logging/entity/OperationLog.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/haven/storage/logging/entity/PerformanceLog.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/haven/storage/logging/entity/SecurityLog.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/haven/storage/logging/repository/OperationLogRepository.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/haven/storage/logging/repository/PerformanceLogRepository.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/haven/storage/logging/repository/SecurityLogRepository.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/haven/storage/logging/service/LogEventService.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/haven/storage/proxy/ProxyServerBootstrap.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/haven/storage/proxy/handler/MongoProxyHandler.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/haven/storage/proxy/handler/PostgresProxyHandler.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/haven/storage/proxy/handler/RedisProxyHandler.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/haven/storage/proxy/pool/PostgresConnectionPool.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/haven/storage/service/DatabaseHealthService.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/haven/storage/service/MinIOService.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/resources/sql/proxy-logging-schema.sql" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/admin/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/admin/docker-compose.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/base-model/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/base-model/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/resources/META-INF/spring.factories" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/resources/META-INF/spring.factories" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/common/src/main/java/com/haven/common/web/filter/AuthFilter.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/common/src/main/java/com/haven/common/web/filter/AuthFilter.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/CHANGELOG.md" beforeDir="false" afterPath="$PROJECT_DIR$/CHANGELOG.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/READMDnew.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/haven/storage/file/FamilyFileStorageService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/haven/storage/file/FamilyFileStorageService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/haven/storage/file/adapter/CloudStorageAdapter.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/application-docker.yml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/application-docker.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/application.yml" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/../.." />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;LHGrayHUIHUI&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/LHGrayHUIHUI/HavenButlers.git&quot;,
+    &quot;accountId&quot;: &quot;88706e21-7248-4743-86d2-955bf62f6668&quot;
+  }
+}</component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 7
+}</component>
+  <component name="ProjectId" id="32oDQdVZyPlagSwoGjeYyBtKSVm" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Application.StorageServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/Users/yjlh/Documents/code/HavenButler/services/storage-service&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Project&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;configurable.group.build&quot;
+  }
+}</component>
+  <component name="RunManager">
+    <configuration name="StorageServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+      <option name="MAIN_CLASS_NAME" value="com.haven.storage.StorageServiceApplication" />
+      <module name="storage-service" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="com.haven.storage.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Application.StorageServiceApplication" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-jdk-9823dce3aa75-bf35d07a577b-intellij.indexing.shared.core-IU-252.23892.409" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="9378460c-4cc7-4712-9167-d5584eb24fdb" name="Changes" comment="" />
+      <created>1758078016660</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1758078016660</updated>
+    </task>
+    <task id="LOCAL-00001" summary="github的依赖添加">
+      <option name="closed" value="true" />
+      <created>1758079085258</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1758079085258</updated>
+    </task>
+    <task id="LOCAL-00002" summary="文件存储服务修改">
+      <option name="closed" value="true" />
+      <created>1758167295602</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1758167295602</updated>
+    </task>
+    <task id="LOCAL-00003" summary="文件存储服务修改">
+      <option name="closed" value="true" />
+      <created>1758262714918</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1758262714918</updated>
+    </task>
+    <task id="LOCAL-00004" summary="文件存储服务修改">
+      <option name="closed" value="true" />
+      <created>1758267606651</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1758267606651</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
+    <servers />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="github的依赖添加" />
+    <MESSAGE value="文件存储服务修改" />
+    <option name="LAST_COMMIT_MESSAGE" value="文件存储服务修改" />
+  </component>
+</project>

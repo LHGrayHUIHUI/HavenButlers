@@ -33,7 +33,10 @@ public class AuthFilter implements Filter {
         "/health",
         "/actuator",
         "/swagger-ui",
-        "/v3/api-docs"
+        "/v3/api-docs",
+        "/api/v1/storage/health",
+        "/api/storage/health",
+        "/test"
     );
 
     @Override

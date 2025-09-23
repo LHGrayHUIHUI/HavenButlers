@@ -1,4 +1,4 @@
-# Storage服务本地最小化配置，主要配置从Nacos加载
+# Storage Service 本地开发环境配置
 server:
   port: 8081
 
@@ -6,11 +6,17 @@ spring:
   application:
     name: storage-service
 
+  # 配置导入策略 - 本地开发优先使用本地配置
+  config:
+    import:
+      - optional:nacos:havenbutler-common.yml
+      - optional:nacos:storage-service.yml
+
   # Nacos配置 - 本地环境
   cloud:
     nacos:
       discovery:
-        server-addr: ${NACOS_ADDR:nacos:8848}
+        server-addr: ${NACOS_ADDR:localhost:8848}
         namespace: ${NACOS_NAMESPACE:public}
         group: ${NACOS_GROUP:DEFAULT_GROUP}
         enabled: true
@@ -21,7 +27,7 @@ spring:
           zone: storage
           environment: ${ENVIRONMENT:dev}
       config:
-        server-addr: ${NACOS_ADDR:nacos:8848}
+        server-addr: ${NACOS_ADDR:localhost:8848}
         namespace: ${NACOS_NAMESPACE:public}
         group: ${NACOS_GROUP:DEFAULT_GROUP}
         file-extension: yml
@@ -34,3 +40,91 @@ spring:
           - data-id: storage-service.yml
             group: DEFAULT_GROUP
             refresh: true
+
+  # 本地数据源配置
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://${POSTGRESQL_HOST:localhost}:${POSTGRESQL_PORT:5432}/${POSTGRESQL_DB:smarthome}
+    username: ${POSTGRESQL_USER:postgres}
+    password: ${POSTGRESQL_PASSWORD:password}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+
+  # MongoDB配置
+  data:
+    mongodb:
+      host: ${MONGODB_HOST:localhost}
+      port: ${MONGODB_PORT:27017}
+      database: ${MONGODB_DB:smarthome}
+      username: ${MONGODB_USER:admin}
+      password: ${MONGODB_PASSWORD:password}
+      authentication-database: admin
+
+  # Redis配置
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:password}
+    timeout: 5000ms
+    database: 0
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+        max-wait: -1ms
+
+  # JPA配置
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: false
+
+# MinIO配置
+minio:
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin}
+  bucket: ${MINIO_BUCKET:smarthome}
+  console:
+    endpoint: ${MINIO_CONSOLE_ENDPOINT:http://localhost:9001}
+
+# 存储配置
+storage:
+  file:
+    storage-type: minio
+  service:
+    url: http://localhost:8081
+
+# 统一日志系统配置
+haven:
+  logging:
+    enabled: true
+    async: true
+    aspect:
+      enabled: true
+
+# Actuator配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,logs
+  endpoint:
+    health:
+      show-details: always
+
+# 日志配置
+logging:
+  level:
+    com.haven.storage: DEBUG
+    com.haven.base: DEBUG
+    org.springframework.data: INFO
+    root: INFO

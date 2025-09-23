@@ -5,7 +5,6 @@ import com.haven.base.utils.TraceIdUtil;
 import com.haven.storage.file.adapter.StorageAdapter;
 import com.haven.storage.file.adapter.LocalStorageAdapter;
 import com.haven.storage.file.adapter.MinIOStorageAdapter;
-import com.haven.storage.file.adapter.CloudStorageAdapter;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,8 +52,6 @@ public class FamilyFileStorageService {
     @Autowired(required = false)
     private MinIOStorageAdapter minioStorageAdapter;
 
-    @Autowired(required = false)
-    private CloudStorageAdapter cloudStorageAdapter;
 
     // 当前使用的存储适配器
     private StorageAdapter currentStorageAdapter;
@@ -82,12 +79,6 @@ public class FamilyFileStorageService {
                     throw new IllegalStateException("MinIOStorageAdapter未配置，无法使用MinIO存储");
                 }
                 currentStorageAdapter = minioStorageAdapter;
-                break;
-            case "cloud":
-                if (cloudStorageAdapter == null) {
-                    throw new IllegalStateException("CloudStorageAdapter未配置，无法使用云存储");
-                }
-                currentStorageAdapter = cloudStorageAdapter;
                 break;
             default:
                 log.warn("未知的存储类型：{}，使用本地存储作为默认选项", storageType);
@@ -316,9 +307,6 @@ public class FamilyFileStorageService {
                     break;
                 case "minio":
                     newAdapter = minioStorageAdapter;
-                    break;
-                case "cloud":
-                    newAdapter = cloudStorageAdapter;
                     break;
                 default:
                     log.error("不支持的存储类型：{}", newStorageType);

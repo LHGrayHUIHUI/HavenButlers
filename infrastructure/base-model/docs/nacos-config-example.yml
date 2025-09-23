@@ -1,0 +1,88 @@
+# Nacos配置示例
+# Data ID: haven-services.yml
+# Group: DEFAULT_GROUP
+# Namespace: dev (开发环境)
+
+# 动态服务配置 - 可在Nacos控制台直接修改，无需重启服务
+haven:
+  services:
+    # 存储服务配置
+    storage:
+      url: http://storage-service:8081
+      timeout: 5000
+      retryCount: 3
+      enabled: true
+
+    # 账户服务配置
+    account:
+      url: http://account-service:8082
+      timeout: 5000
+      retryCount: 3
+      enabled: true
+
+    # 网关服务配置
+    gateway:
+      url: http://gateway:8080
+      timeout: 30000
+      retryCount: 2
+      enabled: true
+
+    # NLP服务配置
+    nlp:
+      url: http://nlp-service:8085
+      timeout: 10000
+      retryCount: 3
+      enabled: true
+
+    # AI服务配置
+    ai:
+      url: http://ai-service:8084
+      timeout: 30000
+      retryCount: 2
+      enabled: true
+
+    # 文件管理服务配置
+    file-manager:
+      url: http://file-manager-service:8086
+      timeout: 15000
+      retryCount: 3
+      enabled: true
+
+    # 消息服务配置
+    message:
+      url: http://message-service:8083
+      timeout: 5000
+      retryCount: 3
+      enabled: true
+
+---
+# 不同环境的配置示例
+
+# 测试环境配置 (Data ID: haven-services-test.yml)
+haven:
+  services:
+    storage:
+      url: http://test-storage:8081
+      timeout: 10000  # 测试环境可以更宽松
+      retryCount: 5
+      enabled: true
+    account:
+      url: http://test-account:8082
+      timeout: 10000
+      retryCount: 5
+      enabled: true
+
+---
+# 生产环境配置 (Data ID: haven-services-prod.yml)
+haven:
+  services:
+    storage:
+      url: http://prod-storage-cluster:8081
+      timeout: 3000   # 生产环境要求更严格
+      retryCount: 2
+      enabled: true
+    account:
+      url: http://prod-account-cluster:8082
+      timeout: 3000
+      retryCount: 2
+      enabled: true

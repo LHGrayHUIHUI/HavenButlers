@@ -5,10 +5,10 @@
 ### ✨ 新功能
 
 #### 多存储适配器支持
-- **[MAJOR]** 新增存储适配器模式，支持本地、MinIO、云存储三种方式
+- **[MAJOR]** 新增存储适配器模式，支持本地、MinIO两种方式
 - 新增 `LocalStorageAdapter` - 本地文件系统存储
 - 新增 `MinIOStorageAdapter` - MinIO对象存储（需要MinIO服务）
-- 新增 `CloudStorageAdapter` - 云存储支持（阿里云OSS、腾讯云COS、AWS S3、华为云OBS框架）
+- ~~新增 `CloudStorageAdapter` - 云存储支持~~（已移除：未实现功能）
 
 #### 动态存储切换
 - **[MAJOR]** 支持运行时动态切换存储方式，无需重启服务
@@ -21,7 +21,7 @@
 - 支持通过 `storage.file.storage-type` 配置存储方式
 - 新增本地存储详细配置（路径、文件大小限制、文件类型限制）
 - 新增MinIO对象存储配置（桶前缀、自动创建桶等）
-- 新增云存储配置框架（支持多云提供商）
+- ~~新增云存储配置框架~~（已移除：未实现功能）
 
 ### 🔧 技术改进
 
