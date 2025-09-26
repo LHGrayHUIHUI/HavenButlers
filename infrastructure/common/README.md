@@ -1,272 +1,144 @@
-# Common 公共组件库
+# Common 公共组件库（对齐 base-model）
 
-## 服务定位
-- **架构层级**：基础设施层
-- **核心职责**：提供所有Java服务的公共组件、工具类、常量定义和通用配置
-- **业务范围**：工具类库、常量定义、注解定义、配置类、拦截器、过滤器
+面向微服务的基础公共能力库，扩展 base-model，提供 JWT/认证过滤、统一缓存抽象、分布式锁、限流 AOP、消息发送、健康检查、HTTP 客户端适配等。
+
+## 提供能力
+- 安全：`JwtUtils`（支持时钟偏差）、`AuthFilter`（OncePerRequestFilter + ResponseWrapper）
+- 缓存：`CacheService` 统一抽象 + `RedisCacheService` 实现；`RedisUtils/RedisCache`（JsonUtil 序列化、SCAN、keyPrefix/TTL）
+- 分布式锁：`DistributedLock` 可重入 + 看门狗自动续期 + 指标
+- 限流：`RateLimitAspect`（支持 SpEL 生成 key、指标统计），注解来自 base-model 的 `@RateLimit`
+- 消息：`MessageSender`（convertAndSend + CorrelationData + traceId 头），`RabbitMqConfig`
+- 健康检查：`RedisHealthIndicator`、`RabbitMQHealthIndicator`
+- HTTP 客户端：`HttpUtils` 集成 base-model 的 `ServiceClient`（内部服务调用），外部 URL 走 `RestTemplate`（含 traceId 拦截器）
 
 ## 技术栈
-- **主开发语言**：Java 17
-- **构建工具**：Maven 3.8+
-- **核心依赖**：
-  - Spring Boot Starter
-  - Apache Commons
-  - Guava
-  - Jackson
-  - Lombok
-  - SLF4J + Logback
+- Java 17、Spring Boot 3.1
+- Maven 3.8+
+- Jackson（通过 base-model 的 JsonUtil）
 
-## 模块结构
-
+## 目录概览（关键路径）
 ```
-common/
-├── common-core/              # 核心公共模块
-│   ├── constants/            # 常量定义
-│   ├── enums/                # 枚举定义
-│   ├── exceptions/           # 异常定义
-│   └── dto/                  # 数据传输对象
-├── common-utils/             # 工具类模块
-│   ├── crypto/               # 加密工具
-│   ├── json/                 # JSON工具
-│   ├── date/                 # 日期工具
-│   └── validation/           # 校验工具
-├── common-redis/             # Redis工具模块
-├── common-mq/                # 消息队列模块
-├── common-security/          # 安全模块
-└── common-web/               # Web公共模块
+src/main/java/com/haven/common
+├── aspect/RateLimitAspect.java
+├── cache/CacheService.java, RedisCacheService.java
+├── config/CommonAutoConfiguration.java, ConfigurationBridge.java
+├── health/RedisHealthIndicator.java, RabbitMQHealthIndicator.java
+├── mq/MessageSender.java, RabbitMqConfig.java
+├── redis/RedisUtils.java, RedisCache.java, DistributedLock.java
+├── security/JwtUtils.java
+├── utils/HttpUtils.java
+└── web/filter/AuthFilter.java
 ```
 
-## 核心组件
+## 快速开始
+1) Maven 依赖（从 GitHub Packages 获取）
+```xml
+<repositories>
+  <repository>
+    <id>github</id>
+    <url>https://maven.pkg.github.com/LHGrayHUIHUI/HavenButlers</url>
+  </repository>
+</repositories>
 
-### 1. 常量定义
+<dependency>
+  <groupId>com.haven</groupId>
+  <artifactId>common</artifactId>
+  <version>1.0.0</version>
+</dependency>
+```
+2) 必要配置（建议）
+```yaml
+base-model:
+  security:
+    jwt-secret: "${JWT_SECRET:}"   # 必须通过环境注入
+    jwt-expiration: 86400000
+    jwt-clock-skew: 30
+  cache:
+    enabled: true
+    key-prefix: "haven:${spring.profiles.active:dev}:"
+    default-ttl: 3600
+  distributed-lock:
+    enabled: true
+    default-timeout: 30
+    auto-renew: true
+  messaging:
+    enabled: false
+    default-timeout: 5000
+    max-retry: 3
+```
+3) 自动装配：已通过 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 激活，无需显式 `@Import`
+
+## 常用示例
+- 限流（SpEL）
 ```java
-public class CommonConstants {
-    // 系统常量
-    public static final String SYSTEM_NAME = "HavenButler";
-    public static final String VERSION = "1.0.0";
-    
-    // TraceID格式
-    public static final String TRACE_ID_PREFIX = "tr-";
-    public static final String TRACE_ID_PATTERN = "yyyyMMdd-HHmmss";
-    
-    // 请求头
-    public static final String HEADER_TRACE_ID = "X-Trace-ID";
-    public static final String HEADER_FAMILY_ID = "X-Family-ID";
-    public static final String HEADER_USER_ID = "X-User-ID";
-    
-    // 缓存键前缀
-    public static final String CACHE_PREFIX = "haven:";
-    public static final String SESSION_PREFIX = "session:";
-    public static final String DEVICE_PREFIX = "device:";
-}
+@RateLimit(key = "'api:'+ #userId", limit = 10, window = 60)
+public ResponseWrapper<?> demo(String userId) { ... }
 ```
-
-### 2. 统一异常处理
+- 分布式锁（可重入 + 看门狗）
 ```java
-// 业务异常基类
-public class BusinessException extends RuntimeException {
-    private final int code;
-    private final String message;
-    private final String traceId;
-    
-    public BusinessException(ErrorCode errorCode) {
-        this(errorCode.getCode(), errorCode.getMessage());
-    }
-}
-
-// 错误码枚举
-public enum ErrorCode {
-    SUCCESS(0, "成功"),
-    PARAM_ERROR(400, "参数错误"),
-    UNAUTHORIZED(401, "未授权"),
-    FORBIDDEN(403, "没有权限"),
-    NOT_FOUND(404, "资源不存在"),
-    INTERNAL_ERROR(500, "系统内部错误"),
-    
-    // 业务错误码 1000-9999
-    DEVICE_OFFLINE(1001, "设备离线"),
-    DEVICE_NOT_FOUND(1002, "设备不存在"),
-    FAMILY_NOT_EXIST(2001, "家庭不存在"),
-    USER_NOT_IN_FAMILY(2002, "用户不在该家庭中");
-    
-    private final int code;
-    private final String message;
-}
+boolean ok = distributedLock.executeWithLock("order:"+orderId, 30, TimeUnit.SECONDS, () -> service.create(orderId));
 ```
-
-### 3. 加密工具类
+- 缓存统一抽象
 ```java
-public class CryptoUtils {
-    // AES加密
-    public static String encryptAES(String data, String key) {
-        // AES-256-GCM加密实现
-    }
-    
-    // RSA加密
-    public static String encryptRSA(String data, String publicKey) {
-        // RSA加密实现
-    }
-    
-    // HMAC签名
-    public static String signHMAC(String data, String secret) {
-        // HMAC-SHA256签名
-    }
-    
-    // 密码加密
-    public static String hashPassword(String password) {
-        // BCrypt加密
-    }
-}
+cacheService.set("user:"+id, userDTO); UserDTO u = cacheService.get("user:"+id, UserDTO.class);
 ```
-
-### 4. TraceID生成器
+- 消息发送（附 traceId）
 ```java
-@Component
-public class TraceIdGenerator {
-    private static final String DATE_FORMAT = "yyyyMMdd-HHmmss";
-    private static final String CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    private static final Random RANDOM = new Random();
-    
-    public String generate() {
-        SimpleDateFormat sdf = new SimpleDateFormat(DATE_FORMAT);
-        String timestamp = sdf.format(new Date());
-        String random = generateRandomString(6);
-        return CommonConstants.TRACE_ID_PREFIX + timestamp + "-" + random;
-    }
-    
-    private String generateRandomString(int length) {
-        StringBuilder sb = new StringBuilder(length);
-        for (int i = 0; i < length; i++) {
-            sb.append(CHARS.charAt(RANDOM.nextInt(CHARS.length())));
-        }
-        return sb.toString();
-    }
-}
+messageSender.send("haven.device", "device.status.update", payload);
 ```
-
-### 5. Redis工具类
+- HTTP（内部服务优先走 ServiceClient）
 ```java
-@Component
-public class RedisUtils {
-    @Autowired
-    private StringRedisTemplate redisTemplate;
-    
-    // 设置值
-    public void set(String key, Object value, long timeout, TimeUnit unit) {
-        redisTemplate.opsForValue().set(key, JSON.toJSONString(value), timeout, unit);
-    }
-    
-    // 获取值
-    public <T> T get(String key, Class<T> clazz) {
-        String value = redisTemplate.opsForValue().get(key);
-        return value != null ? JSON.parseObject(value, clazz) : null;
-    }
-    
-    // 分布式锁
-    public boolean tryLock(String key, String value, long timeout) {
-        return redisTemplate.opsForValue().setIfAbsent(key, value, timeout, TimeUnit.SECONDS);
-    }
-    
-    // 释放锁
-    public boolean releaseLock(String key, String value) {
-        String script = "if redis.call('get', KEYS[1]) == ARGV[1] then " +
-                       "return redis.call('del', KEYS[1]) else return 0 end";
-        return redisTemplate.execute(
-            new DefaultRedisScript<>(script, Long.class),
-            Collections.singletonList(key),
-            value
-        ) == 1L;
-    }
-}
+HttpUtils.get("service://account-service/api/v1/users?uid=1");
 ```
 
-### 6. 校验工具
-```java
-public class ValidationUtils {
-    // 手机号校验
-    public static boolean isValidPhone(String phone) {
-        return phone != null && phone.matches("^1[3-9]\\d{9}$");
-    }
-    
-    // 邮箱校验
-    public static boolean isValidEmail(String email) {
-        return email != null && email.matches("^[\\w-]+(\\.[\\w-]+)*@[\\w-]+(\\.[\\w-]+)+$");
-    }
-    
-    // 身份证校验
-    public static boolean isValidIdCard(String idCard) {
-        // 18位身份证校验
-        return IdCardValidator.isValidIdCard(idCard);
-    }
-    
-    // IP地址校验
-    public static boolean isValidIp(String ip) {
-        return InetAddressValidator.getInstance().isValid(ip);
-    }
-}
-```
+## 依赖后需遵循的规范
+- 配置规范：优先使用 `base-model.*` 键；`common.*` 已由 ConfigurationBridge 兼容并打印迁移 WARN
+- 安全规范：JWT 密钥严禁写入 yml，统一用环境变量；启用 `jwt-clock-skew` 以容忍少量时钟偏差
+- 序列化规范：统一使用 base-model 的 `JsonUtil`（Jackson）；避免引入/使用 fastjson
+- 缓存规范：统一走 `CacheService/RedisUtils`，禁止业务直接使用 `RedisTemplate`；键名统一 `keyPrefix`
+- 响应与错误码：使用 base-model 的 `ResponseWrapper` 与 `ErrorCode`（1xxxx 系统、2xxxx 认证、3xxxx 校验、4xxxx 业务、5xxxx 第三方）
+- 观测性：启用 Actuator 暴露健康检查；后续统一对接 `MetricsCollector`
 
-### 7. 全局拦截器
-```java
-@Component
-public class TraceIdInterceptor implements HandlerInterceptor {
-    @Autowired
-    private TraceIdGenerator traceIdGenerator;
-    
-    @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
-        // 获取或生成TraceID
-        String traceId = request.getHeader(CommonConstants.HEADER_TRACE_ID);
-        if (StringUtils.isBlank(traceId)) {
-            traceId = traceIdGenerator.generate();
-        }
-        
-        // 设置到MDC
-        MDC.put("traceId", traceId);
-        
-        // 设置到响应头
-        response.setHeader(CommonConstants.HEADER_TRACE_ID, traceId);
-        
-        return true;
-    }
-    
-    @Override
-    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
-        MDC.clear();
-    }
-}
-```
+## 对外 API/契约约束（清单）
+- 响应包装：所有 HTTP 接口统一返回 `ResponseWrapper<T>`；错误码按 1-5 类分层；禁止裸返回 Map/String。
+- 认证约定：默认读取 `Authorization: Bearer <token>` 或 `X-Auth-Token`；无效或缺失返回 401 的 `ResponseWrapper`；`roles/tenant` 从 JWT Claims 解析。
+- Trace 透传：入口接受并下游透传 `X-Trace-ID`；消息头设置 `traceId`；日志使用 MDC 输出 traceId。
+- 限流：采用 `@RateLimit`（支持 SpEL）；key 建议包含 `uri/ip/userId` 等维度；超限统一抛 `BusinessException(ErrorCode.RATE_LIMIT_ERROR)`。
+- 幂等：对创建/支付/状态迁移等写操作，使用 `DistributedLock` 或业务幂等键，锁键建议 `biz:<type>:<id>`。
+- 缓存：键名必须带 `keyPrefix`；TTL 默认 3600s，热点键单独设置；禁止使用 `KEYS`，用 `scan(pattern, limit)`。
+- 消息：发送时必须设置 `CorrelationData(messageId)` 与 `traceId` 头；交换机/路由命名建议 `haven.<domain>`/`<domain>.<action>`；失败回调需记录并可重试。
+- 安全：JWT 允许 `jwt-clock-skew` 秒级偏差；密钥通过环境注入；严禁打印完整令牌与明文密钥。
 
-### 8. 日志工具
-```java
-@Component
-public class LogUtils {
-    private static final Logger logger = LoggerFactory.getLogger(LogUtils.class);
-    
-    public void logRequest(HttpServletRequest request) {
-        logger.info("Request: {} {} from {}, TraceId: {}",
-            request.getMethod(),
-            request.getRequestURI(),
-            request.getRemoteAddr(),
-            MDC.get("traceId")
-        );
-    }
-    
-    public void logResponse(int status, long duration) {
-        logger.info("Response: status={}, duration={}ms, TraceId: {}",
-            status,
-            duration,
-            MDC.get("traceId")
-        );
-    }
-    
-    public void logError(String message, Throwable throwable) {
-        logger.error("Error: {}, TraceId: {}", message, MDC.get("traceId"), throwable);
-    }
-}
-```
+## 配置迁移速查表（common.* -> base-model.*）
+- `common.redis.enabled` → `base-model.cache.enabled`
+- `common.redis.default-timeout` → `base-model.cache.default-ttl`
+- `common.redis.key-prefix` → `base-model.cache.key-prefix`
+- `common.mq.enabled` → `base-model.messaging.enabled`
+- `common.mq.timeout` → `base-model.messaging.default-timeout`
+- `common.mq.retry-times` → `base-model.messaging.max-retry`
+- `common.security.jwt-secret` → `base-model.security.jwt-secret`
+- `common.security.jwt-expiration` → `base-model.security.jwt-expiration`
+- `common.security.jwt-clock-skew` → `base-model.security.jwt-clock-skew`
+- `common.distributed-lock.timeout` → `base-model.distributed-lock.default-timeout`
+- `common.distributed-lock.auto-renew` → `base-model.distributed-lock.auto-renew`
+- `common.distributed-lock.renew-interval` → `base-model.distributed-lock.renew-interval`
+- `common.trace.exclude-paths` → `base-model.trace.exclude-paths`
+- `common.thread-pool.core-size` → `spring.task.execution.pool.core-size`
+- `common.thread-pool.max-size` → `spring.task.execution.pool.max-size`
+- `common.thread-pool.queue-capacity` → `spring.task.execution.pool.queue-capacity`
+- `common.thread-pool.keep-alive` → `spring.task.execution.pool.keep-alive`
 
-## GitHub Packages Maven配置
+## GitHub Packages Maven配置（参考）
+在 `~/.m2/settings.xml` 配置 `server id=github` 并具备 `read:packages` 权限后再添加本仓库 `repositories`。
+
+（示例见“快速开始”章节）
+
+（其余零散工具类略）
+
+（链路追踪由 base-model 提供的 Trace 组件统一处理）
+
+---
+以上为最新版功能与用法说明。如需更详细的配置映射与迁移提示，参见 `src/main/java/com/haven/common/config/ConfigurationBridge.java` 与 `COMMON_IMPROVEMENTS.md`。
 
 ### 1. 认证配置
 
