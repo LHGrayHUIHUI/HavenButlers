@@ -24,6 +24,48 @@ public @interface Encrypt {
     boolean sensitive() default true;
 
     /**
+     * 加密类型
+     */
+    Type type() default Type.FIELD;
+
+    /**
+     * 需要加密的字段名（仅在FIELD类型时生效）
+     */
+    String[] fields() default {};
+
+    /**
+     * 是否脱敏处理（替代加密）
+     */
+    boolean mask() default false;
+
+    /**
+     * 加密密钥（Base64或普通字符串）
+     */
+    String key() default "";
+
+    /**
+     * 加密失败时是否抛出异常
+     * true: 抛出异常
+     * false: 返回原始数据或脱敏数据
+     */
+    boolean failOnError() default false;
+
+    /**
+     * 加密类型枚举
+     */
+    enum Type {
+        /**
+         * 全量加密：整个响应体加密
+         */
+        FULL,
+
+        /**
+         * 字段级加密：对特定字段进行加密或脱敏
+         */
+        FIELD
+    }
+
+    /**
      * 加密算法枚举
      */
     enum Algorithm {

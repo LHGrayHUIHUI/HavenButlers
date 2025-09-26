@@ -248,10 +248,10 @@ mvn test
 - **MessageProducer/MessageListener**：消息队列集成，支持异步消息、重试机制
 
 ✅ **自动配置**
-- BaseModelAutoConfiguration：Spring Boot自动配置
-- 完整的配置属性类
-- META-INF/spring.factories自动配置文件
-- @ConditionalOnMissingBean支持，允许自定义实现替换默认实现
+- BaseModelAutoConfiguration：Spring Boot 自动装配
+- 完整的配置属性类（已提供 IDE 提示）
+- 使用 AutoConfiguration.imports（Boot 3）声明自动装配，无需 @Import
+- 默认 Bean 基于 @ConditionalOnMissingBean，可被业务方自定义实现覆盖
 
 ## 集成使用指南
 
@@ -266,7 +266,7 @@ mvn test
 
 ### 2. 启用自动配置
 
-#### 方式一：自动扫描（推荐）
+Spring Boot 3 已通过 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 自动装配，无需额外操作或 `@Import`。
 ```java
 @SpringBootApplication
 public class YourServiceApplication {
@@ -276,16 +276,15 @@ public class YourServiceApplication {
 }
 ```
 
-#### 方式二：显式导入
-```java
-@SpringBootApplication
-@Import(BaseModelAutoConfiguration.class)
-public class YourServiceApplication {
-    public static void main(String[] args) {
-        SpringApplication.run(YourServiceApplication.class, args);
-    }
-}
-```
+#### 必须遵循（继承本 Jar 的微服务）
+- 统一返回：对外 REST 接口统一返回 `ResponseWrapper` / `PagedResponseWrapper`。
+- 统一异常：抛出 `BusinessException/SystemException/ValidationException/AuthException` 等自定义异常，由 `GlobalExceptionHandler` 兜底。
+- 链路贯通：入站/出站都携带并透传 `X-Trace-ID`（`TraceIdInterceptor` 自动生成与回写，`ServiceClient` 自动透传）。
+- 行为日志：对关键业务方法标注 `@TraceLog`，控制参数/结果记录与截断，避免敏感信息泄露。
+- 限流控制：使用 `@RateLimit`（GLOBAL/IP/USER/IP_USER、`limit/window/key/message` 等），不要重复造拦截器。
+- 权限校验：使用 `@Permission`（`value/roles/logic/strictMode`），严格模式异常时拒绝访问。
+- 数据加密/脱敏：使用 `@Encrypt`（`type=FULL|FIELD`、`fields`、`mask`、`key`、`failOnError`），避免在日志/响应输出敏感明文。
+- Bean 覆盖：如需自定义缓存、锁、指标、服务发现、消息发送等，直接声明同类型 Bean（因 `@ConditionalOnMissingBean`）。
 
 ### 3. 配置文件设置
 
@@ -1228,6 +1227,59 @@ logging:
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId}] %logger{50} - %msg%n"
 ```
 
+#### ServiceClient 关键配置（推荐最小集）
+```yaml
+base-model:
+  service-client:
+    enabled: true
+    connect-timeout: 5000          # 连接超时(ms)
+    read-timeout: 30000            # 读取超时(ms)
+    retry:
+      enabled: true
+      max-attempts: 3
+      interval: 1000               # 初始重试间隔(ms)
+      multiplier: 2.0              # 退避倍数
+      max-interval: 10000          # 最大间隔(ms)
+      retryable-status-codes: [500,502,503,504]
+      retryable-exceptions:
+        - java.net.SocketTimeoutException
+        - java.net.ConnectException
+    connection-pool:
+      max-total: 200
+      max-per-route: 50
+      idle-timeout: 30             # 空闲连接存活(s)
+      validate-after-inactivity: 2000
+    headers:
+      trace-id-name: X-Trace-ID
+      user-agent: HavenButler-ServiceClient/1.0
+```
+
+#### 注解快速示例
+- 限流（IP+用户维度，窗口 60s 内最多 100 次）
+```java
+@GetMapping("/api/data")
+@RateLimit(limit = 100, window = 60, type = RateLimit.LimitType.IP_USER, message = "操作太频繁")
+public ResponseWrapper<List<DataDTO>> getData() { return ResponseWrapper.success(service.getData()); }
+```
+
+- 权限（严格模式，权限系统异常即拒绝）
+```java
+@Permission(value = {"user:read"}, roles = {"ADMIN"}, strictMode = true)
+public ResponseWrapper<UserDTO> getUser(Long id) { ... }
+```
+
+- 加密/脱敏（整包加密 或 字段级脱敏）
+```java
+@Encrypt(type = Encrypt.Type.FULL, algorithm = Encrypt.Algorithm.AES, key = "${secure.aes.key}", failOnError = true)
+@GetMapping("/export")
+public ResponseWrapper<DataDTO> export() { ... }
+
+public class UserDTO {
+  @Encrypt(mask = true) // 将在响应中脱敏
+  private String phone;
+}
+```
+
 #### 3.6 生产环境配置 application-prod.yml
 ```yaml
 # 生产环境配置
@@ -1322,13 +1374,14 @@ curl http://localhost:8080/your-service/actuator/metrics
 2. 确认Personal Access Token具有 `read:packages` 权限
 3. 验证仓库URL是否正确：`https://maven.pkg.github.com/LHGrayHUIHUI/HavenButlers`
 
-#### 问题2：自动配置不生效
+#### 问题2：自动配置不生效（Boot 3）
 ```
 错误：No bean of type 'GlobalExceptionHandler' found
 ```
 **解决方案**：
-1. 确认启动类包路径包含 `com.haven` 或添加 `@ComponentScan("com.haven")`
-2. 或者显式导入：`@Import(BaseModelAutoConfiguration.class)`
+1. 确认已引入 `com.haven:base-model` 且与 Spring Boot 3.x 版本匹配。
+2. 无需 `@Import` 与 `@ComponentScan`。本库通过 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 自动装配。
+3. 检查是否在业务工程中定义了相同类型 Bean 导致覆盖（本库使用 `@ConditionalOnMissingBean`）。如自定义，请确保兼容接口。
 
 #### 问题3：TraceID不生成
 ```

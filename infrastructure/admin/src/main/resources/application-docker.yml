@@ -35,12 +35,16 @@ spring:
             group: DEFAULT_GROUP
             refresh: true
 
-# 最小化管理端点配置
+# 生产环境安全配置
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics
   endpoint:
     health:
-      show-details: always
+      show-details: when-authorized  # 生产环境安全设置，仅授权用户可查看详情
+  metrics:
+    export:
+      prometheus:
+        enabled: true

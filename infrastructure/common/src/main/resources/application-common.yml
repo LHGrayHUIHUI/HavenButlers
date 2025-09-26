@@ -1,6 +1,35 @@
-# Common公共组件配置
+# Common公共组件配置 - 迁移至base-model规范
+# ⚠️ 警告：common.* 配置已废弃，请使用base-model.* 或 spring.* 配置
+
+# Base Model 配置（推荐使用）
+base-model:
+  cache:
+    enabled: true
+    default-ttl: 3600
+    key-prefix: "haven:${spring.profiles.active:dev}:"  # 环境隔离
+  security:
+    jwt-enabled: true
+    jwt-expiration: 86400000  # 24小时
+    jwt-secret: "${JWT_SECRET:}"  # ⚠️ 必须通过环境变量设置
+    jwt-clock-skew: 30  # 时钟偏差30秒
+    jwt-issuer: "HavenButler"
+  distributed-lock:
+    enabled: true
+    default-timeout: 30
+    auto-renew: true
+    renew-interval: 10
+  trace:
+    enabled: true
+    exclude-paths: "/health,/actuator/**,/swagger-ui/**,/v3/api-docs/**"
+  messaging:
+    enabled: false
+    default-timeout: 5000
+    max-retry: 3
+
+# 兼容配置（将在v2.0版本移除）
 common:
   version: 1.0.0
+  # 以下配置已废弃，使用时会输出警告日志
   redis:
     enabled: true
     default-timeout: 3600
@@ -8,8 +37,8 @@ common:
   security:
     enabled: true
     jwt-enabled: true
-    jwt-expiration: 86400000 # 24小时
-    jwt-secret: "HavenButlerSecretKeyForJWTGenerationAndValidation2025"
+    jwt-expiration: 86400000
+    # ⚠️ 硬编码密钥已移除，必须使用环境变量JWT_SECRET
   thread-pool:
     enabled: true
     core-pool-size: 10

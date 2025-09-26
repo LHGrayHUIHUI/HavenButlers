@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -38,6 +39,12 @@ public class AdminNacosServiceManager {
 
     @Autowired
     private NamingService namingService;
+
+    @Autowired
+    private RestTemplate restTemplate;
+
+    @Autowired
+    private SimpleCacheService cacheService;
 
     /**
      * 获取所有注册的服务列表
@@ -92,9 +99,9 @@ public class AdminNacosServiceManager {
             // 如果需要获取更详细信息，可以通过其他方式
             details.put("groupName", groupName);
 
-            // 通过实例统计健康状态
+            // 通过HTTP探测统计健康状态
             long healthyCount = instances.stream()
-                .mapToLong(instance -> "UP".equals(instance.getMetadata().getOrDefault("status", "UP")) ? 1 : 0)
+                .mapToLong(instance -> checkInstanceHealthByHttp(instance) ? 1 : 0)
                 .sum();
             details.put("healthyInstanceCount", healthyCount);
             details.put("unhealthyInstanceCount", instances.size() - healthyCount);
@@ -129,13 +136,7 @@ public class AdminNacosServiceManager {
             // 检查每个实例的健康状态
             long healthyCount = instances.stream()
                 .mapToLong(instance -> {
-                    try {
-                        // 这里可以通过HTTP调用检查实例健康状态
-                        // 暂时基于服务注册状态判断
-                        return instance.getMetadata().getOrDefault("status", "UP").equals("UP") ? 1 : 0;
-                    } catch (Exception e) {
-                        return 0;
-                    }
+                    return checkInstanceHealthByHttp(instance) ? 1 : 0;
                 })
                 .sum();
 
@@ -216,6 +217,60 @@ public class AdminNacosServiceManager {
         }
 
         return systemHealth;
+    }
+
+    /**
+     * 通过HTTP调用检查实例健康状态（使用缓存优化）
+     * 实际探测actuator/health端点，失败时回落为DOWN
+     *
+     * @param instance 服务实例
+     * @return 是否健康
+     */
+    private boolean checkInstanceHealthByHttp(ServiceInstance instance) {
+        String cacheKey = String.format("nacos_health_%s_%s_%d",
+                instance.getServiceId(), instance.getHost(), instance.getPort());
+
+        // 缓存10秒，与AdminNacosServiceManager的探测频率匹配
+        Boolean cachedResult = cacheService.computeIfAbsent(
+                cacheKey,
+                10,
+                () -> performHttpHealthCheck(instance)
+        );
+
+        return cachedResult != null ? cachedResult : false;
+    }
+
+    /**
+     * 执行实际的HTTP健康检查
+     */
+    private Boolean performHttpHealthCheck(ServiceInstance instance) {
+        try {
+            String healthUrl = String.format("http://%s:%d/actuator/health",
+                    instance.getHost(), instance.getPort());
+
+            // 使用Map解析，避免直接反序列化Health对象
+            @SuppressWarnings("unchecked")
+            Map<String, Object> healthResponse = restTemplate.getForObject(healthUrl, Map.class);
+
+            if (healthResponse == null) {
+                log.debug("实例 {}:{} 健康检查返回空响应", instance.getHost(), instance.getPort());
+                return false;
+            }
+
+            String status = (String) healthResponse.get("status");
+            boolean isHealthy = "UP".equals(status);
+
+            if (!isHealthy) {
+                log.debug("实例 {}:{} 健康状态为: {}", instance.getHost(), instance.getPort(), status);
+            }
+
+            return isHealthy;
+        } catch (Exception e) {
+            // HTTP调用失败，回落为DOWN
+            log.debug("实例 {}:{} 健康检查HTTP调用失败: {}",
+                    instance.getHost(), instance.getPort(), e.getMessage());
+            return false;
+        }
     }
 
     /**

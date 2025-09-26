@@ -1,7 +1,77 @@
-# Admin 管理服务 开发指南
+# CLAUDE.md
 
-## 模块概述
-Admin管理服务是HavenButler平台的运维管理中心，提供监控、配置、日志、链路追踪等管理功能。
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## 项目概述
+
+这是 HavenButler Admin 管理服务，基于 Spring Boot Admin 3.1.0 构建的微服务管理平台。它提供微服务监控、告警管理、配置管理和性能分析等功能。
+
+## 常用开发命令
+
+### 构建和运行
+```bash
+# 构建项目
+mvn clean package
+
+# 本地开发运行
+mvn spring-boot:run
+
+# 运行测试
+mvn test
+
+# Docker构建
+docker build -t haven/admin-service:latest .
+docker build -f Dockerfile.multi-stage -t haven/admin-service:latest .
+
+# Docker Compose 启动（包含依赖服务）
+docker-compose up -d
+
+# 初始化 Nacos 配置（首次运行）
+./setup-nacos.sh
+```
+
+### 访问地址
+- Admin 控制台: http://localhost:8888 (admin/admin123)
+- Nacos 控制台: http://localhost:8848/nacos (nacos/nacos)
+- Prometheus: http://localhost:9090
+
+## 项目架构
+
+### 核心模块结构
+- **monitor/**：监控模块 - 服务健康检查、指标收集
+- **controller/**：REST API控制器 - 服务管理、环境管理、告警管理
+- **service/**：业务服务层 - 与Nacos交互、告警处理
+- **config/**：配置类 - Spring Boot Admin、安全配置、Nacos集成
+- **model/**：数据模型 - 服务信息、告警规则、指标数据
+
+### 技术栈
+- Spring Boot 3.1.0 + Spring Cloud 2023.0.1
+- Spring Boot Admin 3.1.0（监控界面）
+- Nacos 2.3.0（配置中心+服务发现）
+- Prometheus + Micrometer（指标收集）
+- Spring Security（认证授权）
+
+### 集成依赖
+- 依赖 `base-model` 和 `common` 模块
+- 与 Nacos 注册中心集成，自动发现其他微服务
+- 支持通过 OpenFeign 调用其他服务
+
+## 开发注意事项
+
+### 配置管理
+- 本地开发配置在 `application.yml`
+- 生产配置通过 Nacos 动态加载：`admin-service.yml`
+- 环境变量：`NACOS_ADDR`, `NACOS_NAMESPACE`, `ADMIN_USER`, `ADMIN_PASSWORD`
+
+### 监控集成
+- 所有微服务通过 Actuator 端点暴露健康状态
+- 使用 Prometheus 格式指标，支持 Grafana 可视化
+- 服务发现基于 Nacos，自动监控新注册的服务
+
+### 安全要求
+- Admin 服务仅内网访问，不对外暴露
+- 所有 API 需要认证，默认 admin/admin123
+- 操作日志记录和审计追踪
 
 ## 开发规范
 

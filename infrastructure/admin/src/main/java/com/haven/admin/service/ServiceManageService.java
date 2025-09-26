@@ -84,13 +84,23 @@ public class ServiceManageService {
 
     /**
      * 检查实例健康状态
+     * 改为使用Map解析，避免直接反序列化Health对象的兼容性风险
      */
     private boolean checkInstanceHealth(ServiceInstance instance) {
         try {
             String healthUrl = String.format("http://%s:%d/actuator/health",
                     instance.getHost(), instance.getPort());
-            Health health = restTemplate.getForObject(healthUrl, Health.class);
-            return health != null && "UP".equals(health.getStatus().getCode());
+
+            // 使用Map解析，避免直接反序列化Health对象
+            @SuppressWarnings("unchecked")
+            Map<String, Object> healthResponse = restTemplate.getForObject(healthUrl, Map.class);
+
+            if (healthResponse == null) {
+                return false;
+            }
+
+            String status = (String) healthResponse.get("status");
+            return "UP".equals(status);
         } catch (Exception e) {
             log.warn("检查实例健康状态失败: {}", instance.getInstanceId(), e);
             return false;
@@ -113,63 +123,96 @@ public class ServiceManageService {
 
     /**
      * 获取服务指标
+     * 改为对所有实例进行聚合，而不是只取第一个实例
      */
     public ServiceMetrics getServiceMetrics(String serviceName, LocalDateTime startTime, LocalDateTime endTime) {
         ServiceMetrics metrics = new ServiceMetrics();
         metrics.setServiceName(serviceName);
 
         List<ServiceInstance> instances = discoveryClient.getInstances(serviceName);
-        if (!instances.isEmpty()) {
-            ServiceInstance instance = instances.get(0);
+        if (instances.isEmpty()) {
+            return metrics;
+        }
+
+        // 跨实例聚合指标
+        double totalCpuUsage = 0.0;
+        double totalThreadCount = 0.0;
+        double totalMemoryUsed = 0.0;
+        double totalMemoryMax = 0.0;
+        double totalRequestCount = 0.0;
+        double totalResponseTime = 0.0;
+        double totalErrorRate = 0.0;
+        double totalRequestRate = 0.0;
+        int validInstanceCount = 0;
+
+        for (ServiceInstance instance : instances) {
             try {
                 // CPU使用率（0-1）转百分比
                 Double cpuUsage = queryMetricValue(instance, "system.cpu.usage");
                 if (cpuUsage != null) {
-                    metrics.setCpuUsage(cpuUsage * 100.0);
+                    totalCpuUsage += cpuUsage * 100.0;
                 }
 
                 // 线程数
                 Double threadsLive = queryMetricValue(instance, "jvm.threads.live");
                 if (threadsLive != null) {
-                    metrics.setThreadCount(threadsLive);
+                    totalThreadCount += threadsLive;
                 }
 
                 // 堆内存使用与上限（按 id 聚合）
                 double heapUsed = sumJvmMemory(instance, "jvm.memory.used");
                 double heapMax = sumJvmMemory(instance, "jvm.memory.max");
                 if (heapUsed > 0) {
-                    metrics.setMemoryUsage(heapUsed / (1024 * 1024)); // 转MB
+                    totalMemoryUsed += heapUsed / (1024 * 1024); // 转MB
                 }
                 if (heapMax > 0) {
-                    metrics.setMemoryMax(heapMax / (1024 * 1024)); // 转MB
+                    totalMemoryMax += heapMax / (1024 * 1024); // 转MB
                 }
 
                 // HTTP请求统计
                 MetricDetail httpMetrics = queryMetricDetail(instance, "http.server.requests");
-                double totalCount = httpMetrics.count;
-                double totalTime = httpMetrics.totalTime; // 秒
-                if (totalCount > 0) {
-                    metrics.setRequestCount(totalCount);
-                    // 平均响应时间(ms)
-                    metrics.setResponseTime((totalTime / totalCount) * 1000.0);
+                double instanceRequestCount = httpMetrics.count;
+                double instanceTotalTime = httpMetrics.totalTime; // 秒
+                if (instanceRequestCount > 0) {
+                    totalRequestCount += instanceRequestCount;
+                    totalResponseTime += instanceTotalTime;
                 }
 
                 // 错误率（客户端+服务端错误）
                 double clientErr = queryMetricCountWithTag(instance, "http.server.requests", "outcome", "CLIENT_ERROR");
                 double serverErr = queryMetricCountWithTag(instance, "http.server.requests", "outcome", "SERVER_ERROR");
-                double errTotal = clientErr + serverErr;
-                if (totalCount > 0) {
-                    metrics.setErrorRate(errTotal / totalCount);
+                double instanceErrorCount = clientErr + serverErr;
+                if (instanceRequestCount > 0) {
+                    totalErrorRate += (instanceErrorCount / instanceRequestCount);
                 }
 
                 // 简单请求速率：按进程启动时间估算
                 Double uptime = queryMetricValue(instance, "process.uptime");
-                if (uptime != null && uptime > 0 && totalCount > 0) {
-                    metrics.setRequestRate(totalCount / uptime);
+                if (uptime != null && uptime > 0 && instanceRequestCount > 0) {
+                    totalRequestRate += (instanceRequestCount / uptime);
                 }
+
+                validInstanceCount++;
             } catch (Exception e) {
-                log.error("获取服务指标失败: {}", serviceName, e);
+                log.error("获取实例 {} 指标失败: {}", instance.getInstanceId(), e);
             }
+        }
+
+        // 设置聚合后的指标
+        if (validInstanceCount > 0) {
+            metrics.setCpuUsage(totalCpuUsage / validInstanceCount); // 平均CPU使用率
+            metrics.setThreadCount(totalThreadCount); // 线程总数
+            metrics.setMemoryUsage(totalMemoryUsed); // 总内存使用量
+            metrics.setMemoryMax(totalMemoryMax); // 总内存上限
+            metrics.setRequestCount(totalRequestCount); // 总请求数
+
+            // 加权平均响应时间
+            if (totalRequestCount > 0) {
+                metrics.setResponseTime((totalResponseTime / totalRequestCount) * 1000.0); // 转毫秒
+            }
+
+            metrics.setErrorRate(totalErrorRate / validInstanceCount); // 平均错误率
+            metrics.setRequestRate(totalRequestRate); // 总请求速率
         }
 
         return metrics;

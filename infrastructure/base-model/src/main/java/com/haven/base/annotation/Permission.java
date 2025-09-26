@@ -44,6 +44,13 @@ public @interface Permission {
     String message() default "您没有权限执行此操作";
 
     /**
+     * 严格模式：权限系统异常时是否拒绝访问
+     * true: 权限系统异常时拒绝访问（推荐生产环境）
+     * false: 权限系统异常时允许访问并记录警告
+     */
+    boolean strictMode() default false;
+
+    /**
      * 权限逻辑枚举
      */
     enum Logic {

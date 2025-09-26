@@ -8,7 +8,9 @@ import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.Mac;
 import javax.crypto.SecretKey;
+import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
@@ -27,8 +29,11 @@ public final class EncryptUtil {
     private static final String AES_ALGORITHM = "AES/GCM/NoPadding";
     private static final String RSA_ALGORITHM = "RSA";
     private static final String HMAC_ALGORITHM = "HmacSHA256";
+    private static final String PBKDF2_ALGORITHM = "PBKDF2WithHmacSHA256";
     private static final int GCM_IV_LENGTH = 12;
     private static final int GCM_TAG_LENGTH = 128;
+    private static final int PBKDF2_ITERATIONS = 100000;
+    private static final int SALT_LENGTH = 16;
     private static final BCryptPasswordEncoder PASSWORD_ENCODER = new BCryptPasswordEncoder();
 
     private EncryptUtil() {
@@ -37,19 +42,28 @@ public final class EncryptUtil {
 
     /**
      * AES-256-GCM加密
+     * 支持Base64密钥或字符串密钥（自动使用PBKDF2派生）
      *
      * @param plainText 明文
-     * @param key       密钥（256位）
-     * @return Base64编码的密文（包含IV）
+     * @param key       密钥（Base64编码的密钥或普通字符串）
+     * @return Base64编码的密文（包含IV和salt）
      */
     public static String encryptAES(String plainText, String key) {
         try {
-            byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
-            SecretKeySpec secretKey = new SecretKeySpec(keyBytes, "AES");
+            SecretKeySpec secretKey = prepareAESKey(key);
+            byte[] salt = null;
 
             // 生成随机IV
             byte[] iv = new byte[GCM_IV_LENGTH];
             new SecureRandom().nextBytes(iv);
+
+            // 如果key不是标准AES密钥，需要包含salt
+            if (!isValidBase64AESKey(key)) {
+                salt = new byte[SALT_LENGTH];
+                new SecureRandom().nextBytes(salt);
+                secretKey = deriveAESKeyFromPassword(key, salt);
+            }
+
             GCMParameterSpec parameterSpec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);
 
             // 加密
@@ -57,12 +71,20 @@ public final class EncryptUtil {
             cipher.init(Cipher.ENCRYPT_MODE, secretKey, parameterSpec);
             byte[] cipherText = cipher.doFinal(plainText.getBytes(StandardCharsets.UTF_8));
 
-            // 将IV和密文合并
-            byte[] cipherTextWithIv = new byte[iv.length + cipherText.length];
-            System.arraycopy(iv, 0, cipherTextWithIv, 0, iv.length);
-            System.arraycopy(cipherText, 0, cipherTextWithIv, iv.length, cipherText.length);
+            // 构建最终数据：[salt(可选)][iv][cipherText]
+            byte[] result;
+            if (salt != null) {
+                result = new byte[salt.length + iv.length + cipherText.length];
+                System.arraycopy(salt, 0, result, 0, salt.length);
+                System.arraycopy(iv, 0, result, salt.length, iv.length);
+                System.arraycopy(cipherText, 0, result, salt.length + iv.length, cipherText.length);
+            } else {
+                result = new byte[iv.length + cipherText.length];
+                System.arraycopy(iv, 0, result, 0, iv.length);
+                System.arraycopy(cipherText, 0, result, iv.length, cipherText.length);
+            }
 
-            return Base64.getEncoder().encodeToString(cipherTextWithIv);
+            return Base64.getEncoder().encodeToString(result);
         } catch (Exception e) {
             throw new SystemException(ErrorCode.SYSTEM_ERROR, "AES加密失败");
         }
@@ -71,24 +93,41 @@ public final class EncryptUtil {
     /**
      * AES-256-GCM解密
      *
-     * @param cipherText Base64编码的密文（包含IV）
-     * @param key        密钥（256位）
+     * @param cipherText Base64编码的密文（包含salt、IV和密文）
+     * @param key        密钥（Base64编码的密钥或普通字符串）
      * @return 明文
      */
     public static String decryptAES(String cipherText, String key) {
         try {
-            byte[] cipherTextWithIv = Base64.getDecoder().decode(cipherText);
-            byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
-            SecretKeySpec secretKey = new SecretKeySpec(keyBytes, "AES");
+            byte[] encryptedData = Base64.getDecoder().decode(cipherText);
+
+            SecretKeySpec secretKey;
+            int offset = 0;
+
+            // 检查是否包含salt（基于密钥类型判断）
+            if (!isValidBase64AESKey(key)) {
+                // 提取salt
+                byte[] salt = new byte[SALT_LENGTH];
+                System.arraycopy(encryptedData, 0, salt, 0, SALT_LENGTH);
+                offset += SALT_LENGTH;
+
+                // 使用PBKDF2派生密钥
+                secretKey = deriveAESKeyFromPassword(key, salt);
+            } else {
+                // 使用原始密钥
+                secretKey = prepareAESKey(key);
+            }
 
             // 提取IV
             byte[] iv = new byte[GCM_IV_LENGTH];
-            System.arraycopy(cipherTextWithIv, 0, iv, 0, iv.length);
+            System.arraycopy(encryptedData, offset, iv, 0, GCM_IV_LENGTH);
+            offset += GCM_IV_LENGTH;
+
             GCMParameterSpec parameterSpec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);
 
             // 提取密文
-            byte[] cipherTextBytes = new byte[cipherTextWithIv.length - iv.length];
-            System.arraycopy(cipherTextWithIv, iv.length, cipherTextBytes, 0, cipherTextBytes.length);
+            byte[] cipherTextBytes = new byte[encryptedData.length - offset];
+            System.arraycopy(encryptedData, offset, cipherTextBytes, 0, cipherTextBytes.length);
 
             // 解密
             Cipher cipher = Cipher.getInstance(AES_ALGORITHM);
@@ -285,5 +324,123 @@ public final class EncryptUtil {
         } catch (Exception e) {
             throw new SystemException(ErrorCode.SYSTEM_ERROR, "生成RSA密钥对失败");
         }
+    }
+
+    // ========== 密钥处理辅助方法 ==========
+
+    /**
+     * 验证是否为有效的Base64编码AES密钥
+     */
+    private static boolean isValidBase64AESKey(String key) {
+        try {
+            byte[] keyBytes = Base64.getDecoder().decode(key);
+            return keyBytes.length == 16 || keyBytes.length == 24 || keyBytes.length == 32; // AES-128/192/256
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * 准备AES密钥
+     * 如果是Base64密钥直接解码，否则抛出异常要求使用PBKDF2
+     */
+    private static SecretKeySpec prepareAESKey(String key) {
+        if (isValidBase64AESKey(key)) {
+            byte[] keyBytes = Base64.getDecoder().decode(key);
+            return new SecretKeySpec(keyBytes, "AES");
+        } else {
+            // 对于非标准密钥，这个方法不应该被调用
+            throw new SystemException(ErrorCode.PARAM_ERROR,
+                "密钥格式不正确，请使用Base64编码的AES密钥或调用带salt的加密方法");
+        }
+    }
+
+    /**
+     * 使用PBKDF2从密码派生AES密钥
+     */
+    private static SecretKeySpec deriveAESKeyFromPassword(String password, byte[] salt) {
+        try {
+            PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), salt, PBKDF2_ITERATIONS, 256);
+            SecretKeyFactory factory = SecretKeyFactory.getInstance(PBKDF2_ALGORITHM);
+            SecretKey secretKey = factory.generateSecret(spec);
+            return new SecretKeySpec(secretKey.getEncoded(), "AES");
+        } catch (Exception e) {
+            throw new SystemException(ErrorCode.SYSTEM_ERROR, "密钥派生失败");
+        }
+    }
+
+    /**
+     * 生成安全的随机salt
+     */
+    public static byte[] generateSalt() {
+        byte[] salt = new byte[SALT_LENGTH];
+        new SecureRandom().nextBytes(salt);
+        return salt;
+    }
+
+    /**
+     * 使用PBKDF2派生密钥（用于密码存储）
+     */
+    public static String deriveKeyFromPassword(String password, byte[] salt) {
+        try {
+            PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), salt, PBKDF2_ITERATIONS, 256);
+            SecretKeyFactory factory = SecretKeyFactory.getInstance(PBKDF2_ALGORITHM);
+            SecretKey secretKey = factory.generateSecret(spec);
+            return Base64.getEncoder().encodeToString(secretKey.getEncoded());
+        } catch (Exception e) {
+            throw new SystemException(ErrorCode.SYSTEM_ERROR, "密钥派生失败");
+        }
+    }
+
+    /**
+     * 验证密钥强度
+     *
+     * @param key 密钥字符串
+     * @return 密钥强度评分 (0-100)
+     */
+    public static int validateKeyStrength(String key) {
+        if (key == null || key.length() < 8) {
+            return 0;
+        }
+
+        int score = 0;
+
+        // 长度评分
+        if (key.length() >= 8) score += 25;
+        if (key.length() >= 12) score += 25;
+        if (key.length() >= 16) score += 25;
+
+        // 字符类型评分
+        boolean hasLower = key.matches(".*[a-z].*");
+        boolean hasUpper = key.matches(".*[A-Z].*");
+        boolean hasDigit = key.matches(".*\\d.*");
+        boolean hasSpecial = key.matches(".*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?].*");
+
+        if (hasLower) score += 5;
+        if (hasUpper) score += 5;
+        if (hasDigit) score += 5;
+        if (hasSpecial) score += 10;
+
+        return Math.min(score, 100);
+    }
+
+    /**
+     * 常量时间字符串比较（防止时序攻击）
+     */
+    public static boolean constantTimeEquals(String a, String b) {
+        if (a == null || b == null) {
+            return a == b;
+        }
+
+        if (a.length() != b.length()) {
+            return false;
+        }
+
+        int result = 0;
+        for (int i = 0; i < a.length(); i++) {
+            result |= a.charAt(i) ^ b.charAt(i);
+        }
+
+        return result == 0;
     }
 }

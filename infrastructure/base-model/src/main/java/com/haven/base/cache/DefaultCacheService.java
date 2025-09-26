@@ -2,8 +2,7 @@ package com.haven.base.cache;
 
 import com.haven.base.utils.JsonUtil;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.stereotype.Component;
+// 移除@Component注解，改由BaseModelAutoConfiguration中@Bean方式注册
 
 import java.time.Duration;
 import java.util.*;
@@ -18,8 +17,7 @@ import java.util.stream.Collectors;
  * @author HavenButler
  */
 @Slf4j
-@Component
-@ConditionalOnMissingBean(CacheService.class)
+// 移除@Component注解，改由BaseModelAutoConfiguration中@Bean方式注册
 public class DefaultCacheService implements CacheService {
 
     /**

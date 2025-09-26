@@ -1,6 +1,8 @@
-# EditorConfig helps maintain consistent coding styles across editors
+# EditorConfig 配置文件 - HavenButler Admin 服务
+# 用于统一代码格式和编辑器设置
 root = true
 
+# 所有文件的默认设置
 [*]
 charset = utf-8
 end_of_line = lf
@@ -8,18 +10,98 @@ insert_final_newline = true
 indent_style = space
 indent_size = 4
 trim_trailing_whitespace = true
+max_line_length = 120
 
-[*.md]
-max_line_length = off
-trim_trailing_whitespace = false
+# Java 源文件
+[*.java]
+indent_style = space
+indent_size = 4
+max_line_length = 120
+continuation_indent_size = 8
+# IntelliJ IDEA 专用配置
+ij_java_align_multiline_parameters = true
+ij_java_align_multiline_chained_methods = true
+ij_java_imports_layout = *,|,javax.**,java.**,|,$*
+ij_java_blank_lines_before_imports = 1
+ij_java_blank_lines_after_imports = 1
+ij_java_blank_lines_before_class_end = 1
 
-[*.yml]
+# XML 配置文件（包括 Maven pom.xml）
+[*.xml]
+indent_style = space
+indent_size = 4
+max_line_length = 120
+
+# YAML 配置文件（包括 application.yml）
+[*.{yml,yaml}]
+indent_style = space
 indent_size = 2
+max_line_length = 120
 
-[*.sh]
+# Properties 配置文件
+[*.properties]
+indent_style = space
+indent_size = 4
+max_line_length = 120
+
+# JSON 文件
+[*.json]
+indent_style = space
+indent_size = 2
+max_line_length = 120
+
+# HTML 文件
+[*.html]
+indent_style = space
+indent_size = 2
+max_line_length = 120
+
+# CSS 文件
+[*.css]
+indent_style = space
+indent_size = 2
+max_line_length = 120
+
+# JavaScript 文件
+[*.js]
+indent_style = space
+indent_size = 2
+max_line_length = 120
+
+# Markdown 文档
+[*.md]
+indent_style = space
+indent_size = 2
+trim_trailing_whitespace = false
+max_line_length = 120
+
+# SQL 脚本
+[*.sql]
+indent_style = space
+indent_size = 2
+max_line_length = 120
+
+# Shell 脚本
+[*.{sh,bash}]
+indent_style = space
 indent_size = 2
 end_of_line = lf
+max_line_length = 120
 
-[*.java]
+# Docker 文件
+[{Dockerfile,*.dockerfile}]
+indent_style = space
 indent_size = 4
-ij_java_align_multiline_parameters = true
+max_line_length = 120
+
+# 配置特殊文件
+[package.json]
+indent_style = space
+indent_size = 2
+
+[Makefile]
+indent_style = tab
+indent_size = 4
+
+[{*.bat,*.cmd}]
+end_of_line = crlf

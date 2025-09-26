@@ -1,6 +1,7 @@
 package com.haven.admin.controller;
 
 import com.haven.admin.service.AdminHealthService;
+import com.haven.base.common.response.ResponseWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,26 +28,44 @@ public class AdminController {
      * 获取系统健康状态
      */
     @GetMapping("/health")
-    public Map<String, Object> getHealth() {
-        log.info("获取系统健康状态");
-        return adminHealthService.getSystemHealth();
+    public ResponseWrapper<Map<String, Object>> getHealth() {
+        try {
+            log.info("获取系统健康状态");
+            Map<String, Object> healthData = adminHealthService.getSystemHealth();
+            return ResponseWrapper.success(healthData);
+        } catch (Exception e) {
+            log.error("获取系统健康状态失败", e);
+            return ResponseWrapper.error(500, "获取系统健康状态失败: " + e.getMessage(), (Map<String, Object>) null);
+        }
     }
 
     /**
      * 获取系统指标
      */
     @GetMapping("/metrics")
-    public Map<String, Object> getMetrics() {
-        log.info("获取系统指标");
-        return adminHealthService.getSystemMetrics();
+    public ResponseWrapper<Map<String, Object>> getMetrics() {
+        try {
+            log.info("获取系统指标");
+            Map<String, Object> metricsData = adminHealthService.getSystemMetrics();
+            return ResponseWrapper.success(metricsData);
+        } catch (Exception e) {
+            log.error("获取系统指标失败", e);
+            return ResponseWrapper.error(500, "获取系统指标失败: " + e.getMessage(), (Map<String, Object>) null);
+        }
     }
 
     /**
      * 获取服务状态
      */
     @GetMapping("/services")
-    public Map<String, Object> getServices() {
-        log.info("获取服务状态");
-        return adminHealthService.getServicesStatus();
+    public ResponseWrapper<Map<String, Object>> getServices() {
+        try {
+            log.info("获取服务状态");
+            Map<String, Object> servicesData = adminHealthService.getServicesStatus();
+            return ResponseWrapper.success(servicesData);
+        } catch (Exception e) {
+            log.error("获取服务状态失败", e);
+            return ResponseWrapper.error(500, "获取服务状态失败: " + e.getMessage(), (Map<String, Object>) null);
+        }
     }
 }

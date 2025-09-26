@@ -1,16 +1,15 @@
 package com.haven.admin.monitor;
 
+import com.haven.admin.model.ServiceOverview;
+import com.haven.admin.service.HealthSnapshotService;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
-import org.springframework.cloud.client.ServiceInstance;
-import org.springframework.cloud.client.discovery.DiscoveryClient;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 import java.util.Map;
@@ -27,99 +26,99 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Component
 public class ServiceHealthMonitor implements HealthIndicator {
 
-    @Autowired(required = false)
-    private DiscoveryClient discoveryClient;
+    @Autowired
+    private HealthSnapshotService healthSnapshotService;
 
     @Autowired
     private MeterRegistry meterRegistry;
-
-    @Autowired
-    private RestTemplate restTemplate;
 
     // 使用可变对象承载gauge值，避免频繁注册Gauge导致的度量污染
     private final Map<String, AtomicInteger> instanceHealthGauges = new ConcurrentHashMap<>();
 
     /**
-     * 定时检查服务健康状态
+     * 定时更新服务健康状态指标（复用 HealthSnapshotService 的结果）
+     * 频率降低到 30 秒，避免与 HealthSnapshotService（10秒）的重复探测
      */
     @Scheduled(fixedDelay = 30000)
-    public void checkServiceHealth() {
-        if (discoveryClient == null) {
-            log.debug("DiscoveryClient未配置，跳过服务健康检查");
-            return;
-        }
+    public void updateHealthMetrics() {
+        try {
+            List<ServiceOverview> overviews = healthSnapshotService.getAllServiceOverview();
+            log.debug("开始更新{}个服务的健康状态指标", overviews.size());
 
-        List<String> services = discoveryClient.getServices();
-        log.info("开始检查{}个服务的健康状态", services.size());
-
-        for (String service : services) {
-            List<ServiceInstance> instances = discoveryClient.getInstances(service);
-
-            for (ServiceInstance instance : instances) {
-                checkInstanceHealth(instance);
+            for (ServiceOverview overview : overviews) {
+                updateServiceHealthGauge(overview);
             }
+        } catch (Exception e) {
+            log.error("更新健康状态指标失败", e);
         }
     }
 
     /**
-     * 检查单个实例的健康状态
+     * 更新服务级别的健康状态指标
      */
-    private void checkInstanceHealth(ServiceInstance instance) {
-        String healthUrl = instance.getUri() + "/actuator/health";
+    private void updateServiceHealthGauge(ServiceOverview overview) {
+        String serviceName = overview.getServiceName();
+        String key = "service#" + serviceName;
 
-        try {
-            Map response = restTemplate.getForObject(healthUrl, Map.class);
+        // 计算服务级别的健康比率
+        double healthRatio = overview.getInstanceCount() > 0 ?
+            (double) overview.getHealthyCount() / overview.getInstanceCount() : 0.0;
 
-            if (response != null) {
-                String status = (String) response.get("status");
+        int healthValue = determineServiceHealthValue(overview.getStatus());
 
-                // 记录指标（稳定 gauge 对象，重复使用）
-                int value = "UP".equals(status) ? 1 : 0;
-                updateHealthGauge(instance, value);
-
-                // 记录日志
-                if (!"UP".equals(status)) {
-                    log.warn("服务实例 {} ({}) 状态异常: {}",
-                            instance.getServiceId(),
-                            instance.getInstanceId(),
-                            status);
-                }
-            }
-        } catch (Exception e) {
-            log.error("无法检查服务实例 {} ({}) 的健康状态",
-                    instance.getServiceId(),
-                    instance.getInstanceId(), e);
-
-            // 记录不可达指标
-            updateHealthGauge(instance, 0);
-        }
-    }
-
-    private void updateHealthGauge(ServiceInstance instance, int value) {
-        String key = instance.getServiceId() + "#" + instance.getInstanceId();
         AtomicInteger holder = instanceHealthGauges.computeIfAbsent(key, k -> {
-            AtomicInteger init = new AtomicInteger(value);
+            AtomicInteger init = new AtomicInteger(healthValue);
             meterRegistry.gauge(
                 "service.health",
-                Tags.of("service", instance.getServiceId(), "instance", instance.getInstanceId()),
+                Tags.of("service", serviceName),
                 init
             );
             return init;
         });
-        holder.set(value);
+        holder.set(healthValue);
+
+        // 同时记录健康比率指标
+        meterRegistry.gauge(
+            "service.health.ratio",
+            Tags.of("service", serviceName),
+            healthRatio
+        );
+
+        // 记录异常状态
+        if (!"UP".equals(overview.getStatus())) {
+            log.warn("服务 {} 状态异常: {}, 健康实例 {}/{}",
+                serviceName, overview.getStatus(),
+                overview.getHealthyCount(), overview.getInstanceCount());
+        }
+    }
+
+    /**
+     * 将服务状态转换为数值
+     */
+    private int determineServiceHealthValue(String status) {
+        switch (status) {
+            case "UP":
+                return 2;
+            case "DEGRADED":
+                return 1;
+            case "DOWN":
+            default:
+                return 0;
+        }
     }
 
     @Override
     public Health health() {
         try {
-            if (discoveryClient != null && !discoveryClient.getServices().isEmpty()) {
-                return Health.up()
-                    .withDetail("status", "监控服务正常运行")
-                    .withDetail("services", discoveryClient.getServices().size())
-                    .build();
-            }
+            List<ServiceOverview> overviews = healthSnapshotService.getAllServiceOverview();
+            long healthyServices = overviews.stream()
+                .mapToLong(overview -> "UP".equals(overview.getStatus()) ? 1 : 0)
+                .sum();
+
             return Health.up()
-                .withDetail("status", "监控服务正常运行（独立模式）")
+                .withDetail("status", "监控服务正常运行")
+                .withDetail("totalServices", overviews.size())
+                .withDetail("healthyServices", healthyServices)
                 .build();
         } catch (Exception e) {
             return Health.down()

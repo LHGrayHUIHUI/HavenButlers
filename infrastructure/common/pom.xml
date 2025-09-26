@@ -81,6 +81,12 @@
             <artifactId>spring-boot-starter-amqp</artifactId>
         </dependency>
 
+        <!-- Actuator支持（健康检查、指标等） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
         <!-- 工具类 -->
         <dependency>
             <groupId>org.apache.commons</groupId>
@@ -101,12 +107,14 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- JSON处理 -->
+        <!-- Java 11+中需要的注解支持 -->
         <dependency>
-            <groupId>com.alibaba</groupId>
-            <artifactId>fastjson</artifactId>
-            <version>2.0.25</version>
+            <groupId>jakarta.annotation</groupId>
+            <artifactId>jakarta.annotation-api</artifactId>
         </dependency>
+
+        <!-- JSON处理 -->
+        <!-- 注意：已移除fastjson依赖，统一使用base-model的JsonUtil（基于Jackson） -->
 
         <!-- JWT支持 -->
         <dependency>

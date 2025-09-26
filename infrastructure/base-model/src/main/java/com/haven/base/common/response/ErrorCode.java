@@ -30,6 +30,7 @@ public enum ErrorCode {
     FILE_DOWNLOAD_ERROR(10007, "文件下载失败"),
     CONFIG_ERROR(10008, "配置错误"),
     RATE_LIMIT_ERROR(10009, "请求过于频繁"),
+    RATE_LIMIT_EXCEEDED(10010, "超过访问限制"),
 
     // ========== 认证授权错误 20000-29999 ==========
     UNAUTHORIZED(20000, "未登录或登录已过期"),

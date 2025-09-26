@@ -19,6 +19,9 @@ import org.springframework.core.env.Environment;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.boot.web.client.RestTemplateBuilder;
+
+import java.time.Duration;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -44,10 +47,14 @@ public class AdminConfiguration {
 
     /**
      * RestTemplate配置
+     * 配置连接超时和读取超时，提高调用稳定性
      */
     @Bean
     public RestTemplate restTemplate() {
-        return new RestTemplate();
+        return new RestTemplateBuilder()
+                .setConnectTimeout(Duration.ofMillis(1000))  // 连接超时1秒
+                .setReadTimeout(Duration.ofMillis(1500))     // 读取超时1.5秒
+                .build();
     }
 
     /**

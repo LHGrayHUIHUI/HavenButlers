@@ -16,8 +16,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * @author HavenButler
  */
 @Slf4j
-@Component
-@ConditionalOnMissingBean(ServiceDiscovery.class)
+// 移除@Component注解，改由BaseModelAutoConfiguration中@Bean方式注册
+
 @ConfigurationProperties(prefix = "base-model.service-discovery")
 public class DefaultServiceDiscovery implements ServiceDiscovery {
 

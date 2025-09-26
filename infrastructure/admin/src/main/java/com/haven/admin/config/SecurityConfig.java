@@ -47,6 +47,8 @@ public class SecurityConfig {
                 .requestMatchers(new AntPathRequestMatcher(this.adminServerProperties.path("/actuator/info"))).permitAll()
                 .requestMatchers(new AntPathRequestMatcher(this.adminServerProperties.path("/actuator/health"))).permitAll()
                 .requestMatchers(new AntPathRequestMatcher(this.adminServerProperties.path("/login"))).permitAll()
+                .requestMatchers(new AntPathRequestMatcher("/ui/**")).authenticated()
+                .requestMatchers(new AntPathRequestMatcher("/api/**")).authenticated()
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form

@@ -19,8 +19,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * @author HavenButler
  */
 @Slf4j
-@Component
-@ConditionalOnMissingBean(DynamicConfigManager.class)
+// 移除@Component注解，改由BaseModelAutoConfiguration中@Bean方式注册
+
 public class DefaultDynamicConfigManager implements DynamicConfigManager {
 
     private final Environment environment;

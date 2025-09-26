@@ -10,11 +10,20 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * RabbitMQ配置类
+ * RabbitMQ配置类 - 基于base-model规范
+ * 支持配置前缀迁移和向后兼容
+ *
+ * @author HavenButler
+ * @version 2.0.0 - 对齐base-model消息规范
  */
 @Slf4j
 @Configuration
-@ConditionalOnProperty(prefix = "common.mq", name = "enabled", havingValue = "true")
+@ConditionalOnProperty(
+    prefix = "base-model.messaging",
+    name = "enabled",
+    havingValue = "true",
+    matchIfMissing = true
+)
 public class RabbitMqConfig {
 
     /**

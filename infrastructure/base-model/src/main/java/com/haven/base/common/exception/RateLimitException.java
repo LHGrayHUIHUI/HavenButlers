@@ -25,6 +25,27 @@ public class RateLimitException extends BaseException {
     }
 
     /**
+     * 使用错误码构造异常
+     */
+    public RateLimitException(ErrorCode errorCode) {
+        super(errorCode);
+    }
+
+    /**
+     * 使用错误码和自定义消息构造异常
+     */
+    public RateLimitException(ErrorCode errorCode, String message) {
+        super(errorCode, message);
+    }
+
+    /**
+     * 使用错误码、消息和原因构造异常
+     */
+    public RateLimitException(ErrorCode errorCode, String message, Throwable cause) {
+        super(errorCode, message, cause);
+    }
+
+    /**
      * IP限流异常
      */
     public static RateLimitException ip(String ip, int limit, int windowSeconds) {

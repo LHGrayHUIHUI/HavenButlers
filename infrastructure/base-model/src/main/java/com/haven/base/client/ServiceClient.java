@@ -3,6 +3,7 @@ package com.haven.base.client;
 import com.haven.base.common.response.ErrorCode;
 import com.haven.base.common.response.ResponseWrapper;
 import com.haven.base.common.exception.SystemException;
+import com.haven.base.config.ServiceClientProperties;
 import com.haven.base.utils.JsonUtil;
 import com.haven.base.utils.TraceIdUtil;
 import lombok.RequiredArgsConstructor;
@@ -29,12 +30,13 @@ import java.util.Map;
  * @author HavenButler
  */
 @Slf4j
-@Component
+// 移除@Component注解，改由BaseModelAutoConfiguration中@Bean方式注册
 @RequiredArgsConstructor
 public class ServiceClient {
 
     private final RestTemplate restTemplate;
     private final ServiceDiscovery serviceDiscovery;
+    private final ServiceClientProperties properties;
 
     /**
      * GET请求 - 获取单个对象
@@ -111,6 +113,76 @@ public class ServiceClient {
      */
     private <T> ResponseWrapper<T> execute(String serviceName, String path, HttpMethod method,
                                           Object requestBody, Class<T> responseType, Object... uriVariables) {
+        if (properties.getRetry().isEnabled()) {
+            return executeWithRetry(serviceName, path, method, requestBody, responseType, uriVariables);
+        } else {
+            return executeSingleAttempt(serviceName, path, method, requestBody, responseType, uriVariables);
+        }
+    }
+
+    /**
+     * 带重试的请求执行
+     */
+    private <T> ResponseWrapper<T> executeWithRetry(String serviceName, String path, HttpMethod method,
+                                                   Object requestBody, Class<T> responseType, Object... uriVariables) {
+        ServiceClientProperties.Retry retryConfig = properties.getRetry();
+        int maxAttempts = retryConfig.getMaxAttempts();
+        long interval = retryConfig.getInterval();
+        double multiplier = retryConfig.getMultiplier();
+        long maxInterval = retryConfig.getMaxInterval();
+
+        Exception lastException = null;
+
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                return executeSingleAttempt(serviceName, path, method, requestBody, responseType, uriVariables);
+
+            } catch (Exception e) {
+                lastException = e;
+
+                if (attempt == maxAttempts) {
+                    // 最后一次尝试失败，抛出异常
+                    log.error("服务调用重试{}次后仍然失败: {} {} {}", maxAttempts, method, serviceName, path);
+                    break;
+                }
+
+                if (!shouldRetry(e, retryConfig)) {
+                    // 不需要重试的异常，直接抛出
+                    log.debug("异常不需要重试: {}", e.getClass().getSimpleName());
+                    break;
+                }
+
+                // 计算重试间隔
+                long currentInterval = Math.min((long) (interval * Math.pow(multiplier, attempt - 1)), maxInterval);
+
+                log.warn("服务调用失败，{}ms后进行第{}次重试: {} {} {}, 错误: {}",
+                        currentInterval, attempt, method, serviceName, path, e.getMessage());
+
+                try {
+                    Thread.sleep(currentInterval);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    log.warn("重试等待被中断");
+                    break;
+                }
+            }
+        }
+
+        // 所有重试都失败了
+        if (lastException instanceof RestClientException) {
+            throw new SystemException(ErrorCode.EXTERNAL_SERVICE_ERROR,
+                    String.format("调用服务[%s]失败: %s", serviceName, lastException.getMessage()));
+        } else {
+            throw new SystemException(ErrorCode.SYSTEM_ERROR,
+                    String.format("调用服务[%s]异常: %s", serviceName, lastException.getMessage()));
+        }
+    }
+
+    /**
+     * 单次请求执行
+     */
+    private <T> ResponseWrapper<T> executeSingleAttempt(String serviceName, String path, HttpMethod method,
+                                                       Object requestBody, Class<T> responseType, Object... uriVariables) {
         try {
             // 构建完整URL
             String serviceUrl = serviceDiscovery.getServiceUrl(serviceName);
@@ -142,10 +214,37 @@ public class ServiceClient {
             return responseEntity.getBody();
 
         } catch (RestClientException e) {
-            log.error("服务调用失败: {} {} {}, 错误: {}", method, serviceName, path, e.getMessage(), e);
-            throw new SystemException(ErrorCode.EXTERNAL_SERVICE_ERROR,
-                    String.format("调用服务[%s]失败: %s", serviceName, e.getMessage()));
+            log.debug("服务调用异常: {} {} {}, 错误: {}", method, serviceName, path, e.getMessage());
+            throw e; // 重新抛出，由重试逻辑处理
         }
+    }
+
+    /**
+     * 判断异常是否需要重试
+     */
+    private boolean shouldRetry(Exception e, ServiceClientProperties.Retry retryConfig) {
+        // 检查异常类型
+        String exceptionName = e.getClass().getName();
+        for (String retryableException : retryConfig.getRetryableExceptions()) {
+            if (exceptionName.equals(retryableException)) {
+                return true;
+            }
+        }
+
+        // 检查HTTP状态码（如果是HttpStatusCodeException）
+        if (e instanceof org.springframework.web.client.HttpStatusCodeException) {
+            org.springframework.web.client.HttpStatusCodeException httpException =
+                (org.springframework.web.client.HttpStatusCodeException) e;
+            int statusCode = httpException.getStatusCode().value();
+
+            for (int retryableStatusCode : retryConfig.getRetryableStatusCodes()) {
+                if (statusCode == retryableStatusCode) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -188,13 +287,23 @@ public class ServiceClient {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setAccept(java.util.Collections.singletonList(MediaType.APPLICATION_JSON));
 
+        // 添加User-Agent
+        if (properties.getHeaders().getUserAgent() != null) {
+            headers.add("User-Agent", properties.getHeaders().getUserAgent());
+        }
+
         // 自动添加TraceID
         String traceId = TraceIdUtil.getCurrentOrGenerate();
-        headers.add("X-Trace-ID", traceId);
+        String traceIdHeaderName = properties.getHeaders().getTraceIdName();
+        headers.add(traceIdHeaderName, traceId);
 
-        // 可以在这里添加其他通用头信息
+        // 添加自定义请求头
+        properties.getHeaders().getCustom().forEach(headers::add);
+
+        // TODO: 可以在这里添加其他通用头信息
         // headers.add("Authorization", "Bearer " + getAuthToken());
-        // headers.add("X-User-ID", getCurrentUserId());
+        // String userIdHeaderName = properties.getHeaders().getUserIdName();
+        // headers.add(userIdHeaderName, getCurrentUserId());
 
         return headers;
     }

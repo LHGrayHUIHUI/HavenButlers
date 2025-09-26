@@ -17,8 +17,8 @@ import java.util.concurrent.atomic.DoubleAdder;
  * @author HavenButler
  */
 @Slf4j
-@Component
-@ConditionalOnMissingBean(MetricsCollector.class)
+// 移除@Component注解，改由BaseModelAutoConfiguration中@Bean方式注册
+
 public class DefaultMetricsCollector implements MetricsCollector {
 
     private final Map<String, DoubleAdder> counters = new ConcurrentHashMap<>();

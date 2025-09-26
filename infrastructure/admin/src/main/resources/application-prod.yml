@@ -1,0 +1,71 @@
+# 生产环境配置
+# 使用方式: java -jar admin-service.jar --spring.profiles.active=prod
+
+server:
+  port: 8888
+
+spring:
+  application:
+    name: admin-service
+
+  # 从Nacos加载完整配置
+  config:
+    import: nacos:admin-service.yml
+
+  # Nacos配置 - 生产环境
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR}
+        namespace: ${NACOS_NAMESPACE:prod}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        enabled: true
+      config:
+        server-addr: ${NACOS_ADDR}
+        namespace: ${NACOS_NAMESPACE:prod}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        file-extension: yml
+        enabled: true
+        shared-configs:
+          - data-id: havenbutler-common.yml
+            group: DEFAULT_GROUP
+            refresh: true
+        extension-configs:
+          - data-id: admin-service-prod.yml
+            group: DEFAULT_GROUP
+            refresh: true
+
+# base-model 生产环境配置
+base-model:
+  response:
+    include-trace-id: true
+    include-timestamp: true
+  cache:
+    enabled: true
+    default-ttl: 300
+  metrics:
+    enabled: true
+  security:
+    enabled: true
+
+# 生产环境严格安全配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus  # 不包含 logfile
+  endpoint:
+    health:
+      show-details: never  # 生产环境最严格设置，不暴露内部详情
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# 日志配置
+logging:
+  level:
+    com.haven: INFO  # 生产环境使用 INFO 级别
+    de.codecentric.boot.admin: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
