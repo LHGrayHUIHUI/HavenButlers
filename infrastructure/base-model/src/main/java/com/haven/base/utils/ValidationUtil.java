@@ -315,4 +315,123 @@ public final class ValidationUtil {
         }
         return name.charAt(0) + StringUtils.repeat("*", name.length() - 1);
     }
+
+    // ========== 业务规则校验 ==========
+
+    /**
+     * 校验业务规则
+     *
+     * @param condition 条件表达式
+     * @param message 错误消息
+     * @throws com.haven.base.common.exception.BusinessException 业务异常
+     */
+    public static void validateBusinessRule(boolean condition, String message) {
+        if (!condition) {
+            throw new com.haven.base.common.exception.BusinessException(
+                com.haven.base.common.response.ErrorCode.BUSINESS_ERROR, message);
+        }
+    }
+
+    /**
+     * 校验业务规则（自定义错误码）
+     *
+     * @param condition 条件表达式
+     * @param errorCode 错误码
+     * @param message 错误消息
+     */
+    public static void validateBusinessRule(boolean condition,
+                                          com.haven.base.common.response.ErrorCode errorCode,
+                                          String message) {
+        if (!condition) {
+            throw new com.haven.base.common.exception.BusinessException(errorCode, message);
+        }
+    }
+
+    /**
+     * 校验参数不为空
+     *
+     * @param value 参数值
+     * @param paramName 参数名称
+     */
+    public static void requireNonNull(Object value, String paramName) {
+        if (value == null) {
+            throw new com.haven.base.common.exception.ValidationException(
+                paramName, paramName + "不能为空");
+        }
+    }
+
+    /**
+     * 校验字符串不为空
+     *
+     * @param value 字符串值
+     * @param paramName 参数名称
+     */
+    public static void requireNonBlank(String value, String paramName) {
+        if (StringUtils.isBlank(value)) {
+            throw new com.haven.base.common.exception.ValidationException(
+                paramName, paramName + "不能为空");
+        }
+    }
+
+    /**
+     * 校验数值范围
+     *
+     * @param value 数值
+     * @param min 最小值
+     * @param max 最大值
+     * @param paramName 参数名称
+     */
+    public static void requireInRange(long value, long min, long max, String paramName) {
+        if (value < min || value > max) {
+            throw new com.haven.base.common.exception.ValidationException(
+                paramName, String.format("%s必须在%d到%d之间", paramName, min, max));
+        }
+    }
+
+    /**
+     * 校验集合不为空
+     *
+     * @param collection 集合
+     * @param paramName 参数名称
+     */
+    public static void requireNonEmpty(java.util.Collection<?> collection, String paramName) {
+        if (collection == null || collection.isEmpty()) {
+            throw new com.haven.base.common.exception.ValidationException(
+                paramName, paramName + "不能为空");
+        }
+    }
+
+    /**
+     * 校验字符串长度
+     *
+     * @param value 字符串值
+     * @param minLength 最小长度
+     * @param maxLength 最大长度
+     * @param paramName 参数名称
+     */
+    public static void requireLength(String value, int minLength, int maxLength, String paramName) {
+        if (value == null) {
+            throw new com.haven.base.common.exception.ValidationException(
+                paramName, paramName + "不能为空");
+        }
+        int length = value.length();
+        if (length < minLength || length > maxLength) {
+            throw new com.haven.base.common.exception.ValidationException(
+                paramName, String.format("%s长度必须在%d到%d之间", paramName, minLength, maxLength));
+        }
+    }
+
+    /**
+     * 校验正则表达式
+     *
+     * @param value 字符串值
+     * @param pattern 正则表达式
+     * @param paramName 参数名称
+     * @param message 错误消息
+     */
+    public static void requirePattern(String value, String pattern, String paramName, String message) {
+        if (StringUtils.isBlank(value) || !value.matches(pattern)) {
+            throw new com.haven.base.common.exception.ValidationException(paramName, message);
+        }
+    }
 }

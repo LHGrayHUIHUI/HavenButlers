@@ -123,6 +123,12 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- HTTP客户端支持 -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+        </dependency>
+
         <!-- 测试 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

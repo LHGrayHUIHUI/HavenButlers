@@ -3,6 +3,9 @@ package com.haven.base.config;
 import com.haven.base.aspect.TraceLogAspect;
 import com.haven.base.common.exception.GlobalExceptionHandler;
 import com.haven.base.interceptor.TraceIdInterceptor;
+import com.haven.base.client.ServiceClient;
+import com.haven.base.cache.CacheService;
+import com.haven.base.lock.DistributedLock;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -11,7 +14,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Import;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -19,7 +22,15 @@ import jakarta.annotation.PostConstruct;
 
 /**
  * BaseModel自动配置类
- * 提供基础功能的自动配置
+ * 提供基础功能的自动配置，包括：
+ * - TraceID拦截器：为每个请求生成链路追踪ID
+ * - 全局异常处理器：统一异常响应格式
+ * - 日志追踪切面：自动记录方法执行日志
+ * - 基础组件扫描：自动注册工具类和模型类
+ *
+ * 使用方式：
+ * <pre>{@code @Import(BaseModelAutoConfiguration.class)}</pre>
+ * 或通过spring.factories自动配置
  *
  * @author HavenButler
  */
@@ -46,6 +57,7 @@ public class BaseModelAutoConfiguration implements WebMvcConfigurer {
 
     /**
      * TraceID拦截器
+     * 为每个HTTP请求自动生成TraceID
      */
     @Bean
     @ConditionalOnProperty(prefix = "base-model.trace", name = "enabled", havingValue = "true", matchIfMissing = true)
@@ -57,6 +69,7 @@ public class BaseModelAutoConfiguration implements WebMvcConfigurer {
 
     /**
      * 全局异常处理器
+     * 统一处理所有未捕获异常并返回标准格式响应
      */
     @Bean
     @ConditionalOnProperty(prefix = "base-model.exception", name = "enabled", havingValue = "true", matchIfMissing = true)
@@ -68,6 +81,7 @@ public class BaseModelAutoConfiguration implements WebMvcConfigurer {
 
     /**
      * 日志追踪切面
+     * 支持@TraceLog注解的方法自动记录执行日志
      */
     @Bean
     @ConditionalOnProperty(prefix = "base-model.log", name = "enabled", havingValue = "true", matchIfMissing = true)
@@ -77,6 +91,19 @@ public class BaseModelAutoConfiguration implements WebMvcConfigurer {
         return new TraceLogAspect();
     }
 
+    /**
+     * RestTemplate Bean
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public RestTemplate restTemplate() {
+        log.info("注册RestTemplate");
+        return new RestTemplate();
+    }
+
+    /**
+     * 注册TraceID拦截器
+     */
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         if (properties.getTrace().isEnabled()) {

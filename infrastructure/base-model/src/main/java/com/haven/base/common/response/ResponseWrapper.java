@@ -57,7 +57,7 @@ public class ResponseWrapper<T> implements Serializable {
      * 成功响应（无数据）
      */
     public static ResponseWrapper<Void> success() {
-        return success(null);
+        return success("操作成功", null);
     }
 
     /**
@@ -71,13 +71,13 @@ public class ResponseWrapper<T> implements Serializable {
      * 成功响应（带消息和数据）
      */
     public static <T> ResponseWrapper<T> success(String message, T data) {
-        return ResponseWrapper.<T>builder()
-                .code(0)
-                .message(message)
-                .data(data)
-                .traceId(MDC.get("traceId"))
-                .timestamp(LocalDateTime.now())
-                .build();
+        ResponseWrapper<T> response = new ResponseWrapper<>();
+        response.code = 0;
+        response.message = message;
+        response.data = data;
+        response.traceId = MDC.get("traceId");
+        response.timestamp = LocalDateTime.now();
+        return response;
     }
 
     /**
@@ -97,26 +97,26 @@ public class ResponseWrapper<T> implements Serializable {
     /**
      * 失败响应（自定义错误码和消息）
      */
-    public static ResponseWrapper<?> error(int code, String message) {
-        return ResponseWrapper.builder()
-                .code(code)
-                .message(message)
-                .traceId(MDC.get("traceId"))
-                .timestamp(LocalDateTime.now())
-                .build();
+    public static ResponseWrapper<Void> error(int code, String message) {
+        ResponseWrapper<Void> response = new ResponseWrapper<>();
+        response.code = code;
+        response.message = message;
+        response.traceId = MDC.get("traceId");
+        response.timestamp = LocalDateTime.now();
+        return response;
     }
 
     /**
      * 失败响应（带详细数据）
      */
     public static <T> ResponseWrapper<T> error(int code, String message, T data) {
-        return ResponseWrapper.<T>builder()
-                .code(code)
-                .message(message)
-                .data(data)
-                .traceId(MDC.get("traceId"))
-                .timestamp(LocalDateTime.now())
-                .build();
+        ResponseWrapper<T> response = new ResponseWrapper<>();
+        response.code = code;
+        response.message = message;
+        response.data = data;
+        response.traceId = MDC.get("traceId");
+        response.timestamp = LocalDateTime.now();
+        return response;
     }
 
     /**

@@ -125,4 +125,51 @@ public final class TraceIdUtil {
         }
         return null;
     }
+
+    /**
+     * 传播TraceID到HTTP请求头
+     *
+     * @param headers HTTP请求头
+     */
+    public static void propagateToHeaders(org.springframework.http.HttpHeaders headers) {
+        String traceId = getCurrentOrGenerate();
+        headers.add(SystemConstants.Header.TRACE_ID, traceId);
+    }
+
+    /**
+     * 从HTTP请求头中提取TraceID并设置到MDC
+     *
+     * @param headers HTTP请求头
+     * @return 提取的TraceID
+     */
+    public static String extractFromHeaders(org.springframework.http.HttpHeaders headers) {
+        String traceId = headers.getFirst(SystemConstants.Header.TRACE_ID);
+        if (StringUtils.isNotBlank(traceId) && isValid(traceId)) {
+            setTraceId(traceId);
+            return traceId;
+        }
+        return null;
+    }
+
+    /**
+     * 从Servlet请求中提取TraceID并设置到MDC
+     *
+     * @param request HTTP请求
+     * @return 提取的TraceID
+     */
+    public static String extractFromRequest(jakarta.servlet.http.HttpServletRequest request) {
+        String traceId = request.getHeader(SystemConstants.Header.TRACE_ID);
+        if (StringUtils.isNotBlank(traceId) && isValid(traceId)) {
+            setTraceId(traceId);
+            return traceId;
+        }
+        return null;
+    }
+
+    /**
+     * 清理当前线程的TraceID（在请求结束时调用）
+     */
+    public static void cleanup() {
+        clear();
+    }
 }

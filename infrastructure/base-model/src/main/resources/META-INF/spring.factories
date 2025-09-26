@@ -1,3 +1,2 @@
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-  com.haven.base.config.BaseModelAutoConfiguration,\
-  com.haven.base.logging.config.LogAutoConfiguration
+  com.haven.base.config.BaseModelAutoConfiguration
