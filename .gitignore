@@ -1,1 +1,293 @@
+# =============================================================================
+# HavenButler 智能家庭服务平台 - Git 忽略文件配置
+# 支持多语言架构：Java + Python + Go + Vue.js + C++
+# =============================================================================
+
+# 系统文件
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDE和编辑器配置文件
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.iml
+*.ipr
+*.iws
+
+# =============================================================================
+# Java 项目文件 (Spring Boot + Maven)
+# =============================================================================
+
+# Maven 构建产物
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Gradle (如果使用)
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+gradle-app.setting
+!gradle-wrapper.properties
+
+# Java 编译文件
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+
+# Spring Boot
+*.log
+spring.log
+application-*.properties
+!application.properties
+!application.yml
+application-local.yml
+application-dev.yml
+
+# =============================================================================
+# Node.js / Vue.js 前端项目文件
+# =============================================================================
+
+# 依赖目录
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 构建产物
+dist/
+build/
+.nuxt/
+.next/
+
+# 环境配置
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Vue.js
+.vuepress/dist
+*.local
+
+# Parcel
+.cache/
+.parcel-cache/
+
+# =============================================================================
+# Python 项目文件 (IoT 适配层)
+# =============================================================================
+
+# Python 字节码
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 分发 / 打包
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Python 虚拟环境
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# =============================================================================
+# Go 项目文件 (边缘网关 + OCR 引擎)
+# =============================================================================
+
+# Go 编译产物
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go 测试文件
+*.test
+
+# Go 覆盖率文件
+*.out
+
+# Go 二进制文件
+bin/
+*.bin
+
+# Go 模块
+go.sum
+
+# =============================================================================
+# C++ 项目文件 (ASR 语音引擎)
+# =============================================================================
+
+# C++ 编译产物
+*.o
+*.obj
+*.lib
+*.a
+*.la
+*.lo
+*.so.*
+*.dll
+*.exe
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cbp
+
+# =============================================================================
+# 数据库和配置文件
+# =============================================================================
+
+# 数据库文件
+*.db
+*.sqlite
+*.sqlite3
+
+# 配置文件中的敏感信息
+**/application-prod.yml
+**/application-production.yml
+*.key
+*.pem
+*.p12
+*.jks
+secrets.yml
+credentials.json
+
+# =============================================================================
+# Docker 和容器化
+# =============================================================================
+
+# Docker 镜像构建缓存
+.dockerignore
+
+# =============================================================================
+# 日志文件
+# =============================================================================
+
+# 应用日志
+logs/
+*.log
+*.log.*
+
+# =============================================================================
+# 测试和覆盖率报告
+# =============================================================================
+
+# 测试报告
+test-results/
+coverage/
+*.lcov
+.nyc_output/
+.coverage
+htmlcov/
+
+# =============================================================================
+# 临时文件和缓存
+# =============================================================================
+
+# 临时文件
+tmp/
+temp/
+.tmp/
+*.tmp
+*.temp
+
+# 缓存文件
+.cache/
+*.cache
+
+# =============================================================================
+# 部署和运维相关
+# =============================================================================
+
+# Kubernetes
+*.kubeconfig
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# =============================================================================
+# 项目特定忽略
+# =============================================================================
+
+# 开发日志（保留结构，忽略具体内容）
+dev-logs/**/logs/
+dev-logs/**/*.log
+dev-logs/**/temp/
+
+# 监控数据
+monitoring/data/
+metrics/
+
+# 文件上传临时目录
+uploads/temp/
+
+# 测试数据
+test-data/
+mock-data/
+
+# 备份文件
+*.bak
+*.backup
+*~
+
 /infrastructure/base-model/.idea/

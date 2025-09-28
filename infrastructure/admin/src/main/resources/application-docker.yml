@@ -49,11 +49,6 @@ spring:
         ignored-services: []
         converter:
           management-context-path: /actuator
-      # 网络超时配置 - 修复配置格式
-      monitor:
-        timeout: 10s
-        interval: 30s
-        status-interval: 10s
 
   # Redis配置已完全移除 - Admin服务不需要Redis
 
