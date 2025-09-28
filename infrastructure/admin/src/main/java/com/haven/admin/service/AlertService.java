@@ -2,8 +2,9 @@ package com.haven.admin.service;
 
 import com.haven.admin.model.Alert;
 import com.haven.admin.model.AlertRule;
-import com.haven.base.model.dto.PageRequest;
-import com.haven.base.model.dto.PageResponse;
+import com.haven.admin.model.PageRequest;
+import com.haven.admin.model.PageResponse;
+import com.haven.admin.web.BusinessException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -67,7 +68,7 @@ public class AlertService {
     public Alert getAlertDetail(Long alertId) {
         Alert alert = alertStorage.get(alertId);
         if (alert == null) {
-            throw new RuntimeException("告警不存在: " + alertId);
+            throw new BusinessException(40404, "告警不存在: " + alertId);
         }
         return alert;
     }
@@ -78,7 +79,7 @@ public class AlertService {
     public void handleAlert(Long alertId, String handler, String remark) {
         Alert alert = alertStorage.get(alertId);
         if (alert == null) {
-            throw new RuntimeException("告警不存在: " + alertId);
+            throw new BusinessException(40404, "告警不存在: " + alertId);
         }
 
         // 更新告警状态
@@ -96,7 +97,7 @@ public class AlertService {
     public void ignoreAlert(Long alertId, String reason) {
         Alert alert = alertStorage.get(alertId);
         if (alert == null) {
-            throw new RuntimeException("告警不存在: " + alertId);
+            throw new BusinessException(40404, "告警不存在: " + alertId);
         }
 
         // 更新告警状态
@@ -141,7 +142,7 @@ public class AlertService {
     public void updateAlertRule(AlertRule rule) {
         AlertRule existingRule = ruleStorage.get(rule.getId());
         if (existingRule == null) {
-            throw new RuntimeException("告警规则不存在: " + rule.getId());
+            throw new BusinessException(40404, "告警规则不存在: " + rule.getId());
         }
 
         // 更新规则信息
@@ -160,7 +161,7 @@ public class AlertService {
     public void deleteAlertRule(Long ruleId) {
         AlertRule rule = ruleStorage.remove(ruleId);
         if (rule == null) {
-            throw new RuntimeException("告警规则不存在: " + ruleId);
+            throw new BusinessException(40404, "告警规则不存在: " + ruleId);
         }
 
         log.info("删除告警规则: id={}, name={}", ruleId, rule.getName());
@@ -172,7 +173,7 @@ public class AlertService {
     public void enableAlertRule(Long ruleId, Boolean enabled) {
         AlertRule rule = ruleStorage.get(ruleId);
         if (rule == null) {
-            throw new RuntimeException("告警规则不存在: " + ruleId);
+            throw new BusinessException(40404, "告警规则不存在: " + ruleId);
         }
 
         rule.setEnabled(enabled);

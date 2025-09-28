@@ -1,6 +1,6 @@
 package com.haven.admin.controller;
 
-import com.haven.base.common.response.ResponseWrapper;
+import com.haven.admin.common.AdminResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,20 +32,20 @@ public class EnvironmentController {
      * 获取当前环境信息
      */
     @GetMapping("/current")
-    public ResponseWrapper<Map<String, Object>> getCurrentEnvironment() {
+    public AdminResponse<Map<String, Object>> getCurrentEnvironment() {
         Map<String, Object> envInfo = new HashMap<>();
         envInfo.put("environment", currentEnvironment);
         envInfo.put("service", applicationName);
         envInfo.put("timestamp", System.currentTimeMillis());
 
-        return ResponseWrapper.success(envInfo);
+        return AdminResponse.success(envInfo);
     }
 
     /**
      * 获取所有可用环境
      */
     @GetMapping("/available")
-    public ResponseWrapper<Map<String, Object>> getAvailableEnvironments() {
+    public AdminResponse<Map<String, Object>> getAvailableEnvironments() {
         Map<String, Object> environments = new HashMap<>();
 
         // 开发环境
@@ -79,7 +79,7 @@ public class EnvironmentController {
         result.put("current", currentEnvironment);
         result.put("environments", environments);
 
-        return ResponseWrapper.success(result);
+        return AdminResponse.success(result);
     }
 
     /**
@@ -87,7 +87,7 @@ public class EnvironmentController {
      * 注意：这个功能需要重启容器才能生效
      */
     @PostMapping("/switch/{environment}")
-    public ResponseWrapper<Map<String, String>> switchEnvironment(@PathVariable String environment) {
+    public AdminResponse<Map<String, String>> switchEnvironment(@PathVariable String environment) {
         log.info("请求切换环境: {} -> {}", currentEnvironment, environment);
 
         Map<String, String> result = new HashMap<>();
@@ -95,14 +95,14 @@ public class EnvironmentController {
         result.put("instruction", "请设置环境变量 ENVIRONMENT=" + environment + " 并重启容器");
         result.put("dockerCommand", "docker run -e ENVIRONMENT=" + environment + " " + applicationName);
 
-        return ResponseWrapper.success(result);
+        return AdminResponse.success(result);
     }
 
     /**
      * 刷新配置（从Nacos重新加载配置）
      */
     @PostMapping("/refresh")
-    public ResponseWrapper<Map<String, String>> refreshConfig() {
+    public AdminResponse<Map<String, String>> refreshConfig() {
         log.info("刷新配置，当前环境: {}", currentEnvironment);
 
         try {
@@ -115,7 +115,7 @@ public class EnvironmentController {
             result.put("timestamp", String.valueOf(System.currentTimeMillis()));
 
             log.info("配置刷新成功");
-            return ResponseWrapper.success(result);
+            return AdminResponse.success(result);
 
         } catch (Exception e) {
             log.error("配置刷新失败", e);
@@ -124,7 +124,7 @@ public class EnvironmentController {
             result.put("message", "配置刷新失败");
             result.put("error", e.getMessage());
 
-            return ResponseWrapper.error(500, "配置刷新失败: " + e.getMessage(), result);
+            return AdminResponse.error(500, "配置刷新失败: " + e.getMessage(), result);
         }
     }
 
@@ -132,7 +132,7 @@ public class EnvironmentController {
      * 获取当前配置信息
      */
     @GetMapping("/config")
-    public ResponseWrapper<Map<String, Object>> getCurrentConfig() {
+    public AdminResponse<Map<String, Object>> getCurrentConfig() {
         Map<String, Object> config = new HashMap<>();
         config.put("environment", currentEnvironment);
         config.put("service", applicationName);
@@ -140,6 +140,6 @@ public class EnvironmentController {
         // 可以添加更多配置信息展示
         // 注意：不要暴露敏感信息如密码等
 
-        return ResponseWrapper.success(config);
+        return AdminResponse.success(config);
     }
 }

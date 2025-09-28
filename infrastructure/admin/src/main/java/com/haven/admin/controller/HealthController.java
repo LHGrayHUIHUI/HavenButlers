@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.haven.admin.model.ServiceOverview;
 import com.haven.admin.service.HealthSnapshotService;
 import com.haven.admin.service.SimpleCacheService;
-import com.haven.base.common.response.ResponseWrapper;
+import com.haven.admin.common.AdminResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -52,7 +52,7 @@ public class HealthController {
      * @return 服务健康概览列表
      */
     @GetMapping("/overview")
-    public ResponseWrapper<List<ServiceOverview>> getServiceOverview(
+    public AdminResponse<List<ServiceOverview>> getServiceOverview(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String search) {
 
@@ -98,11 +98,11 @@ public class HealthController {
             );
 
             log.debug("返回过滤后的健康概览，条目数: {}", filteredOverviews.size());
-            return ResponseWrapper.success(filteredOverviews);
+            return AdminResponse.success(filteredOverviews);
 
         } catch (Exception e) {
             log.error("获取服务健康概览失败", e);
-            return ResponseWrapper.error(500, "获取服务健康状态失败: " + e.getMessage(), (List<ServiceOverview>) null);
+            return AdminResponse.error(500, "获取服务健康状态失败: " + e.getMessage(), (List<ServiceOverview>) null);
         }
     }
 
@@ -113,17 +113,17 @@ public class HealthController {
      * @return 服务健康概览
      */
     @GetMapping("/overview/{serviceName}")
-    public ResponseWrapper<ServiceOverview> getServiceOverview(@PathVariable String serviceName) {
+    public AdminResponse<ServiceOverview> getServiceOverview(@PathVariable String serviceName) {
         try {
             ServiceOverview overview = healthSnapshotService.getServiceOverview(serviceName);
             if (overview == null) {
-                return ResponseWrapper.error(404, "服务不存在或尚未收集健康数据: " + serviceName, (ServiceOverview) null);
+                return AdminResponse.error(404, "服务不存在或尚未收集健康数据: " + serviceName, (ServiceOverview) null);
             }
 
-            return ResponseWrapper.success(overview);
+            return AdminResponse.success(overview);
         } catch (Exception e) {
             log.error("获取服务 {} 健康概览失败", serviceName, e);
-            return ResponseWrapper.error(500, "获取服务健康状态失败: " + e.getMessage(), (ServiceOverview) null);
+            return AdminResponse.error(500, "获取服务健康状态失败: " + e.getMessage(), (ServiceOverview) null);
         }
     }
 
@@ -231,10 +231,10 @@ public class HealthController {
      * 获取SSE连接统计
      */
     @GetMapping("/stream/stats")
-    public ResponseWrapper<SseStats> getSseStats() {
+    public AdminResponse<SseStats> getSseStats() {
         SseStats stats = new SseStats();
         stats.setActiveConnections(sseConnections.size());
-        return ResponseWrapper.success(stats);
+        return AdminResponse.success(stats);
     }
 
     /**

@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HavenButler 健康监控</title>
+    <style>
+        /* 基础样式，遵循Apple HIG设计原则 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background-color: #f5f5f7;
+            color: #1d1d1f;
+            line-height: 1.5;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 1rem;
+            text-align: center;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .controls {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 12px 16px 12px 44px;
+            border: 2px solid #e5e5e7;
+            border-radius: 12px;
+            font-size: 16px;
+            background-color: white;
+            transition: all 0.2s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #007aff;
+            box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #8e8e93;
+            font-size: 18px;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background-color: #f2f2f7;
+            color: #3a3a3c;
+        }
+
+        .filter-btn.active {
+            background-color: #007aff;
+            color: white;
+        }
+
+        .filter-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .status-summary {
+            max-width: 1200px;
+            margin: 0 auto 2rem;
+            padding: 0 1rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .summary-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            border: 1px solid #f2f2f7;
+        }
+
+        .summary-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .summary-label {
+            color: #8e8e93;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .up { color: #34c759; }
+        .degraded { color: #ff9500; }
+        .down { color: #ff3b30; }
+
+        .services-grid {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .service-card {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+            border: 1px solid #f2f2f7;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .service-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #34c759, #30d158);
+        }
+
+        .service-card.degraded::before {
+            background: linear-gradient(90deg, #ff9500, #ff9f0a);
+        }
+
+        .service-card.down::before {
+            background: linear-gradient(90deg, #ff3b30, #ff453a);
+        }
+
+        .service-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        }
+
+        .service-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .service-name {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #1d1d1f;
+            margin-bottom: 0.25rem;
+        }
+
+        .service-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .service-status.up {
+            background-color: rgba(52, 199, 89, 0.1);
+            color: #1e5627;
+        }
+
+        .service-status.degraded {
+            background-color: rgba(255, 149, 0, 0.1);
+            color: #8b4513;
+        }
+
+        .service-status.down {
+            background-color: rgba(255, 59, 48, 0.1);
+            color: #8b1538;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: currentColor;
+        }
+
+        .service-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .metric {
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 1.4rem;
+            font-weight: 600;
+            display: block;
+        }
+
+        .metric-label {
+            font-size: 0.8rem;
+            color: #8e8e93;
+            margin-top: 0.25rem;
+        }
+
+        .service-instances {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #f2f2f7;
+        }
+
+        .instances-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+            color: #8e8e93;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 200px;
+            font-size: 1.1rem;
+            color: #8e8e93;
+        }
+
+        .loading::before {
+            content: '';
+            width: 20px;
+            height: 20px;
+            margin-right: 12px;
+            border: 2px solid #f2f2f7;
+            border-top: 2px solid #007aff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background-color: rgba(255, 59, 48, 0.1);
+            color: #8b1538;
+            padding: 1rem;
+            border-radius: 12px;
+            text-align: center;
+            margin: 2rem auto;
+            max-width: 600px;
+        }
+
+        .refresh-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 122, 255, 0.9);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            transform: translateY(-100px);
+            transition: transform 0.3s ease;
+        }
+
+        .refresh-indicator.show {
+            transform: translateY(0);
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .filter-buttons {
+                justify-content: center;
+            }
+
+            .status-summary {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .services-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .service-metrics {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>HavenButler 健康监控</h1>
+        <p>实时监控所有微服务的健康状态和性能指标</p>
+    </div>
+
+    <div class="refresh-indicator" id="refreshIndicator">
+        正在更新数据...
+    </div>
+
+    <div class="controls">
+        <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="searchInput" placeholder="搜索服务名称...">
+        </div>
+        <div class="filter-buttons">
+            <button class="filter-btn active" data-status="">全部</button>
+            <button class="filter-btn up" data-status="UP">健康</button>
+            <button class="filter-btn degraded" data-status="DEGRADED">降级</button>
+            <button class="filter-btn down" data-status="DOWN">宕机</button>
+        </div>
+    </div>
+
+    <div class="status-summary">
+        <div class="summary-card">
+            <div class="summary-number up" id="upCount">-</div>
+            <div class="summary-label">健康服务</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-number degraded" id="degradedCount">-</div>
+            <div class="summary-label">降级服务</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-number down" id="downCount">-</div>
+            <div class="summary-label">宕机服务</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-number" id="totalCount">-</div>
+            <div class="summary-label">总服务数</div>
+        </div>
+    </div>
+
+    <div id="servicesContainer">
+        <div class="loading">
+            正在加载服务信息...
+        </div>
+    </div>
+
+    <script>
+        class HealthMonitor {
+            constructor() {
+                this.services = [];
+                this.filteredServices = [];
+                this.currentFilter = '';
+                this.currentSearch = '';
+                this.eventSource = null;
+                this.retryCount = 0;
+                this.maxRetries = 3;
+
+                this.initializeEventListeners();
+                this.loadInitialData();
+                this.setupSSE();
+            }
+
+            initializeEventListeners() {
+                // 搜索功能
+                document.getElementById('searchInput').addEventListener('input', (e) => {
+                    this.currentSearch = e.target.value.toLowerCase();
+                    this.filterServices();
+                });
+
+                // 状态过滤
+                document.querySelectorAll('.filter-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                        e.target.classList.add('active');
+                        this.currentFilter = e.target.dataset.status;
+                        this.filterServices();
+                    });
+                });
+
+                // 页面可见性变化时重新连接SSE
+                document.addEventListener('visibilitychange', () => {
+                    if (!document.hidden && !this.eventSource) {
+                        this.setupSSE();
+                    }
+                });
+            }
+
+            async loadInitialData() {
+                try {
+                    const response = await fetch('/api/service/overview');
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    const result = await response.json();
+
+                    if (result.success) {
+                        this.services = result.data || [];
+                        this.filterServices();
+                        this.updateSummary();
+                    } else {
+                        throw new Error(result.message || '加载数据失败');
+                    }
+                } catch (error) {
+                    console.error('加载初始数据失败:', error);
+                    this.showError(`加载数据失败: ${error.message}`);
+                }
+            }
+
+            setupSSE() {
+                // 关闭现有连接
+                if (this.eventSource) {
+                    this.eventSource.close();
+                }
+
+                try {
+                    this.eventSource = new EventSource('/api/service/stream/health');
+
+                    this.eventSource.addEventListener('health_update', (event) => {
+                        try {
+                            const data = JSON.parse(event.data);
+                            this.services = data || [];
+                            this.filterServices();
+                            this.updateSummary();
+                            this.showRefreshIndicator();
+                            this.retryCount = 0; // 重置重试计数
+                        } catch (error) {
+                            console.error('解析SSE数据失败:', error);
+                        }
+                    });
+
+                    this.eventSource.onerror = (error) => {
+                        console.warn('SSE连接错误:', error);
+                        this.eventSource.close();
+                        this.eventSource = null;
+
+                        // 指数退避重试
+                        if (this.retryCount < this.maxRetries) {
+                            const delay = Math.pow(2, this.retryCount) * 1000; // 1s, 2s, 4s
+                            this.retryCount++;
+                            console.log(`SSE重连中... (${this.retryCount}/${this.maxRetries}), ${delay}ms后重试`);
+                            setTimeout(() => this.setupSSE(), delay);
+                        } else {
+                            console.log('SSE连接失败，切换到轮询模式');
+                            this.startPolling();
+                        }
+                    };
+                } catch (error) {
+                    console.error('创建SSE连接失败:', error);
+                    this.startPolling();
+                }
+            }
+
+            startPolling() {
+                // 如果SSE失败，使用轮询模式
+                setInterval(() => {
+                    if (!this.eventSource && !document.hidden) {
+                        this.loadInitialData();
+                    }
+                }, 10000); // 10秒轮询
+            }
+
+            filterServices() {
+                this.filteredServices = this.services.filter(service => {
+                    const matchesSearch = !this.currentSearch ||
+                        service.serviceName.toLowerCase().includes(this.currentSearch);
+                    const matchesFilter = !this.currentFilter ||
+                        service.status === this.currentFilter;
+                    return matchesSearch && matchesFilter;
+                });
+
+                this.renderServices();
+            }
+
+            renderServices() {
+                const container = document.getElementById('servicesContainer');
+
+                if (this.filteredServices.length === 0) {
+                    container.innerHTML = `
+                        <div class="error-message">
+                            ${this.services.length === 0 ? '暂无服务数据' : '没有找到匹配的服务'}
+                        </div>
+                    `;
+                    return;
+                }
+
+                const servicesGrid = document.createElement('div');
+                servicesGrid.className = 'services-grid';
+
+                this.filteredServices.forEach(service => {
+                    servicesGrid.appendChild(this.createServiceCard(service));
+                });
+
+                container.innerHTML = '';
+                container.appendChild(servicesGrid);
+            }
+
+            createServiceCard(service) {
+                const card = document.createElement('div');
+                card.className = `service-card ${service.status.toLowerCase()}`;
+
+                const statusText = {
+                    'UP': '健康',
+                    'DEGRADED': '降级',
+                    'DOWN': '宕机'
+                }[service.status] || service.status;
+
+                card.innerHTML = `
+                    <div class="service-header">
+                        <div>
+                            <div class="service-name">${service.serviceName}</div>
+                        </div>
+                        <div class="service-status ${service.status.toLowerCase()}">
+                            <span class="status-indicator"></span>
+                            ${statusText}
+                        </div>
+                    </div>
+                    <div class="service-metrics">
+                        <div class="metric">
+                            <span class="metric-value">${this.formatNumber(service.requestRate)}</span>
+                            <div class="metric-label">请求/秒</div>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-value">${this.formatPercentage(service.errorRate)}</span>
+                            <div class="metric-label">错误率</div>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-value">${this.formatPercentage(service.cpuUsageAvg)}</span>
+                            <div class="metric-label">CPU</div>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-value">${this.formatMemory(service.memoryUsageAvg)}</span>
+                            <div class="metric-label">内存</div>
+                        </div>
+                    </div>
+                    <div class="service-instances">
+                        <div class="instances-info">
+                            <span>实例状态</span>
+                            <span>${service.healthyCount}/${service.instanceCount} 健康</span>
+                        </div>
+                    </div>
+                `;
+
+                return card;
+            }
+
+            updateSummary() {
+                const summary = this.services.reduce((acc, service) => {
+                    acc.total++;
+                    acc[service.status.toLowerCase()]++;
+                    return acc;
+                }, { total: 0, up: 0, degraded: 0, down: 0 });
+
+                document.getElementById('upCount').textContent = summary.up;
+                document.getElementById('degradedCount').textContent = summary.degraded;
+                document.getElementById('downCount').textContent = summary.down;
+                document.getElementById('totalCount').textContent = summary.total;
+            }
+
+            showRefreshIndicator() {
+                const indicator = document.getElementById('refreshIndicator');
+                indicator.classList.add('show');
+                setTimeout(() => {
+                    indicator.classList.remove('show');
+                }, 2000);
+            }
+
+            showError(message) {
+                const container = document.getElementById('servicesContainer');
+                container.innerHTML = `<div class="error-message">${message}</div>`;
+            }
+
+            formatNumber(num) {
+                if (num == null || isNaN(num)) return '0';
+                return num < 10 ? num.toFixed(1) : Math.round(num).toString();
+            }
+
+            formatPercentage(num) {
+                if (num == null || isNaN(num)) return '0%';
+                return num.toFixed(1) + '%';
+            }
+
+            formatMemory(mb) {
+                if (mb == null || isNaN(mb)) return '0MB';
+                if (mb >= 1024) {
+                    return (mb / 1024).toFixed(1) + 'GB';
+                }
+                return Math.round(mb) + 'MB';
+            }
+        }
+
+        // 初始化健康监控
+        document.addEventListener('DOMContentLoaded', () => {
+            new HealthMonitor();
+        });
+    </script>
+</body>
+</html>

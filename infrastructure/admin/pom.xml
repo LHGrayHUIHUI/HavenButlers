@@ -8,7 +8,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.1.0</version>
+        <version>3.2.0</version>
         <relativePath/>
     </parent>
 
@@ -26,8 +26,8 @@
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-boot-admin.version>3.1.0</spring-boot-admin.version>
-        <spring-cloud.version>2022.0.3</spring-cloud.version>
-        <spring-cloud-alibaba.version>2022.0.0.0</spring-cloud-alibaba.version>
+        <spring-cloud.version>2023.0.1</spring-cloud.version>
+        <spring-cloud-alibaba.version>2023.0.1.0</spring-cloud-alibaba.version>
     </properties>
 
     <!-- 添加GitHub Packages仓库 -->
@@ -46,18 +46,7 @@
     </repositories>
 
     <dependencies>
-        <!-- 依赖base-model和common -->
-        <dependency>
-            <groupId>com.haven</groupId>
-            <artifactId>base-model</artifactId>
-            <version>1.0.0</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.haven</groupId>
-            <artifactId>common</artifactId>
-            <version>1.0.0</version>
-        </dependency>
+        <!-- Admin服务完全独立，不依赖base-model和common -->
 
         <!-- Spring Boot Admin Server -->
         <dependency>
@@ -119,6 +108,9 @@
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-loadbalancer</artifactId>
         </dependency>
+
+        <!-- Redis已移除 - Admin服务不需要Redis -->
+        <!-- Redis依赖已完全移除 -->
 
         <!-- Jakarta Annotation API (替代javax.annotation) -->
         <dependency>

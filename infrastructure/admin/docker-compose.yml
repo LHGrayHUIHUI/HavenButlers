@@ -26,6 +26,8 @@ services:
       - nacos-logs:/home/nacos/logs
     restart: unless-stopped
 
+  # Redis已移除 - Admin服务不需要Redis依赖
+
   # Prometheus监控 - 使用轻量级版本
   prometheus:
     image: prom/prometheus:v2.45.0
@@ -48,7 +50,7 @@ services:
 
   # Admin管理服务
   admin-service:
-    image: smart-home/admin-service:v1.0.0
+    image: haven/admin-service:latest
     container_name: haven-admin-service
     ports:
       - "8888:8888"
@@ -68,14 +70,18 @@ services:
       # 环境配置
       - ENVIRONMENT=${ENVIRONMENT:-dev}
 
-      # 安全配置
+      # 安全配置 - JWT认证方案
       - SPRING_SECURITY_USER_NAME=admin
       - SPRING_SECURITY_USER_PASSWORD=admin123
       - SPRING_SECURITY_USER_ROLES=ADMIN
+      # JWT密钥配置
+      - JWT_SECRET=havenbutler-admin-jwt-secret-key-for-docker-environment-testing-2024
+
+      # Redis配置已移除 - Admin服务不需要Redis
 
       # 监控配置
       - PROMETHEUS_URL=http://prometheus:9090
-      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=*
+      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,metrics,prometheus
       - MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS=always
 
       # 告警配置
@@ -86,6 +92,7 @@ services:
       # 日志配置
       - LOGGING_LEVEL_ROOT=INFO
       - LOGGING_LEVEL_COM_HAVEN=DEBUG
+      - LOGGING_FILE_PATH=/app/logs
       - TZ=Asia/Shanghai
     volumes:
       - admin-logs:/app/logs

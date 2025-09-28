@@ -5,14 +5,14 @@
 ## Project Structure & Module Organization
 - 代码：`src/main/java/com/haven/admin/...`；资源：`src/main/resources/`（含 `application.yml`、`application-docker.yml`）。
 - 容器与编排：`Dockerfile`、`Dockerfile.multi-stage`、`docker/`、`docker-compose*.yml`。
-- 配置与脚本：`nacos-configs/`、`setup-nacos.sh`；构建产物：`target/`。
+- 配置与脚本：配置文件 `src/main/resources/application.yml`；构建产物：`target/`。
 
 ## Build, Test, and Development Commands
 - 构建：`mvn clean package -DskipTests`（产物在 `target/`）。
 - 测试：`mvn test`；单测运行：`mvn -Dtest=ClassNameTest test`。
 - 本地运行：`mvn spring-boot:run`（默认端口见配置）。
-- Docker 单服务：`docker compose -f docker-compose-build.yml up --build -d`。
-- 全栈（含 Nacos/Prometheus）：先 `docker network create haven-network`，再 `docker compose up -d`，最后 `bash setup-nacos.sh` 初始化配置。
+- Docker 单服务：`docker compose up --build -d`。
+- 全栈（含 Nacos/Prometheus）：先 `docker network create haven-network`，再 `docker compose up -d`，然后根据实际环境配置 Nacos。
 
 ## Coding Style & Naming Conventions
 - Java 17，缩进 4 空格，UTF-8，行尾 `LF`；建议在仓库根添加 `.editorconfig` 统一基础格式。
@@ -29,7 +29,7 @@
 
 ## Security & Configuration Tips
 - 配置：使用 `src/main/resources/application.yml` 与 `application-docker.yml`；优先通过环境变量覆盖敏感项。
-- Nacos：密钥/账号不入库；用 `nacos-configs/` 与 `setup-nacos.sh` 初始化，同网络 `haven-network` 下联通依赖。
+- Nacos：密钥/账号不入库；通过 `application.yml` 配置连接信息，同网络 `haven-network` 下联通依赖。
 - 机密：通过 Docker secrets 或环境变量注入，禁止硬编码到代码/配置。
 - 访问控制：按最小权限配置 `SecurityConfig`/管理端点，仅在需要时放开。
 

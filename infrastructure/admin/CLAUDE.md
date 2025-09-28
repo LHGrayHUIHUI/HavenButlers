@@ -26,8 +26,8 @@ docker build -f Dockerfile.multi-stage -t haven/admin-service:latest .
 # Docker Compose 启动（包含依赖服务）
 docker-compose up -d
 
-# 初始化 Nacos 配置（首次运行）
-./setup-nacos.sh
+# 配置 Nacos 连接信息
+# 修改 src/main/resources/application.yml 中的 Nacos 连接配置
 ```
 
 ### 访问地址

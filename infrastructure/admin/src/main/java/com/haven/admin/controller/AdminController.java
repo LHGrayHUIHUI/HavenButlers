@@ -1,7 +1,8 @@
 package com.haven.admin.controller;
 
 import com.haven.admin.service.AdminHealthService;
-import com.haven.base.common.response.ResponseWrapper;
+import com.haven.admin.common.AdminResponse;
+import com.haven.admin.common.AdminException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,14 +29,14 @@ public class AdminController {
      * 获取系统健康状态
      */
     @GetMapping("/health")
-    public ResponseWrapper<Map<String, Object>> getHealth() {
+    public AdminResponse<Map<String, Object>> getHealth() {
         try {
             log.info("获取系统健康状态");
             Map<String, Object> healthData = adminHealthService.getSystemHealth();
-            return ResponseWrapper.success(healthData);
+            return AdminResponse.success(healthData);
         } catch (Exception e) {
             log.error("获取系统健康状态失败", e);
-            return ResponseWrapper.error(500, "获取系统健康状态失败: " + e.getMessage(), (Map<String, Object>) null);
+            throw new AdminException("获取系统健康状态失败: " + e.getMessage());
         }
     }
 
@@ -43,14 +44,14 @@ public class AdminController {
      * 获取系统指标
      */
     @GetMapping("/metrics")
-    public ResponseWrapper<Map<String, Object>> getMetrics() {
+    public AdminResponse<Map<String, Object>> getMetrics() {
         try {
             log.info("获取系统指标");
             Map<String, Object> metricsData = adminHealthService.getSystemMetrics();
-            return ResponseWrapper.success(metricsData);
+            return AdminResponse.success(metricsData);
         } catch (Exception e) {
             log.error("获取系统指标失败", e);
-            return ResponseWrapper.error(500, "获取系统指标失败: " + e.getMessage(), (Map<String, Object>) null);
+            throw new AdminException("获取系统指标失败: " + e.getMessage());
         }
     }
 
@@ -58,14 +59,14 @@ public class AdminController {
      * 获取服务状态
      */
     @GetMapping("/services")
-    public ResponseWrapper<Map<String, Object>> getServices() {
+    public AdminResponse<Map<String, Object>> getServices() {
         try {
             log.info("获取服务状态");
             Map<String, Object> servicesData = adminHealthService.getServicesStatus();
-            return ResponseWrapper.success(servicesData);
+            return AdminResponse.success(servicesData);
         } catch (Exception e) {
             log.error("获取服务状态失败", e);
-            return ResponseWrapper.error(500, "获取服务状态失败: " + e.getMessage(), (Map<String, Object>) null);
+            throw new AdminException( "获取服务状态失败: " + e.getMessage());
         }
     }
 }

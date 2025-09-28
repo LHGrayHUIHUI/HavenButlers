@@ -1,0 +1,23 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  # - "rules/*.yml"
+
+scrape_configs:
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: "admin-service"
+    static_configs:
+      - targets: ["admin-service:8888"]
+    metrics_path: "/actuator/prometheus"
+    scrape_interval: 5s
+
+  - job_name: "nacos"
+    static_configs:
+      - targets: ["nacos:8848"]
+    metrics_path: "/nacos/actuator/prometheus"
+    scrape_interval: 10s

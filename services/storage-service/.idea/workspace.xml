@@ -5,22 +5,39 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="9378460c-4cc7-4712-9167-d5584eb24fdb" name="Changes" comment="文件存储服务修改">
-      <change afterPath="$PROJECT_DIR$/../../infrastructure/base-model/日志系统说明.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../infrastructure/base-model/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/base-model/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/annotation/Encrypt.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/annotation/Encrypt.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/annotation/Permission.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/annotation/Permission.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/cache/DefaultCacheService.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/cache/DefaultCacheService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/client/DefaultServiceDiscovery.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/client/DefaultServiceDiscovery.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/client/ServiceClient.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/client/ServiceClient.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/common/exception/RateLimitException.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/common/exception/RateLimitException.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/common/response/ErrorCode.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/common/response/ErrorCode.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/config/BaseModelAutoConfiguration.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/config/BaseModelAutoConfiguration.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/configuration/DefaultDynamicConfigManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/configuration/DefaultDynamicConfigManager.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/lock/DefaultDistributedLock.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/lock/DefaultDistributedLock.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/messaging/DefaultMessageProducer.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/messaging/DefaultMessageProducer.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/monitor/DefaultMetricsCollector.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/monitor/DefaultMetricsCollector.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/utils/EncryptUtil.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/base-model/src/main/java/com/haven/base/utils/EncryptUtil.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/admin/CHANGELOG.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/admin/CONTRIBUTING.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/admin/LICENSE" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/admin/docs/Nacos-统一配置与服务发现设计.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/admin/docs/Storage-TCP代理模式设计.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/admin/docs/StorageClient-统一规范(TCP代理模式).md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/admin/docs/upstream-base-model-README.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/admin/docs/upstream-common-README.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/admin/docs/当前配置优化建议.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/admin/docs/智能家庭服务平台 - 全架构设计文档.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/admin/docs/管理端-API规范.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/admin/docs/管理端-Vue3-开发与部署.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/admin/docs/项目概述与UI架构提示.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/admin/src/main/java/com/haven/admin/model/PageRequest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../infrastructure/admin/src/main/java/com/haven/admin/model/PageResponse.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/admin/AGENTS.md" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/admin/AGENTS.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/admin/CLAUDE.md" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/admin/CLAUDE.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/admin/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/admin/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/admin/dev-panel.md" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/admin/dev-panel.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/admin/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/admin/docker-compose.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/admin/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/admin/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/admin/src/main/java/com/haven/admin/AdminApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/admin/src/main/java/com/haven/admin/AdminApplication.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/admin/src/main/java/com/haven/admin/config/AdminConfiguration.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/admin/src/main/java/com/haven/admin/config/AdminConfiguration.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/admin/src/main/java/com/haven/admin/config/SecurityConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/admin/src/main/java/com/haven/admin/config/SecurityConfig.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/admin/src/main/java/com/haven/admin/controller/AdminController.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/admin/src/main/java/com/haven/admin/controller/AdminController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/admin/src/main/java/com/haven/admin/controller/AlertController.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/admin/src/main/java/com/haven/admin/controller/AlertController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/admin/src/main/java/com/haven/admin/controller/EnvironmentController.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/admin/src/main/java/com/haven/admin/controller/EnvironmentController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/admin/src/main/java/com/haven/admin/controller/HealthController.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/admin/src/main/java/com/haven/admin/controller/HealthController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/admin/src/main/java/com/haven/admin/controller/ServiceManageController.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/admin/src/main/java/com/haven/admin/controller/ServiceManageController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/admin/src/main/java/com/haven/admin/service/AlertService.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/admin/src/main/java/com/haven/admin/service/AlertService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/admin/src/main/java/com/haven/admin/service/ServiceManageService.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/admin/src/main/java/com/haven/admin/service/ServiceManageService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/admin/src/main/resources/application-docker.yml" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/admin/src/main/resources/application-docker.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/admin/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/admin/src/main/resources/application.yml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

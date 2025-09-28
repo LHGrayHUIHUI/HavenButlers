@@ -42,7 +42,7 @@ public class AdminConfiguration {
     @PostConstruct
     public void init() {
         log.info("Admin管理服务配置初始化");
-        initDefaultAlertRules();
+        // initDefaultAlertRules();
     }
 
     /**
@@ -58,8 +58,9 @@ public class AdminConfiguration {
     }
 
     /**
-     * 初始化默认告警规则
+     * 初始化默认告警规则 - 暂时禁用
      */
+    /*
     private void initDefaultAlertRules() {
 
         // CPU使用率告警
@@ -129,6 +130,7 @@ public class AdminConfiguration {
 
         log.info("默认告警规则初始化完成");
     }
+    */
 
 
     /**

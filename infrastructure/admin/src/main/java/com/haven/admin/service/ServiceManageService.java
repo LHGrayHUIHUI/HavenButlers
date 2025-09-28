@@ -2,8 +2,8 @@ package com.haven.admin.service;
 
 import com.haven.admin.model.ServiceInfo;
 import com.haven.admin.model.ServiceMetrics;
-import com.haven.base.model.dto.PageRequest;
-import com.haven.base.model.dto.PageResponse;
+import com.haven.admin.model.PageRequest;
+import com.haven.admin.model.PageResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.actuate.health.Health;

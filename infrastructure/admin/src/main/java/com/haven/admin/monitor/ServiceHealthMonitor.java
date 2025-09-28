@@ -84,9 +84,9 @@ public class ServiceHealthMonitor implements HealthIndicator {
             healthRatio
         );
 
-        // 记录异常状态
+        // 记录异常状态（降级为INFO避免告警噪音）
         if (!"UP".equals(overview.getStatus())) {
-            log.warn("服务 {} 状态异常: {}, 健康实例 {}/{}",
+            log.info("服务 {} 状态监控: {}, 健康实例 {}/{}",
                 serviceName, overview.getStatus(),
                 overview.getHealthyCount(), overview.getInstanceCount());
         }

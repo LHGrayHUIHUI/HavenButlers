@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<title>HavenButler Admin - Service Overview</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#1173d4",
+            "background-light": "#f6f7f8",
+            "background-dark": "#101922",
+          },
+          fontFamily: {
+            "display": ["Inter"]
+          },
+          borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+        },
+      },
+    }
+  </script>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-gray-800 dark:text-gray-200">
+<div class="flex flex-col min-h-screen">
+<header class="sticky top-0 z-10 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm border-b border-gray-200/50 dark:border-gray-800/50">
+<div class="container mx-auto px-4 sm:px-6 lg:px-8">
+<div class="flex items-center justify-between h-16">
+<div class="flex items-center gap-4">
+<div class="text-primary size-7">
+<svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<path clip-rule="evenodd" d="M39.475 21.6262C40.358 21.4363 40.6863 21.5589 40.7581 21.5934C40.7876 21.655 40.8547 21.857 40.8082 22.3336C40.7408 23.0255 40.4502 24.0046 39.8572 25.2301C38.6799 27.6631 36.5085 30.6631 33.5858 33.5858C30.6631 36.5085 27.6632 38.6799 25.2301 39.8572C24.0046 40.4502 23.0255 40.7407 22.3336 40.8082C21.8571 40.8547 21.6551 40.7875 21.5934 40.7581C21.5589 40.6863 21.4363 40.358 21.6262 39.475C21.8562 38.4054 22.4689 36.9657 23.5038 35.2817C24.7575 33.2417 26.5497 30.9744 28.7621 28.762C30.9744 26.5497 33.2417 24.7574 35.2817 23.5037C36.9657 22.4689 38.4054 21.8562 39.475 21.6262ZM4.41189 29.2403L18.7597 43.5881C19.8813 44.7097 21.4027 44.9179 22.7217 44.7893C24.0585 44.659 25.5148 44.1631 26.9723 43.4579C29.9052 42.0387 33.2618 39.5667 36.4142 36.4142C39.5667 33.2618 42.0387 29.9052 43.4579 26.9723C44.1631 25.5148 44.659 24.0585 44.7893 22.7217C44.9179 21.4027 44.7097 19.8813 43.5881 18.7597L29.2403 4.41187C27.8527 3.02428 25.8765 3.02573 24.2861 3.36776C22.6081 3.72863 20.7334 4.58419 18.8396 5.74801C16.4978 7.18716 13.9881 9.18353 11.5858 11.5858C9.18354 13.988 7.18717 16.4978 5.74802 18.8396C4.58421 20.7334 3.72865 22.6081 3.36778 24.2861C3.02574 25.8765 3.02429 27.8527 4.41189 29.2403Z" fill="currentColor" fill-rule="evenodd"></path>
+</svg>
+</div>
+<h1 class="text-lg font-bold text-gray-900 dark:text-white">HavenButler Admin</h1>
+</div>
+<nav class="hidden md:flex items-center gap-6">
+<a class="text-sm font-medium text-primary dark:text-primary" href="#">Overview</a>
+<a class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors" href="#">Services</a>
+<a class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors" href="#">Instances</a>
+<a class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors" href="#">Alerts</a>
+<a class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors" href="#">Settings</a>
+</nav>
+<div class="flex items-center gap-4">
+<div class="relative">
+<button class="relative flex items-center justify-center size-10 rounded-full bg-gray-200/50 dark:bg-gray-800/50 hover:bg-gray-300/50 dark:hover:bg-gray-700/50 transition-colors">
+<span class="material-symbols-outlined text-gray-600 dark:text-gray-300">notifications</span>
+<span class="absolute top-1 right-1 flex h-3 w-3">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+<span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+</span>
+</button>
+</div>
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border-2 border-primary/50" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuD66zc7cDL814h7POr3supiE7w1Ltqw7gl_yR43qz7CzGgdTG5l7EHV3JU_bhHWK1sXCdnLrttLmKFOxIM1rjNgSON1fnjUneX4bk_kQw6aUjo-jbRhBYVoeL9k-vn-KxSfKkksXkvS8sjx67VNpU4uCiEM0y6oeRVWuEFFsbRTSxDYr5gFL7s7hVIQ7X_cBuEaHlqsC8wl1XqR5gx8o5INRkL7Jykv1ZEGkCa0W66PwSDm7tXbj3wj1XvhqvQnF204TuS0JhDiNOw");'></div>
+</div>
+</div>
+</div>
+</header>
+<main class="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<div class="flex items-center justify-between mb-6">
+<div>
+<h2 class="text-2xl font-bold text-gray-900 dark:text-white">Service Overview</h2>
+<p class="text-sm text-gray-500 dark:text-gray-400">Real-time status of all services. Last updated: <span id="last-updated">...</span></p>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-green-500 animate-pulse">public</span>
+<span class="text-sm font-medium text-gray-600 dark:text-gray-300">SSE Connected</span>
+</div>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+<div class="bg-background-light dark:bg-background-dark border border-gray-200/80 dark:border-gray-800/80 rounded-lg p-5 flex flex-col gap-2 shadow-sm">
+<p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Services</p>
+<p class="text-3xl font-bold text-gray-900 dark:text-white">120</p>
+</div>
+<div class="bg-background-light dark:bg-background-dark border border-gray-200/80 dark:border-gray-800/80 rounded-lg p-5 flex flex-col gap-2 shadow-sm">
+<p class="text-sm font-medium text-gray-500 dark:text-gray-400">Normal</p>
+<p class="text-3xl font-bold text-green-500">105</p>
+</div>
+<div class="bg-background-light dark:bg-background-dark border border-gray-200/80 dark:border-gray-800/80 rounded-lg p-5 flex flex-col gap-2 shadow-sm">
+<p class="text-sm font-medium text-gray-500 dark:text-gray-400">Abnormal</p>
+<p class="text-3xl font-bold text-red-500">10</p>
+</div>
+<div class="bg-background-light dark:bg-background-dark border border-gray-200/80 dark:border-gray-800/80 rounded-lg p-5 flex flex-col gap-2 shadow-sm">
+<p class="text-sm font-medium text-gray-500 dark:text-gray-400">Upgrading</p>
+<p class="text-3xl font-bold text-yellow-500">5</p>
+</div>
+</div>
+<h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Service Status Grid</h3>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<div class="bg-background-light dark:bg-background-dark border border-gray-200/80 dark:border-gray-800/80 rounded-lg p-5 shadow-sm transition-shadow hover:shadow-lg">
+<div class="flex items-center justify-between mb-4">
+<h4 class="font-bold text-gray-800 dark:text-gray-100">User Authentication</h4>
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">
+<span class="inline-block w-2 h-2 mr-1.5 bg-green-500 rounded-full"></span>Normal
+              </span>
+</div>
+<div class="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+<p><strong>Instances:</strong> 5/5</p>
+<p><strong>Uptime:</strong> 99.9%</p>
+<p><strong>Latency:</strong> 10ms</p>
+</div>
+</div>
+<div class="bg-background-light dark:bg-background-dark border-2 border-red-500/50 rounded-lg p-5 shadow-lg shadow-red-500/10 transition-shadow hover:shadow-xl hover:shadow-red-500/20">
+<div class="flex items-center justify-between mb-4">
+<h4 class="font-bold text-gray-800 dark:text-gray-100">Payment Processing</h4>
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300">
+<span class="inline-block w-2 h-2 mr-1.5 bg-red-500 rounded-full animate-pulse"></span>Abnormal
+              </span>
+</div>
+<div class="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+<p><strong>Instances:</strong> <span class="text-red-500 font-semibold">3/5</span></p>
+<p><strong>Uptime:</strong> 95%</p>
+<p><strong>Latency:</strong> 50ms</p>
+</div>
+</div>
+<div class="bg-background-light dark:bg-background-dark border border-gray-200/80 dark:border-gray-800/80 rounded-lg p-5 shadow-sm transition-shadow hover:shadow-lg">
+<div class="flex items-center justify-between mb-4">
+<h4 class="font-bold text-gray-800 dark:text-gray-100">Data Storage</h4>
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">
+<span class="inline-block w-2 h-2 mr-1.5 bg-green-500 rounded-full"></span>Normal
+              </span>
+</div>
+<div class="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+<p><strong>Instances:</strong> 8/8</p>
+<p><strong>Uptime:</strong> 99.5%</p>
+<p><strong>Latency:</strong> 20ms</p>
+</div>
+</div>
+<div class="bg-background-light dark:bg-background-dark border border-gray-200/80 dark:border-gray-800/80 rounded-lg p-5 shadow-sm transition-shadow hover:shadow-lg">
+<div class="flex items-center justify-between mb-4">
+<h4 class="font-bold text-gray-800 dark:text-gray-100">Notification Service</h4>
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300">
+<span class="material-symbols-outlined text-xs mr-1 animate-spin">progress_activity</span>Upgrading
+              </span>
+</div>
+<div class="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+<p><strong>Instances:</strong> 4/4 (Rolling update)</p>
+<p><strong>Uptime:</strong> N/A</p>
+<p><strong>Latency:</strong> N/A</p>
+</div>
+</div>
+<div class="bg-background-light dark:bg-background-dark border border-gray-200/80 dark:border-gray-800/80 rounded-lg p-5 shadow-sm transition-shadow hover:shadow-lg">
+<div class="flex items-center justify-between mb-4">
+<h4 class="font-bold text-gray-800 dark:text-gray-100">API Gateway</h4>
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">
+<span class="inline-block w-2 h-2 mr-1.5 bg-green-500 rounded-full"></span>Normal
+              </span>
+</div>
+<div class="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+<p><strong>Instances:</strong> 10/10</p>
+<p><strong>Uptime:</strong> 99.99%</p>
+<p><strong>Latency:</strong> 5ms</p>
+</div>
+</div>
+<div class="bg-background-light dark:bg-background-dark border border-gray-200/80 dark:border-gray-800/80 rounded-lg p-5 shadow-sm transition-shadow hover:shadow-lg">
+<div class="flex items-center justify-between mb-4">
+<h4 class="font-bold text-gray-800 dark:text-gray-100">Search Service</h4>
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">
+<span class="inline-block w-2 h-2 mr-1.5 bg-green-500 rounded-full"></span>Normal
+              </span>
+</div>
+<div class="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+<p><strong>Instances:</strong> 3/3</p>
+<p><strong>Uptime:</strong> 99.8%</p>
+<p><strong>Latency:</strong> 30ms</p>
+</div>
+</div>
+</div>
+</main>
+</div>
+<script>
+    // Simple script to update the "Last updated" time
+    const lastUpdatedElement = document.getElementById('last-updated');
+    function updateTimestamp() {
+      const now = new Date();
+      lastUpdatedElement.textContent = now.toLocaleTimeString();
+    }
+    setInterval(updateTimestamp, 5000); // Fallback polling
+    updateTimestamp(); // Initial call
+  </script>
+
+</body></html>

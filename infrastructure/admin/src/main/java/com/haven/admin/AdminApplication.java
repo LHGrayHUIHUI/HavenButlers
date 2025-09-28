@@ -1,11 +1,9 @@
 package com.haven.admin;
 
-import com.haven.base.config.BaseModelAutoConfiguration;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.cloud.openfeign.EnableFeignClients;
-import org.springframework.context.annotation.Import;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import de.codecentric.boot.admin.server.config.EnableAdminServer;
 
@@ -22,12 +20,15 @@ import de.codecentric.boot.admin.server.config.EnableAdminServer;
  * @author HavenButler
  * @version 1.0.0
  */
-@SpringBootApplication
+@SpringBootApplication(exclude = {
+    org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration.class,
+    org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration.class,
+    org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration.class
+})
 @EnableAdminServer
 @EnableDiscoveryClient
 @EnableFeignClients
 @EnableScheduling
-@Import(BaseModelAutoConfiguration.class)
 public class AdminApplication {
 
     public static void main(String[] args) {
