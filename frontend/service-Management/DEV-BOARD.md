@@ -20,8 +20,8 @@
 ### M2 核心页面与数据流（P0）
 - [x] Dashboard：SSE `/api/service/stream/health` 实时 + 失败回退 5s 轮询；使用 Element Plus 表格和卡片布局。
 - [x] Services 列表：筛选/搜索/分页；使用分页适配器 `adaptPage`。
-- [x] Service Detail：Tabs【Health/Metrics/Logs/Nacos】；日志级别过滤；（待）日志本地分页优化。
-- [x] Alerts：完成详情/处理/忽略；规则列表展示；（待）规则创建/编辑对话框。
+- [x] Service Detail：Tabs【Health/Metrics/Logs/Nacos】；指标(ECharts)与 Nacos 实例管理；（待）日志本地分页优化。
+- [x] Alerts：完成列表/详情/处理/忽略 + 规则 CRUD/测试。
 
 ### M3 环境与设置（P1）
 - [x] Environment：当前/可用环境、刷新配置、环境切换（二次确认）。
@@ -53,12 +53,11 @@
 - 断网或 401 情况下提示清晰并可恢复；风险操作均有二次确认。
 
 ## 下阶段 Backlog（建议）
-- ✅ 集成 Element Plus（布局/表单/对话框）与主题系统。
-- 指标图表与可视化（ECharts）。
-- 告警规则创建/编辑对话框实现；Nacos 详情与实例操作。
-- CI：轻量检查 AGENTS.md 存在与分页契约关键字段；PR 模板与检查清单。
+- 日志本地分页优化（Service Detail / Logs）。
+- CI：轻量检查 AGENTS.md 与分页契约关键字段；PR 模板与检查清单。
+- 可访问性核查（焦点环、ARIA 标签、空态/失败反馈统一）。
 
-## 2024-01-16 更新记录
+## 2025-09-28 更新记录
 ### 已完成功能
 - ✅ Element Plus 全局导入和配置
 - ✅ Dashboard 使用 Element Plus 重构（表格、卡片、状态标签）
@@ -71,9 +70,8 @@
 - ✅ SSE 连接状态显示（实时连接/轮询模式）
 
 ### 待优化功能
-- 告警规则创建/编辑对话框（当前仅有删除、测试、启用/禁用）
-- Services 和 ServiceDetail 页面 Element Plus 升级
-- Environment 和 Settings 页面 Element Plus 升级
+- 日志本地分页（避免长列表滚动卡顿）
+- Environment 和 Settings 页面 Element Plus 深度整合（表单校验/对话框）
 - 主题系统和深色模式支持
 
 ## 参考

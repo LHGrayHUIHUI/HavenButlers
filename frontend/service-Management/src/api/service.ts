@@ -48,57 +48,76 @@ export async function fetchAlerts(params: Record<string, any>) {
 }
 
 /** 告警详情 */
-export async function fetchAlertDetail(alertId: string) {
-  const resp = await http.get(`/alert/${alertId}`);
+export async function fetchAlertDetail(alertId: string | number) {
+  const resp = await http.get(`/alert/${encodeURIComponent(String(alertId))}`);
   return resp.data;
 }
 
 /** 处理告警 */
-export async function handleAlert(alertId: string, handler: string, remark?: string) {
-  const resp = await http.post(`/alert/${alertId}/handle`, null, {
-    params: { handler, remark }
-  });
+export async function handleAlert(alertId: string | number, handler: string, remark?: string) {
+  const params: any = { handler };
+  if (remark) params.remark = remark;
+  const resp = await http.post(`/alert/${encodeURIComponent(String(alertId))}/handle`, null, { params });
   return resp.data;
 }
 
 /** 忽略告警 */
-export async function ignoreAlert(alertId: string, reason?: string) {
-  const resp = await http.post(`/alert/${alertId}/ignore`, null, {
-    params: { reason }
-  });
+export async function ignoreAlert(alertId: string | number, reason?: string) {
+  const params: any = {};
+  if (reason) params.reason = reason;
+  const resp = await http.post(`/alert/${encodeURIComponent(String(alertId))}/ignore`, null, { params });
   return resp.data;
 }
 
-/** 告警规则列表 */
+/** 规则列表 */
 export async function fetchAlertRules(params?: Record<string, any>) {
   const resp = await http.get('/alert/rules', { params });
+  return resp.data as any[];
+}
+
+/** 创建/更新/删除/启用规则 */
+export async function createAlertRule(body: any) {
+  const resp = await http.post('/alert/rule', body);
+  return resp.data;
+}
+export async function updateAlertRule(ruleId: string | number, body: any) {
+  const resp = await http.put(`/alert/rule/${encodeURIComponent(String(ruleId))}`, body);
+  return resp.data;
+}
+export async function deleteAlertRule(ruleId: string | number) {
+  const resp = await http.delete(`/alert/rule/${encodeURIComponent(String(ruleId))}`);
+  return resp.data;
+}
+export async function enableAlertRule(ruleId: string | number, enabled: boolean) {
+  const resp = await http.put(`/alert/rule/${encodeURIComponent(String(ruleId))}/enable`, null, { params: { enabled } });
+  return resp.data;
+}
+export async function testAlertRule(body: any) {
+  const resp = await http.post('/alert/rule/test', body);
   return resp.data;
 }
 
-/** 创建告警规则 */
-export async function createAlertRule(rule: any) {
-  const resp = await http.post('/alert/rule', rule);
+/** Nacos 相关 */
+export async function fetchNacosServices() {
+  const resp = await http.get('/service/nacos/services');
+  return resp.data as string[];
+}
+export async function fetchNacosInstances(serviceName: string) {
+  const resp = await http.get(`/service/nacos/${encodeURIComponent(serviceName)}/instances`);
   return resp.data;
 }
-
-/** 更新告警规则 */
-export async function updateAlertRule(ruleId: string, rule: any) {
-  const resp = await http.put(`/alert/rule/${ruleId}`, rule);
+export async function fetchNacosDetails(serviceName: string) {
+  const resp = await http.get(`/service/nacos/${encodeURIComponent(serviceName)}/details`);
   return resp.data;
 }
-
-/** 删除告警规则 */
-export async function deleteAlertRule(ruleId: string) {
-  const resp = await http.delete(`/alert/rule/${ruleId}`);
+export async function nacosDeregister(serviceName: string, ip: string, port: number) {
+  const resp = await http.post(`/service/nacos/${encodeURIComponent(serviceName)}/deregister`, null, { params: { ip, port } });
   return resp.data;
 }
-
-/** 测试告警规则 */
-export async function testAlertRule(rule: any) {
-  const resp = await http.post('/alert/rule/test', rule);
+export async function nacosRegister(serviceName: string, ip: string, port: number) {
+  const resp = await http.post(`/service/nacos/${encodeURIComponent(serviceName)}/register`, null, { params: { ip, port } });
   return resp.data;
 }
-
 // ===== 环境管理 API =====
 
 /** 获取当前环境 */
@@ -144,4 +163,3 @@ export async function startService(serviceName: string) {
   const resp = await http.post(`/service/${encodeURIComponent(serviceName)}/start`);
   return resp.data;
 }
-

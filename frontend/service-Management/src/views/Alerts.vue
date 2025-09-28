@@ -126,7 +126,7 @@
               />
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="200">
+          <el-table-column label="操作" width="240">
             <template #default="scope">
               <el-button size="small" @click="onEditRule(scope.row)">编辑</el-button>
               <el-button size="small" type="warning" @click="onTestRule(scope.row)">测试</el-button>
@@ -134,6 +134,47 @@
             </template>
           </el-table-column>
         </el-table>
+
+        <!-- 规则编辑对话框 -->
+        <el-dialog v-model="ruleEditVisible" :title="ruleForm.id ? '编辑规则' : '创建规则'" width="560px">
+          <el-form :model="ruleForm" label-width="90px">
+            <el-form-item label="名称" required>
+              <el-input v-model="ruleForm.name" />
+            </el-form-item>
+            <el-form-item label="描述">
+              <el-input v-model="ruleForm.description" />
+            </el-form-item>
+            <el-form-item label="服务名" required>
+              <el-input v-model="ruleForm.serviceName" />
+            </el-form-item>
+            <el-form-item label="指标" required>
+              <el-input v-model="ruleForm.metricName" />
+            </el-form-item>
+            <el-form-item label="比较符" required>
+              <el-select v-model="ruleForm.operator" style="width: 120px">
+                <el-option v-for="op in ['>','>=','<','<=','==','!=']" :key="op" :label="op" :value="op" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="阈值" required>
+              <el-input v-model.number="ruleForm.threshold" type="number" />
+            </el-form-item>
+            <el-form-item label="级别" required>
+              <el-select v-model="ruleForm.level" style="width: 140px">
+                <el-option v-for="lv in ['INFO','WARN','ERROR','CRITICAL']" :key="lv" :label="lv" :value="lv" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="通知类型">
+              <el-input v-model="ruleForm.notifyType" placeholder="email|sms|..." />
+            </el-form-item>
+            <el-form-item label="启用">
+              <el-switch v-model="ruleForm.enabled" />
+            </el-form-item>
+          </el-form>
+          <template #footer>
+            <el-button @click="ruleEditVisible=false">取消</el-button>
+            <el-button type="primary" @click="onSaveRule">保存</el-button>
+          </template>
+        </el-dialog>
       </el-tab-pane>
     </el-tabs>
 
@@ -213,7 +254,8 @@ import {
   createAlertRule,
   updateAlertRule,
   deleteAlertRule,
-  testAlertRule
+  testAlertRule,
+  enableAlertRule
 } from '@/api/service';
 import { ElMessage, ElMessageBox } from 'element-plus';
 
@@ -242,6 +284,8 @@ const page = reactive({
 
 const list = ref<any[]>([]);
 const rules = ref<any[]>([]);
+const ruleEditVisible = ref(false);
+const ruleForm = reactive<any>({ id: undefined, name: '', description: '', serviceName: '', metricName: '', operator: '>', threshold: 0, level: 'WARN', notifyType: '', enabled: true });
 
 // 对话框状态
 const detailVisible = ref(false);
@@ -366,13 +410,13 @@ async function onConfirmIgnore() {
 
 // 规则管理方法
 function onCreateRule() {
-  // TODO: 实现创建规则对话框
-  ElMessage.info('创建规则功能开发中');
+  Object.assign(ruleForm, { id: undefined, name: '', description: '', serviceName: '', metricName: '', operator: '>', threshold: 0, level: 'WARN', notifyType: '', enabled: true });
+  ruleEditVisible.value = true;
 }
 
 function onEditRule(rule: any) {
-  // TODO: 实现编辑规则对话框
-  ElMessage.info('编辑规则功能开发中');
+  Object.assign(ruleForm, rule);
+  ruleEditVisible.value = true;
 }
 
 async function onDeleteRule(rule: any) {
@@ -399,10 +443,26 @@ async function onTestRule(rule: any) {
 
 async function onToggleRule(rule: any) {
   try {
-    // TODO: 实现规则启用/禁用API调用
+    await enableAlertRule(rule.id, !!rule.enabled);
     ElMessage.success(`规则已${rule.enabled ? '启用' : '禁用'}`);
   } catch (error) {
     ElMessage.error('操作失败');
+  }
+}
+
+async function onSaveRule() {
+  if (!ruleForm.name || !ruleForm.serviceName || !ruleForm.metricName) {
+    ElMessage.warning('请完整填写必填项');
+    return;
+  }
+  try {
+    if (ruleForm.id) await updateAlertRule(ruleForm.id, ruleForm);
+    else await createAlertRule(ruleForm);
+    ElMessage.success('规则已保存');
+    ruleEditVisible.value = false;
+    await loadRules();
+  } catch (error) {
+    ElMessage.error('保存规则失败');
   }
 }
 
@@ -466,4 +526,3 @@ pre {
   border-radius: 4px;
 }
 </style>
-
