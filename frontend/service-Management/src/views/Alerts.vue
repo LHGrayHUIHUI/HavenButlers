@@ -1,15 +1,32 @@
 <template>
-  <div class="alerts">
-    <el-page-header>
-      <template #content>
-        <h2>告警管理</h2>
-        <p>告警列表、详情处理与规则管理</p>
-      </template>
-    </el-page-header>
+  <div class="alerts container">
+    <!-- 页面标题 -->
+    <div class="page-header mb-xl">
+      <h1 class="page-title">告警管理</h1>
+      <p class="page-subtitle">实时告警监控、处理与规则配置</p>
+    </div>
 
-    <el-tabs v-model="activeTab" class="alerts-tabs">
-      <!-- 告警列表标签页 -->
-      <el-tab-pane label="告警列表" name="list">
+    <!-- 自定义标签页 -->
+    <div class="custom-tabs">
+      <div class="tabs-header">
+        <button
+          :class="['tab-button', { active: activeTab === 'list' }]"
+          @click="activeTab = 'list'"
+        >
+          <span class="tab-icon">🔔</span>
+          告警列表
+        </button>
+        <button
+          :class="['tab-button', { active: activeTab === 'rules' }]"
+          @click="activeTab = 'rules'"
+        >
+          <span class="tab-icon">⚙️</span>
+          告警规则
+        </button>
+      </div>
+
+      <!-- 告警列表面板 -->
+      <div v-show="activeTab === 'list'" class="tab-panel">
         <!-- 搜索筛选栏 -->
         <el-card class="search-card" shadow="never">
           <el-form :model="q" inline @submit.prevent="onSearch">
@@ -103,10 +120,10 @@
           @current-change="onPageChange"
           @size-change="onSizeChange"
         />
-      </el-tab-pane>
+      </div>
 
-      <!-- 告警规则标签页 -->
-      <el-tab-pane label="告警规则" name="rules">
+      <!-- 告警规则面板 -->
+      <div v-show="activeTab === 'rules'" class="tab-panel">
         <div class="rules-toolbar">
           <el-button type="primary" @click="onCreateRule">创建规则</el-button>
         </div>
@@ -175,8 +192,8 @@
             <el-button type="primary" @click="onSaveRule">保存</el-button>
           </template>
         </el-dialog>
-      </el-tab-pane>
-    </el-tabs>
+      </div>
+    </div>
 
     <!-- 告警详情对话框 -->
     <el-dialog v-model="detailVisible" title="告警详情" width="60%">
@@ -503,26 +520,440 @@ onMounted(() => {
 
 <style scoped>
 .alerts {
-  padding: 20px;
+  padding-top: 24px;
+  padding-bottom: 48px;
 }
 
-.alerts-tabs {
-  margin-top: 20px;
+/* 页面标题区域 */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
+.page-title {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+  color: var(--color-text-primary);
+  margin: 0 0 8px 0;
+}
+
+.page-subtitle {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+/* 自定义标签页 */
+.custom-tabs {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  margin-bottom: var(--spacing-xl);
+}
+
+.tabs-header {
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  background: var(--color-surface-hover);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tab-button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.tab-button:hover {
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
+.tab-button.active {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.tab-button.active::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 3px;
+  background: var(--color-primary);
+  border-radius: var(--radius-full);
+}
+
+.tab-icon {
+  font-size: 18px;
+}
+
+.tab-panel {
+  padding: var(--spacing-xl);
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 统计徽章 */
+.stat-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  transition: all var(--transition-base);
+}
+
+.stat-badge.badge-danger {
+  background: linear-gradient(135deg, var(--color-danger), #ff6b6b);
+  color: white;
+  border-color: var(--color-danger);
+}
+
+.stat-badge:hover {
+  transform: translateY(-2px);
+}
+
+.stat-icon {
+  font-size: 24px;
+}
+
+.stat-label {
+  display: block;
+  font-size: var(--text-xs);
+  opacity: 0.9;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 2px;
+}
+
+.stat-value {
+  display: block;
+  font-size: var(--text-xl);
+  font-weight: var(--font-bold);
+}
+
+/* 搜索表单 */
 .search-card {
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-lg);
+  background: transparent;
+  border: none;
+  box-shadow: none !important;
 }
 
+.search-card :deep(.el-card__body) {
+  padding: 0;
+  background: transparent;
+}
+
+/* 修复下拉框选中值显示问题 */
+.search-card :deep(.el-select) {
+  min-width: 120px;
+}
+
+.search-card :deep(.el-select .el-input__wrapper) {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: none;
+}
+
+.search-card :deep(.el-select .el-input__wrapper:hover) {
+  border-color: var(--color-primary);
+}
+
+.search-card :deep(.el-select .el-input__inner) {
+  background: transparent;
+  color: var(--color-text-primary) !important;
+  border: none;
+}
+
+.search-card :deep(.el-select.is-focus .el-input__wrapper) {
+  border-color: var(--color-primary);
+}
+
+.search-card :deep(.el-input__wrapper) {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: none;
+}
+
+.search-card :deep(.el-input__inner) {
+  color: var(--color-text-primary) !important;
+}
+
+.search-card :deep(.el-form-item__label) {
+  color: var(--color-text-secondary);
+  font-weight: var(--font-medium);
+}
+
+/* 下拉菜单样式 */
+:deep(.el-select-dropdown) {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+:deep(.el-select-dropdown__item) {
+  color: var(--color-text-primary);
+}
+
+:deep(.el-select-dropdown__item:hover) {
+  background: var(--color-surface-hover);
+}
+
+:deep(.el-select-dropdown__item.selected) {
+  color: var(--color-primary);
+  font-weight: var(--font-medium);
+}
+
+/* 确保选中值文本可见 */
+:deep(.el-select .el-select__placeholder) {
+  color: var(--color-text-tertiary);
+}
+
+:deep(.el-select .el-input .el-select__caret) {
+  color: var(--color-text-secondary);
+}
+
+.search-form {
+  width: 100%;
+}
+
+.search-row {
+  align-items: flex-end;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-label {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-text-secondary);
+}
+
+.form-select,
+.form-input {
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: var(--text-sm);
+  transition: all var(--transition-fast);
+}
+
+.form-select {
+  min-width: 150px;
+  cursor: pointer;
+}
+
+.form-input {
+  min-width: 200px;
+}
+
+.form-select:hover,
+.form-input:hover {
+  border-color: var(--color-primary);
+}
+
+.form-select:focus,
+.form-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(17, 115, 212, 0.1);
+}
+
+.form-actions {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+/* 表格样式 */
+.table-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.custom-table {
+  background: var(--color-surface);
+}
+
+:deep(.el-table) {
+  background: transparent;
+}
+
+:deep(.el-table__header th) {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+  font-weight: var(--font-semibold);
+}
+
+:deep(.el-table__row) {
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+:deep(.el-table__row:hover) {
+  background: var(--color-surface-hover);
+}
+
+/* 标签样式 */
+.alerts-tabs {
+  margin-top: 24px;
+}
+
+:deep(.el-tabs__header) {
+  margin-bottom: 24px;
+}
+
+:deep(.el-tabs__nav) {
+  background: var(--color-surface);
+  padding: 4px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+}
+
+:deep(.el-tabs__item) {
+  padding: 12px 24px;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+:deep(.el-tabs__item.is-active) {
+  background: var(--color-primary);
+  color: white;
+}
+
+/* 规则工具栏 */
 .rules-toolbar {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
+/* 预格式文本 */
 pre {
   white-space: pre-wrap;
   word-wrap: break-word;
-  background: #f5f5f5;
-  padding: 10px;
-  border-radius: 4px;
+  background: var(--color-surface-hover);
+  padding: 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  font-family: 'Courier New', monospace;
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+}
+
+/* 分页器样式 */
+:deep(.el-pagination) {
+  margin-top: 24px;
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+}
+
+/* 规则工具栏 */
+.rules-toolbar {
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* 表格样式优化 */
+:deep(.el-table) {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+:deep(.el-table th) {
+  background: var(--color-surface-hover);
+  font-weight: var(--font-semibold);
+  color: var(--color-text-primary);
+}
+
+:deep(.el-table tr) {
+  transition: background-color var(--transition-fast);
+}
+
+:deep(.el-table tr:hover) {
+  background: var(--color-surface-hover);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .search-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .form-group {
+    width: 100%;
+  }
+
+  .form-actions {
+    width: 100%;
+    justify-content: flex-start;
+    margin-left: 0;
+    margin-top: 16px;
+  }
+
+  .tab-button {
+    padding: 10px 16px;
+    font-size: var(--text-xs);
+  }
+
+  .tab-icon {
+    font-size: 16px;
+  }
+
+  .tab-panel {
+    padding: var(--spacing-md);
+  }
 }
 </style>
