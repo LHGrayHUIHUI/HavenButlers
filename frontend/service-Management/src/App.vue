@@ -1,7 +1,7 @@
 <template>
   <div class="app-container">
     <!-- 顶部导航栏 - 玻璃态效果 -->
-    <header class="app-header header-sticky" role="banner">
+    <header v-if="!isLoginPage" class="app-header header-sticky" role="banner">
       <div class="header-container">
         <div class="header-left">
           <!-- Logo和品牌 -->
@@ -45,9 +45,40 @@
             <span v-if="hasNotifications" class="notification-badge"></span>
           </button>
 
-          <!-- 用户头像 -->
-          <div class="user-avatar">
-            <span>👤</span>
+          <!-- 用户头像和下拉菜单 -->
+          <div class="user-menu-wrapper" @click.stop>
+            <button class="user-avatar" @click="toggleUserMenu" aria-label="用户菜单">
+              <span>👤</span>
+            </button>
+            <transition name="dropdown">
+              <div v-if="showUserMenu" class="user-menu" @click.stop>
+                <div class="menu-header">
+                  <div class="menu-user-info">
+                    <div class="menu-avatar">
+                      <span>👤</span>
+                    </div>
+                    <div class="menu-user-text">
+                      <div class="menu-username">{{ authStore.username || 'Admin' }}</div>
+                      <div class="menu-role">系统管理员</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="menu-divider"></div>
+                <button class="menu-item" @click="router.push('/settings')">
+                  <span class="menu-icon">⚙️</span>
+                  <span>设置</span>
+                </button>
+                <button class="menu-item" @click="router.push('/profile')">
+                  <span class="menu-icon">👤</span>
+                  <span>个人资料</span>
+                </button>
+                <div class="menu-divider"></div>
+                <button class="menu-item menu-item-danger" @click="logout">
+                  <span class="menu-icon">🚪</span>
+                  <span>退出登录</span>
+                </button>
+              </div>
+            </transition>
           </div>
         </div>
       </div>
@@ -67,17 +98,44 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useThemeStore } from '@/stores/theme'
+import { useAuthStore } from '@/stores/auth'
 
-// 使用主题store
+// 使用store和路由
 const themeStore = useThemeStore()
+const authStore = useAuthStore()
+const route = useRoute()
+const router = useRouter()
+
 const theme = computed(() => themeStore.theme)
 const hasNotifications = ref(false)
+const showUserMenu = ref(false)
+
+// 判断是否为登录页
+const isLoginPage = computed(() => route.path === '/login')
 
 // 切换主题
 const toggleTheme = () => {
   themeStore.toggleTheme()
+}
+
+// 切换用户菜单
+const toggleUserMenu = () => {
+  showUserMenu.value = !showUserMenu.value
+}
+
+// 登出
+const logout = () => {
+  authStore.clear()
+  router.push('/login')
+  showUserMenu.value = false
+}
+
+// 点击外部关闭菜单
+const closeUserMenu = () => {
+  showUserMenu.value = false
 }
 
 onMounted(() => {
@@ -88,6 +146,14 @@ onMounted(() => {
   setTimeout(() => {
     hasNotifications.value = true
   }, 3000)
+
+  // 点击外部关闭用户菜单
+  document.addEventListener('click', closeUserMenu)
+})
+
+// 清理事件监听
+onUnmounted(() => {
+  document.removeEventListener('click', closeUserMenu)
 })
 </script>
 
@@ -220,6 +286,11 @@ onMounted(() => {
   animation: pulse 2s infinite;
 }
 
+/* 用户菜单容器 */
+.user-menu-wrapper {
+  position: relative;
+}
+
 /* 用户头像 */
 .user-avatar {
   width: 40px;
@@ -232,6 +303,111 @@ onMounted(() => {
   border: 2px solid rgba(17, 115, 212, 0.3);
   font-size: 20px;
   color: white;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.user-avatar:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(17, 115, 212, 0.25);
+}
+
+/* 用户下拉菜单 */
+.user-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 280px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.menu-header {
+  padding: 16px;
+  background: var(--color-surface-hover);
+}
+
+.menu-user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.menu-avatar {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--color-primary), #1e88e5);
+  border-radius: var(--radius-full);
+  font-size: 24px;
+  color: white;
+}
+
+.menu-user-text {
+  flex: 1;
+}
+
+.menu-username {
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  color: var(--color-text-primary);
+}
+
+.menu-role {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+
+.menu-divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 0;
+}
+
+.menu-item {
+  width: 100%;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: transparent;
+  border: none;
+  color: var(--color-text-primary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  text-align: left;
+}
+
+.menu-item:hover {
+  background: var(--color-surface-hover);
+}
+
+.menu-item-danger {
+  color: var(--color-danger);
+}
+
+.menu-icon {
+  font-size: 16px;
+}
+
+/* 下拉动画 */
+.dropdown-enter-active,
+.dropdown-leave-active {
+  transition: all 0.2s ease;
+}
+
+.dropdown-enter-from,
+.dropdown-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
 }
 
 /* 主内容区 */
