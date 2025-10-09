@@ -28,6 +28,7 @@
         <spring-boot-admin.version>3.1.0</spring-boot-admin.version>
         <spring-cloud.version>2023.0.1</spring-cloud.version>
         <spring-cloud-alibaba.version>2023.0.1.0</spring-cloud-alibaba.version>
+        <springdoc.version>2.2.0</springdoc.version>
     </properties>
 
     <!-- 添加GitHub Packages仓库 -->
@@ -116,6 +117,19 @@
         <dependency>
             <groupId>jakarta.annotation</groupId>
             <artifactId>jakarta.annotation-api</artifactId>
+        </dependency>
+
+        <!-- Apache HttpClient 5 - 连接池支持 -->
+        <dependency>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+        </dependency>
+
+        <!-- SpringDoc OpenAPI 3 - API 文档生成（开发环境） -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>${springdoc.version}</version>
         </dependency>
 
         <!-- Lombok - 编译时注解处理器，运行时不需要 -->

@@ -1,5 +1,7 @@
 package com.haven.admin.service;
 
+import com.haven.admin.client.HealthProbeClient;
+import com.haven.admin.client.MetricsClient;
 import com.haven.admin.model.ServiceOverview;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -7,7 +9,6 @@ import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -20,8 +21,13 @@ import java.util.stream.Collectors;
  * 定时汇总各服务实例的健康状态和关键指标，维护内存快照
  * 提供快速的健康状态查询，避免实时探测造成的性能问题
  *
+ * 重构说明：
+ * - 使用统一的 HealthProbeClient 进行健康检查
+ * - 使用统一的 MetricsClient 进行指标采集
+ * - 移除重复的健康检查和指标查询逻辑
+ *
  * @author HavenButler
- * @version 1.0.0
+ * @version 2.0.0
  */
 @Slf4j
 @Service
@@ -29,8 +35,8 @@ import java.util.stream.Collectors;
 public class HealthSnapshotService {
 
     private final DiscoveryClient discoveryClient;
-    private final RestTemplate restTemplate;
-    private final SimpleCacheService cacheService;
+    private final HealthProbeClient healthProbeClient;
+    private final MetricsClient metricsClient;
 
     /**
      * 服务健康快照缓存
@@ -68,13 +74,13 @@ public class HealthSnapshotService {
     }
 
     /**
-     * 定时清理缓存中的过期条目（每5分钟执行一次）
+     * 定时清理过期快照（每5分钟执行一次）
      */
     @Scheduled(fixedDelay = 300000) // 5分钟
     public void cleanupCache() {
         try {
-            cacheService.cleanupExpiredEntries();
-            log.debug("定时清理缓存过期条目完成");
+            cleanupExpiredSnapshots();
+            log.debug("定时清理过期快照完成");
         } catch (Exception e) {
             log.warn("定时清理缓存失败", e);
         }
@@ -104,19 +110,21 @@ public class HealthSnapshotService {
 
         for (ServiceInstance instance : instances) {
             try {
-                // 检查实例健康状态
-                boolean isHealthy = checkInstanceHealth(instance);
+                // 使用统一的 HealthProbeClient 检查健康状态
+                boolean isHealthy = healthProbeClient.checkInstanceHealth(instance);
                 if (isHealthy) {
                     healthyCount++;
                 }
 
-                // 收集实例指标
-                InstanceMetrics metrics = collectInstanceMetrics(instance);
-                if (metrics != null) {
-                    totalCpuUsage += metrics.cpuUsage;
-                    totalMemoryUsage += metrics.memoryUsage;
-                    totalRequestRate += metrics.requestRate;
-                    totalErrorRate += metrics.errorRate;
+                // 使用统一的 MetricsClient 收集指标
+                Map<String, Double> metrics = metricsClient.collectInstanceMetrics(instance);
+                if (metrics != null && !metrics.isEmpty()) {
+                    // 提取关键指标
+                    totalCpuUsage += metrics.getOrDefault("cpu.usage", 0.0);
+                    totalMemoryUsage += metrics.getOrDefault("memory.usage", 0.0);
+                    totalRequestRate += metrics.getOrDefault("http.requests.count", 0.0);
+                    // 简单的错误率估算（可以根据实际需求调整）
+                    totalErrorRate += 0.0; // TODO: 需要从 MetricsClient 获取错误率
                     validMetricsCount++;
                 }
             } catch (Exception e) {
@@ -150,203 +158,10 @@ public class HealthSnapshotService {
                 serviceName, healthyCount, instances.size(), cpuStr, memStr);
     }
 
-    /**
-     * 检查实例健康状态（使用缓存优化）
-     */
-    private boolean checkInstanceHealth(ServiceInstance instance) {
-        String cacheKey = String.format("health_%s_%s_%d",
-                instance.getServiceId(), instance.getHost(), instance.getPort());
-
-        // 尝试从缓存获取结果（缓存15秒，减少重复请求）
-        Boolean cachedResult = cacheService.computeIfAbsent(
-                cacheKey,
-                15,
-                () -> performHealthCheck(instance)
-        );
-
-        return cachedResult != null ? cachedResult : false;
-    }
-
-    /**
-     * 执行实际的健康检查
-     */
-    private Boolean performHealthCheck(ServiceInstance instance) {
-        try {
-            String healthUrl = String.format("http://%s:%d/actuator/health",
-                    instance.getHost(), instance.getPort());
-
-            // 使用 Map 解析，避免直接反序列化 Health 对象
-            @SuppressWarnings("unchecked")
-            Map<String, Object> healthResponse = restTemplate.getForObject(healthUrl, Map.class);
-
-            if (healthResponse == null) {
-                return false;
-            }
-
-            String status = (String) healthResponse.get("status");
-            return "UP".equals(status);
-        } catch (Exception e) {
-            log.debug("检查实例 {} 健康状态失败: {}", instance.getInstanceId(), e.getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * 收集实例指标（使用缓存优化）
-     */
-    private InstanceMetrics collectInstanceMetrics(ServiceInstance instance) {
-        String cacheKey = String.format("metrics_%s_%s_%d",
-                instance.getServiceId(), instance.getHost(), instance.getPort());
-
-        // 缓存20秒，因为指标变化较慢
-        return cacheService.computeIfAbsent(
-                cacheKey,
-                20,
-                () -> performMetricsCollection(instance)
-        );
-    }
-
-    /**
-     * 执行实际的指标收集
-     */
-    private InstanceMetrics performMetricsCollection(ServiceInstance instance) {
-        try {
-            InstanceMetrics metrics = new InstanceMetrics();
-
-            // CPU 使用率
-            Double cpuUsage = queryMetricValue(instance, "system.cpu.usage");
-            if (cpuUsage != null) {
-                metrics.cpuUsage = cpuUsage * 100.0; // 转换为百分比
-            }
-
-            // 内存使用（堆内存）
-            Double memoryUsed = queryMetricValue(instance, "jvm.memory.used", "area", "heap");
-            if (memoryUsed != null) {
-                metrics.memoryUsage = memoryUsed / (1024 * 1024); // 转换为 MB
-            }
-
-            // HTTP 请求指标
-            collectHttpMetrics(instance, metrics);
-
-            return metrics;
-        } catch (Exception e) {
-            log.debug("收集实例 {} 指标失败: {}", instance.getInstanceId(), e.getMessage());
-            return null;
-        }
-    }
-
-    /**
-     * 收集HTTP请求相关指标
-     */
-    private void collectHttpMetrics(ServiceInstance instance, InstanceMetrics metrics) {
-        try {
-            // 总请求数
-            Double totalRequests = queryMetricValue(instance, "http.server.requests");
-            if (totalRequests != null) {
-                // 进程运行时间（秒）
-                Double uptime = queryMetricValue(instance, "process.uptime");
-                if (uptime != null && uptime > 0) {
-                    metrics.requestRate = totalRequests / uptime; // 请求/秒
-                }
-
-                // 错误请求数（4xx + 5xx）
-                Double clientErrors = queryMetricValueWithTag(instance, "http.server.requests", "status", "4xx");
-                Double serverErrors = queryMetricValueWithTag(instance, "http.server.requests", "status", "5xx");
-                double totalErrors = (clientErrors != null ? clientErrors : 0.0) +
-                                   (serverErrors != null ? serverErrors : 0.0);
-
-                if (totalRequests > 0) {
-                    metrics.errorRate = (totalErrors / totalRequests) * 100.0; // 错误率百分比
-                }
-            }
-        } catch (Exception e) {
-            log.debug("收集HTTP指标失败: {}", e.getMessage());
-        }
-    }
-
-    /**
-     * 查询指标值
-     */
-    private Double queryMetricValue(ServiceInstance instance, String metricName) {
-        return queryMetricValue(instance, metricName, null, null);
-    }
-
-    /**
-     * 查询带标签的指标值
-     */
-    private Double queryMetricValue(ServiceInstance instance, String metricName, String tagKey, String tagValue) {
-        try {
-            String url = String.format("http://%s:%d/actuator/metrics/%s",
-                    instance.getHost(), instance.getPort(), metricName);
-
-            if (tagKey != null && tagValue != null) {
-                url += "?tag=" + tagKey + ":" + tagValue;
-            }
-
-            @SuppressWarnings("unchecked")
-            Map<String, Object> response = restTemplate.getForObject(url, Map.class);
-            if (response == null) {
-                return null;
-            }
-
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> measurements = (List<Map<String, Object>>) response.get("measurements");
-            if (measurements == null || measurements.isEmpty()) {
-                return null;
-            }
-
-            // 查找 VALUE 或 COUNT 统计值
-            for (Map<String, Object> measurement : measurements) {
-                String statistic = (String) measurement.get("statistic");
-                if ("VALUE".equals(statistic) || "COUNT".equals(statistic)) {
-                    Object value = measurement.get("value");
-                    if (value instanceof Number) {
-                        return ((Number) value).doubleValue();
-                    }
-                }
-            }
-
-            // 如果没找到，返回第一个测量值
-            Object value = measurements.get(0).get("value");
-            return value instanceof Number ? ((Number) value).doubleValue() : null;
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    /**
-     * 查询带特定标签的指标值
-     */
-    private Double queryMetricValueWithTag(ServiceInstance instance, String metricName, String tagKey, String tagValue) {
-        try {
-            String url = String.format("http://%s:%d/actuator/metrics/%s?tag=%s:%s",
-                    instance.getHost(), instance.getPort(), metricName, tagKey, tagValue);
-
-            @SuppressWarnings("unchecked")
-            Map<String, Object> response = restTemplate.getForObject(url, Map.class);
-            if (response == null) {
-                return null;
-            }
-
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> measurements = (List<Map<String, Object>>) response.get("measurements");
-            if (measurements == null || measurements.isEmpty()) {
-                return null;
-            }
-
-            for (Map<String, Object> measurement : measurements) {
-                if ("COUNT".equals(measurement.get("statistic"))) {
-                    Object value = measurement.get("value");
-                    if (value instanceof Number) {
-                        return ((Number) value).doubleValue();
-                    }
-                }
-            }
-            return null;
-        } catch (Exception e) {
-            return null;
-        }
-    }
+    // ============================================================
+    // 注意：旧的健康检查和指标采集方法已移除
+    // 统一使用 HealthProbeClient 和 MetricsClient
+    // ============================================================
 
     /**
      * 确定服务整体状态

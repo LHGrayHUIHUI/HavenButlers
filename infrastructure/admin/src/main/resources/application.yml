@@ -23,13 +23,13 @@ spring:
         title: HavenButler Admin Console
         brand: HavenButler管理控制台
 
-  # Nacos配置
+  # Nacos配置 - 对齐文档规范
   cloud:
     nacos:
       discovery:
         server-addr: ${NACOS_ADDR:localhost:8848}
-        namespace: ${NACOS_NAMESPACE:public}
-        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        namespace: ${NACOS_NAMESPACE:havenbutler-dev}  # 改为 havenbutler-dev
+        group: ${NACOS_GROUP:infrastructure-services}  # 改为 infrastructure-services
         enabled: true
         service: ${spring.application.name}
         metadata:
@@ -39,103 +39,33 @@ spring:
           environment: ${ENVIRONMENT:local}
       config:
         server-addr: ${NACOS_ADDR:localhost:8848}
-        namespace: ${NACOS_NAMESPACE:public}
-        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        namespace: ${NACOS_NAMESPACE:havenbutler-dev}  # 改为 havenbutler-dev
+        group: ${NACOS_GROUP:infrastructure-services}  # 改为 infrastructure-services
         file-extension: yml
         enabled: true
         shared-configs:
           - data-id: havenbutler-common.yml
-            group: DEFAULT_GROUP
+            group: infrastructure-services  # 改为 infrastructure-services
             refresh: true
 
-  # Redis配置 (common模块需要)
-  redis:
-    host: ${REDIS_HOST:localhost}
-    port: ${REDIS_PORT:6379}
-    password: ${REDIS_PASSWORD:}
-    database: ${REDIS_DATABASE:0}
-    timeout: 10000ms
-    lettuce:
-      pool:
-        max-active: 8
-        max-wait: -1ms
-        max-idle: 8
-        min-idle: 0
+# Admin 服务自定义配置
+admin:
+  # 是否允许远程关闭服务（默认禁用，需要通过容器编排管理）
+  allowRemoteShutdown: false
 
-# base-model 统一配置 (按照最新规范)
-base-model:
-  # 链路追踪配置
-  trace:
+# SpringDoc OpenAPI 配置（开发环境开启）
+springdoc:
+  api-docs:
     enabled: true
-    prefix: "tr"
-    exclude-paths:
-      - "/actuator/**"
-      - "/swagger-ui/**"
-      - "/admin/**"
-      - "/health"
-      - "/favicon.ico"
-    include-request-params: false      # Admin服务不记录请求参数
-    include-response-body: false       # 不记录响应体
-
-  # 统一响应配置
-  response:
-    include-trace-id: true
-    include-timestamp: true
-    include-server-info: false
-    success-message: "操作成功"
-
-  # 全局异常处理
-  exception:
+    path: /v3/api-docs
+  swagger-ui:
     enabled: true
-    include-stack-trace: false         # 生产环境不暴露堆栈
-    include-error-detail: true
-    default-error-message: "系统繁忙，请稍后重试"
-
-  # 缓存配置
-  cache:
-    enabled: true
-    key-prefix: "haven:admin:"
-    default-ttl: 300                   # 5分钟缓存
-
-  # 分布式锁配置
-  distributed-lock:
-    enabled: true
-    default-timeout: 30
-    auto-renew: true
-
-  # 安全配置
-  security:
-    jwt-secret: "${JWT_SECRET:}"       # 必须通过环境变量注入
-    jwt-expiration: 86400000           # 24小时
-    jwt-clock-skew: 30                 # 30秒时钟偏差容忍
-
-  # 指标收集
-  metrics:
-    enabled: true
-    export-interval: 60
-
-  # 消息队列 (Admin服务一般不需要)
-  messaging:
-    enabled: false
-    default-timeout: 5000
-    max-retry: 3
-
-  # 日志配置
-  log:
-    enabled: true
-    level: INFO
-    format: JSON
-    include-headers: false
-    include-payload: false             # Admin服务不记录载荷
-    max-payload-size: 1024
-
-  # 限流配置
-  rate-limit:
-    enabled: true
-    default-limit: 100                 # Admin操作相对保守
-    default-window: 60
-    redis-key-prefix: "admin_rate_limit:"
-
+    path: /swagger-ui
+    tags-sorter: alpha
+    operations-sorter: alpha
+  packages-to-scan: com.haven.admin.controller
+  paths-to-match: /api/**
+  show-actuator: false
 
 # Actuator配置
 management:

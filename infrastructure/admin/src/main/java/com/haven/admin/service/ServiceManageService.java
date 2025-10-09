@@ -1,12 +1,13 @@
 package com.haven.admin.service;
 
+import com.haven.admin.client.HealthProbeClient;
+import com.haven.admin.client.MetricsClient;
 import com.haven.admin.model.ServiceInfo;
 import com.haven.admin.model.ServiceMetrics;
 import com.haven.admin.model.PageRequest;
 import com.haven.admin.model.PageResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.actuate.health.Health;
 import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,13 @@ import org.springframework.beans.factory.annotation.Value;
 
 /**
  * 服务管理服务
+ *
+ * 重构说明：
+ * - 使用统一的 HealthProbeClient 进行健康检查
+ * - 使用统一的 MetricsClient 进行指标采集
+ * - 移除重复的健康检查和指标查询逻辑
+ *
+ * @version 2.0.0
  */
 @Slf4j
 @Service
@@ -29,8 +37,11 @@ public class ServiceManageService {
 
     private final DiscoveryClient discoveryClient;
     private final RestTemplate restTemplate;
-    private final Map<String, ServiceInfo> serviceCache = new ConcurrentHashMap<>();
     private final ConfigService configService;
+    private final HealthProbeClient healthProbeClient;
+    private final MetricsClient metricsClient;
+
+    private final Map<String, ServiceInfo> serviceCache = new ConcurrentHashMap<>();
 
     @Value("${admin.allowRemoteShutdown:false}")
     private boolean allowRemoteShutdown;
@@ -84,27 +95,11 @@ public class ServiceManageService {
 
     /**
      * 检查实例健康状态
-     * 改为使用Map解析，避免直接反序列化Health对象的兼容性风险
+     *
+     * 重构：委托给统一的 HealthProbeClient，自动享受缓存和错误处理
      */
     private boolean checkInstanceHealth(ServiceInstance instance) {
-        try {
-            String healthUrl = String.format("http://%s:%d/actuator/health",
-                    instance.getHost(), instance.getPort());
-
-            // 使用Map解析，避免直接反序列化Health对象
-            @SuppressWarnings("unchecked")
-            Map<String, Object> healthResponse = restTemplate.getForObject(healthUrl, Map.class);
-
-            if (healthResponse == null) {
-                return false;
-            }
-
-            String status = (String) healthResponse.get("status");
-            return "UP".equals(status);
-        } catch (Exception e) {
-            log.warn("检查实例健康状态失败: {}", instance.getInstanceId(), e);
-            return false;
-        }
+        return healthProbeClient.checkInstanceHealth(instance);
     }
 
     /**
@@ -123,7 +118,9 @@ public class ServiceManageService {
 
     /**
      * 获取服务指标
-     * 改为对所有实例进行聚合，而不是只取第一个实例
+     *
+     * 重构：使用统一的 MetricsClient 进行指标采集，自动享受缓存和错误处理
+     * 跨实例聚合指标，返回服务级别的总体视图
      */
     public ServiceMetrics getServiceMetrics(String serviceName, LocalDateTime startTime, LocalDateTime endTime) {
         ServiceMetrics metrics = new ServiceMetrics();
@@ -136,206 +133,61 @@ public class ServiceManageService {
 
         // 跨实例聚合指标
         double totalCpuUsage = 0.0;
-        double totalThreadCount = 0.0;
         double totalMemoryUsed = 0.0;
         double totalMemoryMax = 0.0;
+        double totalThreads = 0.0;
         double totalRequestCount = 0.0;
-        double totalResponseTime = 0.0;
-        double totalErrorRate = 0.0;
-        double totalRequestRate = 0.0;
         int validInstanceCount = 0;
 
         for (ServiceInstance instance : instances) {
             try {
-                // CPU使用率（0-1）转百分比
-                Double cpuUsage = queryMetricValue(instance, "system.cpu.usage");
-                if (cpuUsage != null) {
-                    totalCpuUsage += cpuUsage * 100.0;
-                }
+                // 使用统一的 MetricsClient 采集实例指标
+                Map<String, Double> instanceMetrics = metricsClient.collectInstanceMetrics(instance);
 
-                // 线程数
-                Double threadsLive = queryMetricValue(instance, "jvm.threads.live");
-                if (threadsLive != null) {
-                    totalThreadCount += threadsLive;
+                // 聚合各项指标
+                if (instanceMetrics.containsKey("cpu.usage")) {
+                    totalCpuUsage += instanceMetrics.get("cpu.usage");
                 }
-
-                // 堆内存使用与上限（按 id 聚合）
-                double heapUsed = sumJvmMemory(instance, "jvm.memory.used");
-                double heapMax = sumJvmMemory(instance, "jvm.memory.max");
-                if (heapUsed > 0) {
-                    totalMemoryUsed += heapUsed / (1024 * 1024); // 转MB
+                if (instanceMetrics.containsKey("memory.used")) {
+                    totalMemoryUsed += instanceMetrics.get("memory.used") / (1024 * 1024); // 转 MB
                 }
-                if (heapMax > 0) {
-                    totalMemoryMax += heapMax / (1024 * 1024); // 转MB
+                if (instanceMetrics.containsKey("memory.max")) {
+                    totalMemoryMax += instanceMetrics.get("memory.max") / (1024 * 1024); // 转 MB
                 }
-
-                // HTTP请求统计
-                MetricDetail httpMetrics = queryMetricDetail(instance, "http.server.requests");
-                double instanceRequestCount = httpMetrics.count;
-                double instanceTotalTime = httpMetrics.totalTime; // 秒
-                if (instanceRequestCount > 0) {
-                    totalRequestCount += instanceRequestCount;
-                    totalResponseTime += instanceTotalTime;
+                if (instanceMetrics.containsKey("threads.count")) {
+                    totalThreads += instanceMetrics.get("threads.count");
                 }
-
-                // 错误率（客户端+服务端错误）
-                double clientErr = queryMetricCountWithTag(instance, "http.server.requests", "outcome", "CLIENT_ERROR");
-                double serverErr = queryMetricCountWithTag(instance, "http.server.requests", "outcome", "SERVER_ERROR");
-                double instanceErrorCount = clientErr + serverErr;
-                if (instanceRequestCount > 0) {
-                    totalErrorRate += (instanceErrorCount / instanceRequestCount);
-                }
-
-                // 简单请求速率：按进程启动时间估算
-                Double uptime = queryMetricValue(instance, "process.uptime");
-                if (uptime != null && uptime > 0 && instanceRequestCount > 0) {
-                    totalRequestRate += (instanceRequestCount / uptime);
+                if (instanceMetrics.containsKey("http.requests.count")) {
+                    totalRequestCount += instanceMetrics.get("http.requests.count");
                 }
 
                 validInstanceCount++;
             } catch (Exception e) {
-                log.error("获取实例 {} 指标失败: {}", instance.getInstanceId(), e);
+                log.warn("获取实例 {} 指标失败: {}", instance.getInstanceId(), e.getMessage());
             }
         }
 
         // 设置聚合后的指标
         if (validInstanceCount > 0) {
-            metrics.setCpuUsage(totalCpuUsage / validInstanceCount); // 平均CPU使用率
-            metrics.setThreadCount(totalThreadCount); // 线程总数
+            metrics.setCpuUsage(totalCpuUsage / validInstanceCount); // 平均 CPU 使用率
             metrics.setMemoryUsage(totalMemoryUsed); // 总内存使用量
             metrics.setMemoryMax(totalMemoryMax); // 总内存上限
+            metrics.setThreadCount(totalThreads); // 总线程数
             metrics.setRequestCount(totalRequestCount); // 总请求数
 
-            // 加权平均响应时间
-            if (totalRequestCount > 0) {
-                metrics.setResponseTime((totalResponseTime / totalRequestCount) * 1000.0); // 转毫秒
+            // 计算其他派生指标
+            if (totalMemoryMax > 0) {
+                metrics.setErrorRate((totalMemoryUsed / totalMemoryMax) * 100);
             }
-
-            metrics.setErrorRate(totalErrorRate / validInstanceCount); // 平均错误率
-            metrics.setRequestRate(totalRequestRate); // 总请求速率
         }
 
         return metrics;
     }
 
-    /**
-     * 调用 /actuator/metrics/{name} 并返回首个测量值（VALUE/COUNT/TOTAL_TIME优先）
-     */
-    private Double queryMetricValue(ServiceInstance instance, String metricName) {
-        try {
-            String url = String.format("http://%s:%d/actuator/metrics/%s",
-                    instance.getHost(), instance.getPort(), metricName);
-            Map<String, Object> body = restTemplate.getForObject(url, Map.class);
-            if (body == null) return null;
-            List<Map<String, Object>> measurements = (List<Map<String, Object>>) body.get("measurements");
-            if (measurements == null || measurements.isEmpty()) return null;
-            for (String stat : List.of("VALUE", "COUNT", "TOTAL_TIME", "MAX")) {
-                for (Map<String, Object> m : measurements) {
-                    if (stat.equals(String.valueOf(m.get("statistic")))) {
-                        Object v = m.get("value");
-                        if (v instanceof Number) return ((Number) v).doubleValue();
-                    }
-                }
-            }
-            Object v = measurements.get(0).get("value");
-            return v instanceof Number ? ((Number) v).doubleValue() : null;
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    /**
-     * 获取 http.server.requests 的 COUNT 和 TOTAL_TIME（秒）
-     */
-    private MetricDetail queryMetricDetail(ServiceInstance instance, String metricName) {
-        MetricDetail d = new MetricDetail();
-        try {
-            String url = String.format("http://%s:%d/actuator/metrics/%s",
-                    instance.getHost(), instance.getPort(), metricName);
-            Map<String, Object> body = restTemplate.getForObject(url, Map.class);
-            if (body != null) {
-                List<Map<String, Object>> measurements = (List<Map<String, Object>>) body.get("measurements");
-                if (measurements != null) {
-                    for (Map<String, Object> m : measurements) {
-                        String stat = String.valueOf(m.get("statistic"));
-                        double val = m.get("value") instanceof Number ? ((Number) m.get("value")).doubleValue() : 0.0;
-                        if ("COUNT".equals(stat)) d.count = val;
-                        if ("TOTAL_TIME".equals(stat)) d.totalTime = val;
-                    }
-                }
-            }
-        } catch (Exception ignore) {}
-        return d;
-    }
-
-    /**
-     * 指定单个tag筛选获得 COUNT 值
-     */
-    private double queryMetricCountWithTag(ServiceInstance instance, String metricName, String tagKey, String tagValue) {
-        try {
-            String url = String.format("http://%s:%d/actuator/metrics/%s?tag=%s:%s",
-                    instance.getHost(), instance.getPort(), metricName, tagKey, tagValue);
-            Map<String, Object> body = restTemplate.getForObject(url, Map.class);
-            if (body != null) {
-                List<Map<String, Object>> measurements = (List<Map<String, Object>>) body.get("measurements");
-                if (measurements != null) {
-                    for (Map<String, Object> m : measurements) {
-                        if ("COUNT".equals(String.valueOf(m.get("statistic")))) {
-                            Object v = m.get("value");
-                            return v instanceof Number ? ((Number) v).doubleValue() : 0.0;
-                        }
-                    }
-                }
-            }
-        } catch (Exception ignore) {}
-        return 0.0;
-    }
-
-    /**
-     * 汇总堆内存指标（按所有 id 求和）
-     */
-    private double sumJvmMemory(ServiceInstance instance, String metricName) {
-        try {
-            String base = String.format("http://%s:%d/actuator/metrics/%s",
-                    instance.getHost(), instance.getPort(), metricName);
-            Map<String, Object> body = restTemplate.getForObject(base, Map.class);
-            if (body == null) return 0.0;
-            List<Map<String, Object>> availableTags = (List<Map<String, Object>>) body.get("availableTags");
-            if (availableTags == null) return 0.0;
-            List<String> ids = null;
-            for (Map<String, Object> tag : availableTags) {
-                if ("id".equals(tag.get("tag"))) {
-                    ids = (List<String>) tag.get("values");
-                    break;
-                }
-            }
-            if (ids == null) return 0.0;
-            double sum = 0.0;
-            for (String id : ids) {
-                String url = base + "?tag=area:heap&tag=id:" + id;
-                Map<String, Object> detail = restTemplate.getForObject(url, Map.class);
-                if (detail != null) {
-                    List<Map<String, Object>> measurements = (List<Map<String, Object>>) detail.get("measurements");
-                    if (measurements != null) {
-                        for (Map<String, Object> m : measurements) {
-                            if ("VALUE".equals(String.valueOf(m.get("statistic")))) {
-                                Object v = m.get("value");
-                                if (v instanceof Number) sum += ((Number) v).doubleValue();
-                            }
-                        }
-                    }
-                }
-            }
-            return sum;
-        } catch (Exception e) {
-            return 0.0;
-        }
-    }
-
-    private static class MetricDetail {
-        double count = 0.0;
-        double totalTime = 0.0; // seconds
-    }
+    // ============================================================
+    // 注意：旧的指标查询方法（queryMetricValue、queryMetricDetail 等）
+    // 已移除，统一使用 MetricsClient 进行指标采集
+    // ============================================================
 
     /**
      * 重启服务

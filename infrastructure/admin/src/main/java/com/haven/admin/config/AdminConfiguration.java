@@ -20,9 +20,18 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
+import org.apache.hc.client5.http.socket.ConnectionSocketFactory;
+import org.apache.hc.client5.http.socket.PlainConnectionSocketFactory;
+import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
+import org.apache.hc.core5.http.config.Registry;
+import org.apache.hc.core5.http.config.RegistryBuilder;
+import org.apache.hc.core5.util.Timeout;
 
 import java.time.Duration;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -46,15 +55,63 @@ public class AdminConfiguration {
     }
 
     /**
-     * RestTemplate配置
-     * 配置连接超时和读取超时，提高调用稳定性
+     * RestTemplate 配置 - 使用 Apache HttpClient5 连接池
+     *
+     * 配置策略：
+     * - 最大连接数：200（避免探测风暴）
+     * - 每路由最大连接数：50
+     * - 连接超时：2秒
+     * - Socket 读取超时：3秒
+     * - Keep-Alive：30秒
+     *
+     * @return 配置了连接池的 RestTemplate
      */
     @Bean
     public RestTemplate restTemplate() {
-        return new RestTemplateBuilder()
-                .setConnectTimeout(Duration.ofMillis(1000))  // 连接超时1秒
-                .setReadTimeout(Duration.ofMillis(1500))     // 读取超时1.5秒
+        // 1. 配置连接管理器（连接池）
+        Registry<ConnectionSocketFactory> socketFactoryRegistry = RegistryBuilder
+                .<ConnectionSocketFactory>create()
+                .register("http", PlainConnectionSocketFactory.getSocketFactory())
+                .register("https", SSLConnectionSocketFactory.getSocketFactory())
                 .build();
+
+        PoolingHttpClientConnectionManager connectionManager =
+                new PoolingHttpClientConnectionManager(socketFactoryRegistry);
+
+        // 最大连接数
+        connectionManager.setMaxTotal(200);
+        // 每个路由（目标主机）的最大连接数
+        connectionManager.setDefaultMaxPerRoute(50);
+        // 连接空闲多久后验证
+        connectionManager.setValidateAfterInactivity(Timeout.ofSeconds(2));
+
+        // 2. 配置 HttpClient
+        CloseableHttpClient httpClient = HttpClients.custom()
+                .setConnectionManager(connectionManager)
+                // 禁用自动重试（健康检查失败不应该重试）
+                .disableAutomaticRetries()
+                // Keep-Alive 策略
+                .setKeepAliveStrategy((response, context) -> Timeout.ofSeconds(30))
+                .build();
+
+        // 3. 配置请求工厂
+        HttpComponentsClientHttpRequestFactory requestFactory =
+                new HttpComponentsClientHttpRequestFactory(httpClient);
+
+        // 连接超时：从连接池获取连接的超时时间
+        requestFactory.setConnectTimeout(Duration.ofSeconds(2));
+        // Socket 超时：等待数据的超时时间
+        requestFactory.setConnectionRequestTimeout(Duration.ofSeconds(3));
+
+        // 4. 创建 RestTemplate
+        RestTemplate restTemplate = new RestTemplate(requestFactory);
+
+        log.info("RestTemplate 配置完成 - 使用 Apache HttpClient5 连接池 " +
+                "(最大连接: {}, 每路由: {}, 连接超时: 2s, 读取超时: 3s)",
+                connectionManager.getMaxTotal(),
+                connectionManager.getDefaultMaxPerRoute());
+
+        return restTemplate;
     }
 
     /**

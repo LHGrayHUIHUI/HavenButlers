@@ -13,10 +13,6 @@ spring:
   application:
     name: admin-service
 
-  # Bean覆盖配置 - 解决base-model和common模块冲突
-  main:
-    allow-bean-definition-overriding: true
-
   # WebClient超时配置 - 解决首次访问失败
   webflux:
     timeout: 30s
@@ -50,94 +46,35 @@ spring:
         converter:
           management-context-path: /actuator
 
-  # Redis配置已完全移除 - Admin服务不需要Redis
-
-  # Nacos配置 - Docker环境
+  # Nacos配置 - Docker环境（对齐文档规范）
   cloud:
     nacos:
       discovery:
         server-addr: ${NACOS_ADDR:nacos:8848}
-        namespace: ${NACOS_NAMESPACE:public}
-        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        namespace: ${NACOS_NAMESPACE:havenbutler-dev}  # 改为 havenbutler-dev
+        group: ${NACOS_GROUP:infrastructure-services}  # 改为 infrastructure-services
         enabled: true
       config:
         server-addr: ${NACOS_ADDR:nacos:8848}
-        namespace: ${NACOS_NAMESPACE:public}
-        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        namespace: ${NACOS_NAMESPACE:havenbutler-dev}  # 改为 havenbutler-dev
+        group: ${NACOS_GROUP:infrastructure-services}  # 改为 infrastructure-services
         file-extension: yml
         enabled: true
         shared-configs:
           - data-id: havenbutler-common.yml
-            group: DEFAULT_GROUP
+            group: infrastructure-services  # 改为 infrastructure-services
             refresh: true
         extension-configs:
           - data-id: admin-service-${ENVIRONMENT:docker}.yml
-            group: DEFAULT_GROUP
+            group: infrastructure-services  # 改为 infrastructure-services
             refresh: true
 
-# base-model 基础配置 - Docker环境
-base-model:
-  # 链路追踪配置
-  trace:
-    enabled: true
-    prefix: "tr"
-    exclude-paths:
-      - "/actuator/**"
-      - "/admin/**"
-      - "/health"
-      - "/api/**"
-      - "/login"
-      - "/logout"
-      - "/assets/**"
-      - "/instances"
-      - "/instances/**"
-    include-request-params: false
-    include-response-body: false
+# Admin 服务自定义配置
+admin:
+  # 是否允许远程关闭服务（默认禁用，需要通过容器编排管理）
+  allowRemoteShutdown: false
 
-  # 统一响应配置
-  response:
-    include-trace-id: true
-    include-timestamp: true
-    include-server-info: false
-    success-message: "操作成功"
-
-  # 全局异常处理
-  exception:
-    enabled: true
-    include-stack-trace: false
-    include-error-detail: true
-    default-error-message: "系统繁忙，请稍后重试"
-
-  # 缓存配置 - Docker环境使用内存缓存
-  cache:
-    enabled: true
-    key-prefix: "haven:admin:"
-    default-ttl: 300
-
-  # 分布式锁配置 - 启用以支持CommonMetricsCollector
-  distributed-lock:
-    enabled: true
-    default-timeout: 30
-    auto-renew: true
-
-  # 指标收集 - Docker环境简化，暂时禁用CommonMetricsCollector
-  metrics:
-    enabled: false
-    export-interval: 60
-
-  # 消息队列
-  messaging:
-    enabled: false
-
-  # 日志配置
-  log:
-    enabled: true
-    level: INFO
-    format: JSON
-    include-headers: false
-    include-payload: false
-
-# Spring Boot日志配置 - 减少连接错误噪音
+# 日志配置 - 减少连接错误噪音
 logging:
   level:
     root: INFO
@@ -151,27 +88,14 @@ logging:
     com.haven.admin.monitor: INFO
     com.haven.admin.service: DEBUG
 
-  # 限流配置
-  rate-limit:
-    enabled: false  # 简化Docker环境
+# SpringDoc OpenAPI 配置（生产环境关闭）
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
 
-  # 安全配置 - 关闭JWT，使用原生Spring Security
-  security:
-    enabled: false  # 关闭base-model安全模块
-    jwt-secret: "${JWT_SECRET:not-used}"
-    jwt-expiration: 86400000
-    jwt-clock-skew: 30
-
-  # JWT配置 - 完全关闭
-  auth:
-    enabled: false     # 关闭base-model认证
-    jwt-enabled: false # 关闭JWT功能
-
-  # 拦截器配置 - 关闭以避免冲突
-  interceptor:
-    enabled: false     # 关闭base-model拦截器
-
-# 生产环境安全配置
+# Actuator 与监控配置
 management:
   endpoints:
     web:
@@ -179,10 +103,7 @@ management:
         include: health,info,metrics
   endpoint:
     health:
-      show-details: when-authorized  # 生产环境安全设置，仅授权用户可查看详情
-  health:
-    redis:
-      enabled: false  # 临时禁用Redis健康检查，避免影响服务状态
+      show-details: when-authorized  # 仅授权用户可查看详情
   metrics:
     export:
       prometheus:

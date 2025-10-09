@@ -5,6 +5,7 @@ import com.haven.admin.model.ServiceOverview;
 import com.haven.admin.service.HealthSnapshotService;
 import com.haven.admin.service.SimpleCacheService;
 import com.haven.admin.common.AdminResponse;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -250,6 +251,49 @@ public class HealthController {
                 return 2; // 最低优先级
             default:
                 return 3;
+        }
+    }
+
+    /**
+     * 优雅关闭 SSE 资源
+     *
+     * 在应用关闭时：
+     * 1. 关闭所有活跃的SSE连接
+     * 2. 优雅关闭线程池，等待任务完成
+     */
+    @PreDestroy
+    public void shutdown() {
+        log.info("正在关闭 SSE 服务，活跃连接数: {}", sseConnections.size());
+
+        // 1. 关闭所有 SSE 连接
+        sseConnections.forEach((connectionId, emitter) -> {
+            try {
+                emitter.complete();
+                log.debug("SSE 连接已关闭: {}", connectionId);
+            } catch (Exception e) {
+                log.warn("关闭 SSE 连接失败: {}", connectionId, e);
+            }
+        });
+        sseConnections.clear();
+
+        // 2. 优雅关闭线程池
+        sseExecutor.shutdown();
+        try {
+            if (!sseExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
+                log.warn("SSE 线程池未能在 10 秒内完成，强制关闭");
+                sseExecutor.shutdownNow();
+
+                // 等待强制关闭完成
+                if (!sseExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    log.error("SSE 线程池强制关闭失败");
+                }
+            } else {
+                log.info("SSE 线程池已优雅关闭");
+            }
+        } catch (InterruptedException e) {
+            log.error("SSE 线程池关闭被中断", e);
+            sseExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
         }
     }
 
