@@ -49,87 +49,94 @@ public class SecurityConfig {
     /**
      * API专用安全过滤链 - 最高优先级
      *
-     * 处理 /api/** 路径，使用 HTTP Basic 认证 + Stateless
+     * 处理 /api/** 路径,使用 HTTP Basic 认证 + Stateless
      * 避免与 base-model JWT 拦截器冲突
      */
     @Bean
     @Order(0)
     public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) throws Exception {
         return http
-            .securityMatcher(new AntPathRequestMatcher("/api/**"))
-            .csrf(csrf -> csrf.disable())
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(authz -> authz
-                .anyRequest().authenticated()
-            )
-            .httpBasic(Customizer.withDefaults())
-            .build();
+                .securityMatcher(new AntPathRequestMatcher("/api/**"))
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(authz -> authz
+                        .anyRequest().authenticated()
+                )
+                .httpBasic(Customizer.withDefaults())
+                .build();
     }
 
     /**
      * UI专用安全过滤链 - 默认优先级
      *
-     * 处理 Admin UI 界面，支持 Form 登录 + HTTP Basic + 会话管理
+     * 处理 Admin UI 界面,支持 Form 登录 + HTTP Basic + 会话管理
      */
     @Bean
     protected SecurityFilterChain uiSecurityFilterChain(HttpSecurity http) throws Exception {
         SavedRequestAwareAuthenticationSuccessHandler successHandler =
-            new SavedRequestAwareAuthenticationSuccessHandler();
+                new SavedRequestAwareAuthenticationSuccessHandler();
         successHandler.setTargetUrlParameter("redirectTo");
         successHandler.setDefaultTargetUrl(this.adminServerProperties.path("/"));
 
         return http
-            .authorizeHttpRequests(authz -> authz
-                // 静态资源无需认证
-                .requestMatchers(new AntPathRequestMatcher(this.adminServerProperties.path("/assets/**"))).permitAll()
-                .requestMatchers(new AntPathRequestMatcher(this.adminServerProperties.path("/login"))).permitAll()
+                .authorizeHttpRequests(authz -> authz
+                        // 静态资源无需认证
+                        .requestMatchers(new AntPathRequestMatcher(this.adminServerProperties.path("/assets/**"))).permitAll()
+                        .requestMatchers(new AntPathRequestMatcher(this.adminServerProperties.path("/login"))).permitAll()
+                        .requestMatchers(new AntPathRequestMatcher(this.adminServerProperties.path("/css/**"))).permitAll()
+                        .requestMatchers(new AntPathRequestMatcher(this.adminServerProperties.path("/js/**"))).permitAll()
+                        .requestMatchers(new AntPathRequestMatcher(this.adminServerProperties.path("/img/**"))).permitAll()
 
-                // 监控端点无需认证 - 支持Prometheus采集
-                .requestMatchers(new AntPathRequestMatcher("/actuator/health")).permitAll()
-                .requestMatchers(new AntPathRequestMatcher("/actuator/info")).permitAll()
-                .requestMatchers(new AntPathRequestMatcher("/actuator/prometheus")).permitAll()
-                .requestMatchers(new AntPathRequestMatcher("/actuator/metrics")).permitAll()
+                        // 监控端点无需认证 - 支持Prometheus采集
+                        .requestMatchers(new AntPathRequestMatcher("/actuator/health")).permitAll()
+                        .requestMatchers(new AntPathRequestMatcher("/actuator/health/**")).permitAll()
+                        .requestMatchers(new AntPathRequestMatcher("/actuator/info")).permitAll()
+                        .requestMatchers(new AntPathRequestMatcher("/actuator/prometheus")).permitAll()
+                        .requestMatchers(new AntPathRequestMatcher("/actuator/metrics")).permitAll()
+                        .requestMatchers(new AntPathRequestMatcher("/actuator/metrics/**")).permitAll()
 
-                // Spring Boot Admin客户端注册 - 需要Basic认证
-                .requestMatchers(new AntPathRequestMatcher("/instances", "POST")).authenticated()
-                .requestMatchers(new AntPathRequestMatcher("/instances/*", "DELETE")).authenticated()
+                        // Spring Boot Admin客户端注册 - 需要Basic认证
+                        .requestMatchers(new AntPathRequestMatcher("/instances", "POST")).authenticated()
+                        .requestMatchers(new AntPathRequestMatcher("/instances/*", "DELETE")).authenticated()
 
-                // UI界面需要认证 - 支持Form+Basic登录
-                .requestMatchers(new AntPathRequestMatcher("/ui/**")).authenticated()
-                .requestMatchers(new AntPathRequestMatcher(this.adminServerProperties.path("/**"))).authenticated()
-                .anyRequest().authenticated()
-            )
-            .formLogin(form -> form
-                .loginPage(this.adminServerProperties.path("/login"))
-                .successHandler(successHandler)
-            )
-            .logout(logout -> logout
-                .logoutUrl(this.adminServerProperties.path("/logout"))
-            )
-            .httpBasic(Customizer.withDefaults())
-            .csrf(csrf -> csrf
-                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                .ignoringRequestMatchers(
-                    new AntPathRequestMatcher(this.adminServerProperties.path("/instances"), "POST"),
-                    new AntPathRequestMatcher(this.adminServerProperties.path("/instances/*"), "DELETE"),
-                    new AntPathRequestMatcher(this.adminServerProperties.path("/actuator/**"))
+                        // 实例详情访问 - 需要认证但使用会话
+                        .requestMatchers(new AntPathRequestMatcher("/instances/**")).authenticated()
+
+                        // 所有Admin相关端点都需要认证
+                        .requestMatchers(new AntPathRequestMatcher(this.adminServerProperties.path("/**"))).authenticated()
+
+                        .anyRequest().authenticated()
                 )
-            )
-            .rememberMe(remember -> remember
-                .key("haven-admin")
-                .tokenValiditySeconds(1209600)
-            )
-            .build();
+                .formLogin(form -> form
+                        .loginPage(this.adminServerProperties.path("/login"))
+                        .successHandler(successHandler)
+                        .permitAll()
+                )
+                .logout(logout -> logout
+                        .logoutUrl(this.adminServerProperties.path("/logout"))
+                        .permitAll()
+                )
+                .httpBasic(Customizer.withDefaults())
+                .csrf(csrf -> csrf
+                        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                        .ignoringRequestMatchers(
+                                new AntPathRequestMatcher(this.adminServerProperties.path("/instances"), "POST"),
+                                new AntPathRequestMatcher(this.adminServerProperties.path("/instances/*"), "DELETE"),
+                                new AntPathRequestMatcher("/actuator/**")
+                        )
+                )
+                .rememberMe(remember -> remember
+                        .key("haven-admin")
+                        .tokenValiditySeconds(1209600)
+                )
+                // 重要: 确保会话管理正确配置
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                        .maximumSessions(10)
+                        .maxSessionsPreventsLogin(false)
+                )
+                .build();
     }
-
-    /**
-     * UI专用安全过滤链说明
-     *
-     * 处理Spring Boot Admin界面和客户端注册
-     * - Form登录：浏览器访问Admin控制台
-     * - HTTP Basic：客户端注册和API调用备用
-     * - 会话管理：支持"记住我"功能
-     */
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -139,10 +146,10 @@ public class SecurityConfig {
     @Bean
     public InMemoryUserDetailsManager userDetailsService(PasswordEncoder passwordEncoder) {
         UserDetails user = User.builder()
-            .username(security.getUser().getName())
-            .password(passwordEncoder.encode(security.getUser().getPassword()))
-            .roles("ADMIN")
-            .build();
+                               .username(security.getUser().getName())
+                               .password(passwordEncoder.encode(security.getUser().getPassword()))
+                               .roles("ADMIN")
+                               .build();
         return new InMemoryUserDetailsManager(user);
     }
 }

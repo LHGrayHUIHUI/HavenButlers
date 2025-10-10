@@ -45,13 +45,10 @@ import java.util.List;
 @Configuration
 public class AdminConfiguration {
 
-    @Autowired
-    private AlertService alertService;
-
     @PostConstruct
     public void init() {
         log.info("Admin管理服务配置初始化");
-        // initDefaultAlertRules();
+        // 初始化默认配置
     }
 
     /**
@@ -99,9 +96,9 @@ public class AdminConfiguration {
                 new HttpComponentsClientHttpRequestFactory(httpClient);
 
         // 连接超时：从连接池获取连接的超时时间
-        requestFactory.setConnectTimeout(Duration.ofSeconds(2));
+        requestFactory.setConnectTimeout(2000);
         // Socket 超时：等待数据的超时时间
-        requestFactory.setConnectionRequestTimeout(Duration.ofSeconds(3));
+        requestFactory.setConnectionRequestTimeout(3000);
 
         // 4. 创建 RestTemplate
         RestTemplate restTemplate = new RestTemplate(requestFactory);

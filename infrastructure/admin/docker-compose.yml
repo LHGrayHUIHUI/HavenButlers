@@ -26,8 +26,6 @@ services:
       - nacos-logs:/home/nacos/logs
     restart: unless-stopped
 
-  # Redis已移除 - Admin服务不需要Redis依赖
-
   # Prometheus监控 - 使用轻量级版本
   prometheus:
     image: prom/prometheus:v2.45.0

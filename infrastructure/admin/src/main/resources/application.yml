@@ -17,19 +17,43 @@ spring:
       name: admin
       password: admin123
 
+  # 数据库配置（H2用于监控数据持久化）
+  datasource:
+    url: jdbc:h2:mem:admin_monitor
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: admin123
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      settings:
+        web-allow-others: true
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: true
+
   boot:
     admin:
       ui:
         title: HavenButler Admin Console
         brand: HavenButler管理控制台
+         # 重要: 设置公共访问URL,避免IP跳转问题
+        public-url: ${PUBLIC_URL:http://localhost:8888}
 
-  # Nacos配置 - 对齐文档规范
+
+  # Nacos配置 - 连接Docker中的Nacos服务
   cloud:
     nacos:
       discovery:
         server-addr: ${NACOS_ADDR:localhost:8848}
-        namespace: ${NACOS_NAMESPACE:havenbutler-dev}  # 改为 havenbutler-dev
-        group: ${NACOS_GROUP:infrastructure-services}  # 改为 infrastructure-services
+        namespace: ${NACOS_NAMESPACE:havenbutler-dev}
+        group: ${NACOS_GROUP:infrastructure-services}
         enabled: true
         service: ${spring.application.name}
         metadata:
@@ -39,19 +63,25 @@ spring:
           environment: ${ENVIRONMENT:local}
       config:
         server-addr: ${NACOS_ADDR:localhost:8848}
-        namespace: ${NACOS_NAMESPACE:havenbutler-dev}  # 改为 havenbutler-dev
-        group: ${NACOS_GROUP:infrastructure-services}  # 改为 infrastructure-services
+        namespace: ${NACOS_NAMESPACE:havenbutler-dev}
+        group: ${NACOS_GROUP:infrastructure-services}
         file-extension: yml
         enabled: true
         shared-configs:
           - data-id: havenbutler-common.yml
-            group: infrastructure-services  # 改为 infrastructure-services
+            group: infrastructure-services
             refresh: true
 
 # Admin 服务自定义配置
 admin:
   # 是否允许远程关闭服务（默认禁用，需要通过容器编排管理）
   allowRemoteShutdown: false
+  # 监控数据收集间隔（秒）- 与文档标注保持一致
+  monitor:
+    interval: 30
+  # 健康检查间隔（秒）
+  health-check:
+    interval: 30
 
 # SpringDoc OpenAPI 配置（开发环境开启）
 springdoc:
@@ -88,12 +118,23 @@ prometheus:
 # 告警配置
 alert:
   notification:
-    webhook:
-      url: ${ALERT_WEBHOOK_URL:}
     email:
       enabled: ${ALERT_EMAIL_ENABLED:false}
+      smtp:
+        host: ${ALERT_EMAIL_SMTP_HOST:smtp.gmail.com}
+        port: ${ALERT_EMAIL_SMTP_PORT:587}
+        username: ${ALERT_EMAIL_USERNAME:}
+        password: ${ALERT_EMAIL_PASSWORD:}
+      from: ${ALERT_EMAIL_FROM:}
+      to: ${ALERT_EMAIL_TO:}
+    webhook:
+      url: ${ALERT_WEBHOOK_URL:}
+      timeout: ${ALERT_WEBHOOK_TIMEOUT:10000}
     sms:
       enabled: ${ALERT_SMS_ENABLED:false}
+    dingtalk:
+      enabled: ${ALERT_DINGTALK_ENABLED:false}
+      webhook: ${ALERT_DINGTALK_WEBHOOK:}
 
 # 日志配置
 logging:

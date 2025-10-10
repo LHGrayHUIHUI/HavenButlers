@@ -6,6 +6,7 @@ import com.haven.admin.model.PageRequest;
 import com.haven.admin.model.PageResponse;
 import com.haven.admin.web.BusinessException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -31,6 +32,12 @@ public class AlertService {
     private final ConcurrentMap<Long, AlertRule> ruleStorage = new ConcurrentHashMap<>();
     private final AtomicLong alertIdGenerator = new AtomicLong(1);
     private final AtomicLong ruleIdGenerator = new AtomicLong(1);
+
+    @Autowired
+    private NotificationService notificationService;
+
+    @Autowired
+    private MonitoringPersistenceService persistenceService;
 
     /**
      * 获取告警列表（分页）
@@ -87,6 +94,9 @@ public class AlertService {
         alert.setHandler(handler);
         alert.setHandleTime(LocalDateTime.now());
         alert.setHandleRemark(remark);
+
+        // 持久化告警状态更新
+        persistenceService.updateAlertStatus(alertId, "RESOLVED", handler, remark);
 
         log.info("告警已处理: alertId={}, handler={}, remark={}", alertId, handler, remark);
     }
@@ -271,6 +281,9 @@ public class AlertService {
         rule.setTriggerCount(rule.getTriggerCount() + 1);
         rule.setLastTriggerTime(LocalDateTime.now());
 
+        // 持久化告警记录
+        persistenceService.saveAlertRecord(alert, rule);
+
         log.warn("触发告警: service={}, level={}, message={}", serviceName, rule.getLevel(), alert.getMessage());
 
         // 发送通知
@@ -284,46 +297,30 @@ public class AlertService {
         if (rule.getNotifyType() != null) {
             switch (rule.getNotifyType()) {
                 case EMAIL:
-                    sendEmailNotification(alert);
+                    boolean emailSuccess = notificationService.sendEmailNotification(alert);
+                    log.info("邮件通知发送结果: alertId={}, success={}", alert.getId(), emailSuccess);
                     break;
                 case SMS:
-                    sendSmsNotification(alert);
+                    log.info("短信通知暂未实现: alertId={}", alert.getId());
+                    // TODO: 实现短信通知
                     break;
                 case WEBHOOK:
-                    sendWebhookNotification(alert);
+                    boolean webhookSuccess = notificationService.sendWebhookNotification(alert);
+                    log.info("Webhook通知发送结果: alertId={}, success={}", alert.getId(), webhookSuccess);
                     break;
                 case WECHAT:
-                    sendWechatNotification(alert);
+                    log.info("微信通知暂未实现: alertId={}", alert.getId());
+                    // TODO: 实现微信通知
                     break;
                 case DINGTALK:
-                    sendDingtalkNotification(alert);
+                    log.info("钉钉通知暂未实现: alertId={}", alert.getId());
+                    // TODO: 实现钉钉通知，需要webhook URL
                     break;
             }
+        } else {
+            // 默认使用邮件和Webhook通知
+            notificationService.sendEmailNotification(alert);
+            notificationService.sendWebhookNotification(alert);
         }
-    }
-
-    private void sendEmailNotification(Alert alert) {
-        log.info("发送邮件通知: alertId={}, message={}", alert.getId(), alert.getMessage());
-        // 实际实现中调用邮件服务
-    }
-
-    private void sendSmsNotification(Alert alert) {
-        log.info("发送短信通知: alertId={}, message={}", alert.getId(), alert.getMessage());
-        // 实际实现中调用短信服务
-    }
-
-    private void sendWebhookNotification(Alert alert) {
-        log.info("发送Webhook通知: alertId={}, message={}", alert.getId(), alert.getMessage());
-        // 实际实现中调用Webhook服务
-    }
-
-    private void sendWechatNotification(Alert alert) {
-        log.info("发送微信通知: alertId={}, message={}", alert.getId(), alert.getMessage());
-        // 实际实现中调用微信服务
-    }
-
-    private void sendDingtalkNotification(Alert alert) {
-        log.info("发送钉钉通知: alertId={}, message={}", alert.getId(), alert.getMessage());
-        // 实际实现中调用钉钉服务
     }
 }
