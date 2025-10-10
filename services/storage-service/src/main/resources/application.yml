@@ -128,3 +128,8 @@ logging:
     com.haven.base: DEBUG
     org.springframework.data: INFO
     root: INFO
+base-model:
+  trace:
+    exclude-paths: "/**"  # 通配符表示所有路径都无需认证
+  security:
+    jwt-secret: fJmSbo7pBY8teyzVDyv7YxW1aXPKHSx0uFWxsomMJ4I=
