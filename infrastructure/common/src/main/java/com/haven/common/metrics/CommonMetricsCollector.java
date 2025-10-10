@@ -2,7 +2,7 @@ package com.haven.common.metrics;
 
 import com.haven.common.aspect.RateLimitAspect;
 import com.haven.common.mq.MessageSender;
-import com.haven.common.redis.DistributedLock;
+import com.haven.common.redis.DistributedCommonLock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
@@ -28,7 +28,7 @@ import java.util.Map;
 @ConditionalOnProperty(prefix = "base-model.metrics", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class CommonMetricsCollector {
 
-    private final DistributedLock distributedLock;
+    private final DistributedCommonLock distributedCommonLock;
     private final RateLimitAspect rateLimitAspect;
     private final MessageSender messageSender;
 
@@ -46,7 +46,7 @@ public class CommonMetricsCollector {
             metrics.put("collectTime", LocalDateTime.now().toString());
 
             // 分布式锁指标
-            Map<String, Long> lockMetrics = distributedLock.getMetrics();
+            Map<String, Long> lockMetrics = distributedCommonLock.getMetrics();
             metrics.put("distributedLock", lockMetrics);
 
             // 限流指标

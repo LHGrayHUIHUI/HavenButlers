@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 @Slf4j
 @Component
-public class DistributedLock {
+public class DistributedCommonLock {
 
     @Autowired
     private StringRedisTemplate redisTemplate;

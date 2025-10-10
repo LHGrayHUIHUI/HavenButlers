@@ -1,8 +1,5 @@
 package com.haven.common.config;
 
-import com.haven.common.redis.DistributedLock;
-import com.haven.common.redis.RedisCache;
-import com.haven.common.redis.RedisUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
