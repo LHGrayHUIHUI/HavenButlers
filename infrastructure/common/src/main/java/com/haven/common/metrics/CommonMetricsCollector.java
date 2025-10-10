@@ -1,6 +1,6 @@
 package com.haven.common.metrics;
 
-import com.haven.common.aspect.RateLimitAspect;
+import com.haven.common.aspect.RateLimitCommonAspect;
 import com.haven.common.mq.MessageSender;
 import com.haven.common.redis.DistributedCommonLock;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +29,7 @@ import java.util.Map;
 public class CommonMetricsCollector {
 
     private final DistributedCommonLock distributedCommonLock;
-    private final RateLimitAspect rateLimitAspect;
+    private final RateLimitCommonAspect rateLimitCommonAspect;
     private final MessageSender messageSender;
 
     /**
@@ -50,7 +50,7 @@ public class CommonMetricsCollector {
             metrics.put("distributedLock", lockMetrics);
 
             // 限流指标
-            Map<String, Long> rateLimitMetrics = rateLimitAspect.getRateLimitMetrics();
+            Map<String, Long> rateLimitMetrics = rateLimitCommonAspect.getRateLimitMetrics();
             metrics.put("rateLimit", rateLimitMetrics);
 
             // 消息队列指标
@@ -123,7 +123,7 @@ public class CommonMetricsCollector {
      */
     public void resetAllMetrics() {
         try {
-            rateLimitAspect.resetMetrics();
+            rateLimitCommonAspect.resetMetrics();
             messageSender.resetMessageMetrics();
             log.info("Common模块所有指标已重置");
         } catch (Exception e) {

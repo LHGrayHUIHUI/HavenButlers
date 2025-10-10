@@ -44,7 +44,7 @@ import java.util.concurrent.atomic.AtomicLong;
 @Order(1)
 @RequiredArgsConstructor
 @ConditionalOnProperty(prefix = "base-model.cache", name = "enabled", havingValue = "true", matchIfMissing = true)
-public class RateLimitAspect {
+public class RateLimitCommonAspect {
 
     private final RedisUtils redisUtils;
 
