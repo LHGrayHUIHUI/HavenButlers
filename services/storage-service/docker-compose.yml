@@ -1,49 +1,7 @@
 version: '3.8'
 
 services:
-  # PostgreSQL数据库
-  postgres:
-    image: postgres:15-alpine
-    container_name: postgres
-    environment:
-      POSTGRES_DB: smarthome
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - haven-network
-
-  # MongoDB数据库
-  mongodb:
-    image: mongo:6.0
-    container_name: mongodb
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: password
-      MONGO_INITDB_DATABASE: smarthome
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
-    networks:
-      - haven-network
-
-  # Redis缓存
-  redis:
-    image: redis:7-alpine
-    container_name: redis
-    command: redis-server --appendonly yes --requirepass password
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - haven-network
-
-  # MinIO对象存储
+  # MinIO对象存储服务
   minio:
     image: minio/minio:latest
     container_name: minio
@@ -58,53 +16,149 @@ services:
       - minio_data:/data
     networks:
       - haven-network
-  # Storage Service
-  storage-service:
-    image: haven-storage-service:1.0.0
-    container_name: storage-service
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # File Storage Service
+  file-storage-service:
+    image: haven/file-storage-service:v2.0.0
+    container_name: file-storage-service
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      POSTGRESQL_HOST: postgres
-      POSTGRESQL_PORT: 5432
-      POSTGRESQL_DB: smarthome
-      POSTGRESQL_USER: postgres
-      POSTGRESQL_PASSWORD: password
-      MONGODB_HOST: mongodb
-      MONGODB_PORT: 27017
-      MONGODB_DB: smarthome
-      MONGODB_USER: admin
-      MONGODB_PASSWORD: password
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: password
+      # 存储配置
+      STORAGE_TYPE: minio
+      STORAGE_LOCAL_PATH: /data/haven-storage
+      # MinIO配置
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
-      MINIO_BUCKET: smarthome
-      NACOS_ADDR: nacos-admin:8848
+      MINIO_BUCKET: haven-family-files
+      MINIO_SECURE: false
+      # 文件安全配置
+      FILE_SECURITY_ENABLED: true
+      FILE_MAX_SIZE: 500MB
+      FILE_ALLOWED_EXTENSIONS: "pdf,doc,docx,txt,jpg,jpeg,png,gif,mp4,avi,mp3,wav,zip,rar"
+      # 文件处理配置
+      FILE_PROCESSING_ASYNC: true
+      FILE_GENERATE_THUMBNAILS: true
+      FILE_EXTRACT_METADATA: true
+      FILE_KNOWLEDGE_INDEXING: true
+      # 监控配置
+      STORAGE_MONITOR_ENABLED: true
+      STORAGE_CAPACITY_ALERT_THRESHOLD: 80
+      # 网关配置
+      GATEWAY_URL: http://gateway-service:8080
+      # 配置中心
+      NACOS_ADDR: nacos:8848
       NACOS_NAMESPACE: havenbutler
       NACOS_GROUP: DEFAULT_GROUP
-      STORAGE_TYPE: minio
-      STORAGE_LOCAL_PATH: /data/haven-storage
     ports:
-      - "8081:8081"
+      - "8086:8086"
     volumes:
-      - storage_data:/data/haven-storage
+      - local_storage:/data/haven-storage
+      - thumbnail_storage:/data/thumbnails
     depends_on:
-      - postgres
-      - redis
+      minio:
+        condition: service_healthy
     networks:
       - haven-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Nacos配置中心（可选，用于配置管理）
+  nacos:
+    image: nacos/nacos-server:v2.3.0
+    container_name: nacos
+    environment:
+      MODE: standalone
+      NACOS_APPLICATION_PORT: 8848
+      NACOS_AUTH_ENABLE: false
+    ports:
+      - "8848:8848"
+    volumes:
+      - nacos_data:/home/nacos/data
+    networks:
+      - haven-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8848/nacos/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis缓存（用于文件元数据缓存）
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    command: redis-server --appendonly yes --requirepass redis123
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - haven-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# 可选服务（根据需要启用）
+  # PostgreSQL数据库（用于文件元数据存储，由file-metadata-service管理）
+  # postgresql:
+  #   image: postgres:15-alpine
+  #   container_name: postgresql
+  #   environment:
+  #     POSTGRES_DB: haven_files
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: postgres123
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   networks:
+  #     - haven-network
+  #   restart: unless-stopped
+
+  # 向量数据库（用于知识库，由knowledge-index-service管理）
+  # milvus:
+  #   image: milvusdb/milvus:v2.3.0
+  #   container_name: milvus
+  #   ports:
+  #     - "19530:19530"
+  #   volumes:
+  #     - milvus_data:/var/lib/milvus
+  #   networks:
+  #     - haven-network
+  #   restart: unless-stopped
 
 volumes:
-  postgres_data:
-  mongo_data:
-  redis_data:
   minio_data:
+    driver: local
+  local_storage:
+    driver: local
+  thumbnail_storage:
+    driver: local
   nacos_data:
-  storage_data:
+    driver: local
+  redis_data:
+    driver: local
+  # postgres_data:
+  #   driver: local
+  # milvus_data:
+  #   driver: local
 
 networks:
   haven-network:
     external: true
+    # 如果外部网络不存在，可以创建本地网络：
+    # driver: bridge

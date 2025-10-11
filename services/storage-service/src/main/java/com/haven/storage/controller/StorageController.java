@@ -1,17 +1,27 @@
-package com.haven.storage.api;
+package com.haven.storage.controller;
 
 import com.haven.base.annotation.TraceLog;
 import com.haven.base.common.response.ResponseWrapper;
-import com.haven.storage.database.*;
+import com.haven.base.utils.TraceIdUtil;
+import com.haven.storage.api.StorageHealthInfo;
 import com.haven.storage.file.*;
 import com.haven.storage.knowledge.*;
 import com.haven.storage.vectortag.*;
+import com.haven.storage.security.UserContext;
+import com.haven.storage.validator.StorageServiceValidator;
+import com.haven.storage.builder.FileMetadataBuilder;
+import com.haven.storage.processing.AsyncProcessingTrigger;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import jakarta.validation.Valid;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -21,7 +31,6 @@ import java.util.Map;
  * 存储服务统一API控制器
  *
  * 🎯 核心功能：
- * - 数据库连接管理
  * - 家庭文件存储
  * - 个人知识库构建
  * - 向量标签服务
@@ -38,75 +47,81 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/storage")
 @RequiredArgsConstructor
+@Validated
+@Tag(name = "存储服务", description = "文件存储、知识库和向量标签服务")
 public class StorageController {
 
-    private final DatabaseConnectionService databaseConnectionService;
     private final FamilyFileStorageService fileStorageService;
     private final PersonalKnowledgeBaseService knowledgeBaseService;
     private final VectorTagService vectorTagService;
-
-    // ===== 数据库连接管理 API =====
-
-    /**
-     * 获取项目数据库连接信息
-     */
-    @GetMapping("/database/connection/{projectId}")
-    @TraceLog(value = "获取数据库连接", module = "storage-api", type = "DB_CONNECTION")
-    public ResponseWrapper<DatabaseConnectionInfo> getDatabaseConnection(
-            @PathVariable String projectId,
-            @RequestParam String familyId) {
-
-        DatabaseConnectionInfo connectionInfo = databaseConnectionService
-                .getDatabaseConnection(projectId, familyId);
-
-        return ResponseWrapper.success(connectionInfo);
-    }
-
-    /**
-     * 创建新项目数据库
-     */
-    @PostMapping("/database/project")
-    @TraceLog(value = "创建项目数据库", module = "storage-api", type = "CREATE_DB")
-    public ResponseWrapper<DatabaseConnectionInfo> createProjectDatabase(
-            @RequestBody CreateProjectDatabaseRequest request) {
-
-        DatabaseConnectionInfo connectionInfo = databaseConnectionService
-                .createProjectDatabase(request);
-
-        return ResponseWrapper.success(connectionInfo);
-    }
-
-    /**
-     * 获取家庭所有项目数据库
-     */
-    @GetMapping("/database/projects")
-    @TraceLog(value = "获取项目列表", module = "storage-api", type = "LIST_PROJECTS")
-    public ResponseEntity<List<DatabaseConnectionInfo>> getFamilyProjects(
-            @RequestParam String familyId) {
-
-        List<DatabaseConnectionInfo> projects = databaseConnectionService
-                .getFamilyProjects(familyId);
-
-        return ResponseEntity.ok(projects);
-    }
+    private final FileMetadataService fileMetadataService;
+    private final StorageServiceValidator validator;
+    private final FileMetadataBuilder metadataBuilder;
+    private final AsyncProcessingTrigger asyncProcessingTrigger;
 
     // ===== 家庭文件存储 API =====
 
     /**
-     * 上传文件
+     * 增强文件上传
+     *
+     * 支持完整权限设置、元数据配置和异步处理
      */
     @PostMapping("/files/upload")
+    @Operation(summary = "文件上传", description = "上传文件并设置权限和元数据")
     @TraceLog(value = "文件上传", module = "storage-api", type = "FILE_UPLOAD")
-    public ResponseEntity<FileUploadResult> uploadFile(
-            @RequestParam String familyId,
-            @RequestParam(required = false, defaultValue = "/") String folderPath,
-            @RequestParam MultipartFile file,
-            @RequestParam String uploaderUserId) {
+    public ResponseWrapper<FileMetadata> uploadFile(
+            @Valid @ModelAttribute FileUploadRequest request) {
+        String traceId = TraceIdUtil.getCurrentOrGenerate();
+        try {
+            log.info("开始文件上传: family={}, userId={}, file={}, accessLevel={}, traceId={}, userContext={}",
+                    request.getFamilyId(), request.getUploaderUserId(),
+                    request.getOriginalFileName(), request.getAccessLevel(), traceId,
+                    UserContext.getUserSummary());
 
-        FileUploadResult result = fileStorageService.uploadFile(
-                familyId, folderPath, file, uploaderUserId);
+            // 1. 验证请求参数（使用专门的验证器）
+            validator.validateUploadRequest(request);
 
-        return ResponseEntity.ok(result);
+            // 2. 构建文件元数据（使用专门的构建器）
+            FileMetadata fileMetadata = metadataBuilder.buildFromRequest(
+                    request, fileStorageService.getCurrentStorageType());
+
+            // 3. 保存文件元数据到数据库
+            fileMetadata = fileMetadataService.saveFileMetadata(fileMetadata);
+
+            // 4. 调用存储服务上传文件
+            FileUploadResult uploadResult = fileStorageService.uploadFile(
+                    request.getFamilyId(),
+                    request.getFolderPath(),
+                    request.getFile(),
+                    request.getUploaderUserId());
+
+            if (!uploadResult.isSuccess()) {
+                // 上传失败，删除已保存的元数据
+                fileMetadataService.deleteFileMetadata(fileMetadata.getFileId());
+                return ResponseWrapper.<FileMetadata>error(40001,
+                    "文件上传失败: " + uploadResult.getErrorMessage(), null);
+            }
+
+            // 5. 更新文件元数据（使用专门的构建器）
+            fileMetadata = metadataBuilder.updateAfterUpload(fileMetadata, uploadResult);
+            fileMetadata = fileMetadataService.updateFileMetadata(fileMetadata);
+
+            // 6. 异步处理任务（缩略图生成、OCR识别等）
+            asyncProcessingTrigger.triggerAsyncProcessing(request, fileMetadata);
+
+            log.info("文件上传成功: fileId={}, family={}, accessLevel={}, storageType={}, traceId={}",
+                    fileMetadata.getFileId(), request.getFamilyId(),
+                    request.getAccessLevel(), fileStorageService.getCurrentStorageType(), traceId);
+
+            return ResponseWrapper.success("文件上传成功",fileMetadata);
+
+        } catch (Exception e) {
+            log.error("文件上传失败: family={}, userId={}, file={}, error={}, traceId={}",
+                    request.getFamilyId(), request.getUploaderUserId(),
+                    request.getOriginalFileName(), e.getMessage(), traceId, e);
+
+            return ResponseWrapper.error(50001, "文件上传失败: " + e.getMessage(), null);
+        }
     }
 
     /**
@@ -408,4 +423,6 @@ public class StorageController {
 
         return ResponseEntity.ok(health);
     }
-}
+
+
+  }

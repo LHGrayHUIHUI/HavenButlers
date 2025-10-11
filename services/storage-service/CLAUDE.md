@@ -1,335 +1,639 @@
-# storage-service CLAUDE.md
+# file-storage-service CLAUDE.md
 
 ## 模块概述
-storage-service是HavenButler平台的数据存储核心服务，所有微服务的数据操作都必须通过此服务。作为数据访问的唯一入口，必须保证高性能、高可用和数据安全。
+file-storage-service是HavenButler平台的智能文件存储核心服务，专注于文件物理存储、图片处理、分享管理和基础组件集成。作为家庭文件管理和知识库系统的存储基础，必须保证高性能、高可用和数据安全。
 
 ## 开发指导原则
 
 ### 1. 核心设计原则
-- **单一职责**：只负责数据存储，不包含业务逻辑
-- **数据隔离**：严格的多租户数据隔离
-- **统一接口**：为不同存储提供统一的访问接口
-- **性能优先**：缓存、异步、批量操作
+- **单一职责**：专注于文件存储和基础处理，不包含复杂业务逻辑
+- **适配器模式**：支持多种存储后端，提供统一的文件操作接口
+- **性能优先**：流式传输、异步处理、缓存优化
+- **安全第一**：严格的权限控制、数据隔离和分享安全
+- **组件集成**：充分利用base-model和common的通用能力
 
-### 2. 严格的访问控制
+### 2. 基础组件集成
 
-#### 2.1 服务认证
+#### 2.1 Base-Model集成
 ```java
 /**
- * 每个微服务都有唯一的API Key
- * 请求必须包含：
- * 1. Service-Key: 服务密钥
- * 2. JWT Token: 用户令牌
- * 3. Family-ID: 家庭标识
+ * 继承Base-Model的统一日志和审计能力
  */
+@Slf4j
 @Component
-public class ServiceAuthFilter {
-    // 服务密钥映射
-    private static final Map<String, String> SERVICE_KEYS = Map.of(
-        "account-service", "key_account_xxx",
-        "message-service", "key_message_xxx",
-        "ai-service", "key_ai_xxx"
-    );
-    
-    public boolean authenticate(String serviceKey) {
-        // 验证服务合法性
+public class FileStorageService extends BaseService {
+
+    @LogOperation(operationType = "FILE_UPLOAD", description = "文件上传")
+    @Traced(operationName = "file-upload")
+    public UploadResult uploadFile(UploadRequest request) {
+        // 1. 验证请求参数
+        validateUploadRequest(request);
+
+        // 2. 记录操作审计
+        AuditLog auditLog = AuditLog.builder()
+            .operation("FILE_UPLOAD")
+            .familyId(request.getFamilyId())
+            .userId(request.getUserId())
+            .resource(request.getOriginalFileName())
+            .build();
+
+        // 3. 执行文件上传
+        try {
+            UploadResult result = storageAdapter.upload(request);
+
+            // 4. 记录成功日志
+            log.info("文件上传成功: fileId={}, familyId={}, userId={}",
+                result.getFileId(), request.getFamilyId(), request.getUserId());
+
+            // 5. 异步处理图片
+            if (isImageFile(request)) {
+                asyncImageProcessor.processUploadedImage(result);
+            }
+
+            return result;
+
+        } catch (Exception e) {
+            // 6. 记录错误和审计
+            log.error("文件上传失败: familyId={}, userId={}, error={}",
+                request.getFamilyId(), request.getUserId(), e.getMessage(), e);
+            auditLogService.logFailure(auditLog, e);
+            throw new FileStorageException("文件上传失败", e);
+        }
     }
 }
 ```
 
-#### 2.2 数据权限隔离
+#### 2.2 Common组件使用
 ```java
 /**
- * 基于Family ID的数据隔离
- * 所有查询自动添加family_id条件
+ * 使用Common组件的通用工具类
  */
-@Aspect
-public class DataIsolationAspect {
-    @Before("@annotation(DataIsolation)")
-    public void addFamilyFilter(JoinPoint point) {
-        // 自动注入family_id查询条件
-        // 防止跨家庭数据访问
+@Component
+public class FileUtils {
+
+    @Autowired
+    private IdGenerator idGenerator;  // 通用ID生成器
+
+    @Autowired
+    private JsonUtils jsonUtils;      // JSON工具类
+
+    @Autowired
+    private DateUtils dateUtils;      // 日期工具类
+
+    @Autowired
+    private EncryptionUtils encryptionUtils;  // 加密工具类
+
+    /**
+     * 生成唯一文件ID
+     */
+    public String generateFileId() {
+        return "file_" + idGenerator.generateSnowflakeId();
+    }
+
+    /**
+     * 构建家庭存储路径
+     */
+    public String buildFamilyPath(String familyId, String category) {
+        String datePrefix = dateUtils.formatLocalDate(LocalDate.now(), "yyyy/MM/dd");
+        return String.format("family/%s/%s/%s", familyId, category, datePrefix);
+    }
+
+    /**
+     * 生成分享链接令牌
+     */
+    public String generateShareToken(String fileId, String userId, Duration expireTime) {
+        ShareToken token = ShareToken.builder()
+            .fileId(fileId)
+            .userId(userId)
+            .createTime(Instant.now())
+            .expireTime(Instant.now().plus(expireTime))
+            .build();
+
+        return encryptionUtils.encrypt(jsonUtils.toJson(token));
     }
 }
 ```
 
-### 3. 多存储适配实现
+### 3. 图片画廊功能实现
 
-#### 3.1 统一数据模型
+#### 3.1 图片处理引擎
 ```java
 /**
- * 统一的数据操作请求
- */
-public class StorageRequest {
-    private String storageType;    // mysql/mongo/redis/minio
-    private String operation;       // insert/update/delete/query
-    private String collection;      // 表名/集合名
-    private Map<String, Object> data;    // 数据内容
-    private Map<String, Object> filter;  // 查询条件
-    private String familyId;        // 家庭ID（必需）
-    private String traceId;         // 链路追踪ID
-}
-```
-
-#### 3.2 适配器模式
-```java
-/**
- * 存储适配器接口
- */
-public interface StorageAdapter {
-    StorageResponse execute(StorageRequest request);
-    boolean supports(String storageType);
-}
-
-/**
- * MySQL适配器实现
+ * 图片处理引擎 - 缩略图生成、EXIF提取、元数据管理
  */
 @Component
-public class MySQLAdapter implements StorageAdapter {
-    @Override
-    public StorageResponse execute(StorageRequest request) {
-        // 1. 参数验证
-        // 2. SQL防注入检查
-        // 3. 数据加密（如需要）
-        // 4. 执行操作
-        // 5. 审计日志
-        // 6. 返回结果
+public class ImageProcessingEngine {
+
+    @Autowired
+    private ThumbnailatorProcessor thumbnailatorProcessor;
+
+    @Autowired
+    private ExifExtractor exifExtractor;
+
+    @Autowired
+    private ImageClassifier imageClassifier;
+
+    /**
+     * 处理上传的图片
+     */
+    @Async("imageProcessingExecutor")
+    public CompletableFuture<ImageProcessResult> processImage(String fileId, String familyId) {
+        try {
+            // 1. 获取原始图片
+            InputStream imageStream = storageAdapter.download(fileId);
+
+            // 2. 生成多尺寸缩略图
+            Map<ThumbnailSize, String> thumbnails = generateThumbnails(fileId, imageStream);
+
+            // 3. 提取EXIF元数据
+            ExifMetadata exifData = exifExtractor.extract(imageStream);
+
+            // 4. 自动分类
+            List<String> categories = imageClassifier.classify(imageStream, exifData);
+
+            // 5. 构建处理结果
+            ImageProcessResult result = ImageProcessResult.builder()
+                .fileId(fileId)
+                .familyId(familyId)
+                .thumbnails(thumbnails)
+                .exifMetadata(exifData)
+                .categories(categories)
+                .processTime(Instant.now())
+                .build();
+
+            // 6. 缓存处理结果
+            cacheImageMetadata(fileId, result);
+
+            return CompletableFuture.completedFuture(result);
+
+        } catch (Exception e) {
+            log.error("图片处理失败: fileId={}, familyId={}", fileId, familyId, e);
+            throw new ImageProcessingException("图片处理失败", e);
+        }
     }
-}
-```
 
-### 4. 数据加密实现
+    /**
+     * 生成多尺寸缩略图
+     */
+    private Map<ThumbnailSize, String> generateThumbnails(String fileId, InputStream imageStream) {
+        Map<ThumbnailSize, String> thumbnails = new HashMap<>();
 
-#### 4.1 字段级加密
-```java
-/**
- * 敏感字段自动加密
- * 使用AES-256-GCM算法
- */
-@Component
-public class FieldEncryptor {
-    // 需要加密的字段
-    private static final Set<String> SENSITIVE_FIELDS = Set.of(
-        "password", "phone", "idCard", "bankCard", "email"
-    );
-    
-    public Map<String, Object> encryptFields(Map<String, Object> data) {
-        for (String field : SENSITIVE_FIELDS) {
-            if (data.containsKey(field)) {
-                data.put(field, encrypt(data.get(field)));
+        for (ThumbnailSize size : ThumbnailSize.values()) {
+            try {
+                // 重置流到开始位置
+                imageStream.reset();
+
+                // 生成缩略图
+                byte[] thumbnailBytes = thumbnailatorProcessor.generateThumbnail(
+                    imageStream, size.getWidth(), size.getHeight(), size.getQuality());
+
+                // 上传缩略图
+                String thumbnailId = uploadThumbnail(fileId, size, thumbnailBytes);
+                thumbnails.put(size, thumbnailId);
+
+            } catch (Exception e) {
+                log.warn("缩略图生成失败: fileId={}, size={}", fileId, size, e);
             }
         }
-        return data;
-    }
-    
-    private String encrypt(Object value) {
-        // AES-256-GCM加密实现
-        // 密钥从KMS获取
+
+        return thumbnails;
     }
 }
 ```
 
-#### 4.2 密钥管理
-```yaml
-密钥管理策略:
-  - 主密钥: 存储在KMS中
-  - 数据密钥: 使用主密钥加密，存储在配置中心
-  - 密钥轮换: 每90天自动轮换
-  - 密钥备份: 多地备份，防止丢失
-```
-
-### 5. 缓存策略实现
-
-#### 5.1 多级缓存
+#### 3.2 图片分类管理
 ```java
 /**
- * L1: 本地缓存（Caffeine）
- * L2: Redis缓存
- * L3: 数据库
+ * 图片自动分类和标签管理
  */
 @Component
-public class MultiLevelCache {
-    private final Cache<String, Object> localCache;  // Caffeine
-    private final RedisTemplate<String, Object> redisTemplate;
-    
-    public Object get(String key) {
-        // 1. 查本地缓存
-        Object value = localCache.getIfPresent(key);
-        if (value != null) return value;
-        
-        // 2. 查Redis缓存
-        value = redisTemplate.opsForValue().get(key);
-        if (value != null) {
-            localCache.put(key, value);
-            return value;
+public class ImageClassifier {
+
+    /**
+     * 基于EXIF数据和时间自动分类
+     */
+    public List<String> classify(InputStream imageStream, ExifMetadata exifData) {
+        List<String> categories = new ArrayList<>();
+
+        // 1. 按时间分类
+        if (exifData.getDateTimeOriginal() != null) {
+            categories.add(getTimeBasedCategory(exifData.getDateTimeOriginal()));
         }
-        
-        // 3. 查数据库
-        value = loadFromDatabase(key);
-        if (value != null) {
-            redisTemplate.opsForValue().set(key, value, 10, TimeUnit.MINUTES);
-            localCache.put(key, value);
+
+        // 2. 按地点分类
+        if (exifData.getGpsLocation() != null) {
+            categories.add(getLocationBasedCategory(exifData.getGpsLocation()));
         }
-        return value;
+
+        // 3. 按设备分类
+        if (exifData.getCameraMake() != null) {
+            categories.add("设备/" + exifData.getCameraMake());
+        }
+
+        // 4. 按内容分类（可集成AI识别）
+        categories.addAll(getContentBasedCategories(imageStream));
+
+        return categories.stream().distinct().collect(Collectors.toList());
+    }
+
+    /**
+     * 获取基于时间的分类
+     */
+    private String getTimeBasedCategory(LocalDateTime dateTime) {
+        int hour = dateTime.getHour();
+
+        if (hour >= 6 && hour < 12) {
+            return "时光/上午";
+        } else if (hour >= 12 && hour < 18) {
+            return "时光/下午";
+        } else if (hour >= 18 && hour < 22) {
+            return "时光/傍晚";
+        } else {
+            return "时光/夜晚";
+        }
     }
 }
 ```
 
-#### 5.2 缓存更新策略
-- **Cache Aside**：更新数据库后删除缓存
-- **Write Through**：同时更新缓存和数据库
-- **Write Behind**：先更新缓存，异步更新数据库
+### 4. 文件分享系统实现
 
-### 6. 批量操作优化
-
+#### 4.1 分享权限管理
 ```java
 /**
- * 批量操作优化
- * 减少网络往返，提高吞吐量
+ * 文件分享权限管理器
  */
 @Component
-public class BatchProcessor {
-    private static final int BATCH_SIZE = 1000;
-    
-    public void batchInsert(List<Map<String, Object>> dataList) {
-        // 分批处理，避免内存溢出
-        Lists.partition(dataList, BATCH_SIZE)
-            .parallelStream()
-            .forEach(batch -> {
-                // 批量插入
-                jdbcTemplate.batchUpdate(sql, batch);
-            });
+public class SharePermissionManager {
+
+    @Autowired
+    private ShareTokenService shareTokenService;
+
+    @Autowired
+    private ShareAuditService shareAuditService;
+
+    /**
+     * 创建分享链接
+     */
+    @LogOperation(operationType = "FILE_SHARE_CREATE", description = "创建文件分享")
+    public ShareResult createShare(ShareRequest request) {
+        try {
+            // 1. 验证用户权限
+            validateSharePermission(request.getUserId(), request.getFileId());
+
+            // 2. 生成分享令牌
+            String shareToken = generateShareToken(request);
+
+            // 3. 构建分享链接
+            String shareUrl = buildShareUrl(shareToken);
+
+            // 4. 保存分享记录
+            ShareRecord shareRecord = ShareRecord.builder()
+                .shareId(generateShareId())
+                .fileId(request.getFileId())
+                .ownerId(request.getUserId())
+                .familyId(request.getFamilyId())
+                .shareToken(shareToken)
+                .shareUrl(shareUrl)
+                .shareType(request.getShareType())
+                .permissions(request.getPermissions())
+                .password(request.getPassword())
+                .expireTime(Instant.now().plusHours(request.getExpireHours()))
+                .createTime(Instant.now())
+                .build();
+
+            shareRecord = shareRepository.save(shareRecord);
+
+            // 5. 记录审计日志
+            shareAuditService.logShareCreation(shareRecord);
+
+            return ShareResult.builder()
+                .shareId(shareRecord.getShareId())
+                .shareUrl(shareUrl)
+                .expireTime(shareRecord.getExpireTime())
+                .build();
+
+        } catch (Exception e) {
+            log.error("创建分享失败: fileId={}, userId={}", request.getFileId(), request.getUserId(), e);
+            throw new ShareException("创建分享失败", e);
+        }
+    }
+
+    /**
+     * 验证分享访问权限
+     */
+    public ShareAccessResult validateShareAccess(String shareId, String shareToken, String password) {
+        // 1. 获取分享记录
+        ShareRecord shareRecord = shareRepository.findByShareId(shareId)
+            .orElseThrow(() -> new ShareNotFoundException("分享不存在"));
+
+        // 2. 验证分享是否过期
+        if (shareRecord.getExpireTime().isBefore(Instant.now())) {
+            throw new ShareExpiredException("分享已过期");
+        }
+
+        // 3. 验证分享令牌
+        if (!validateShareToken(shareRecord, shareToken)) {
+            throw new ShareInvalidException("无效的分享令牌");
+        }
+
+        // 4. 验证密码（如果有）
+        if (StringUtils.hasText(shareRecord.getPassword())) {
+            if (!StringUtils.hasText(password) || !passwordEncoder.matches(password, shareRecord.getPassword())) {
+                throw new SharePasswordException("分享密码错误");
+            }
+        }
+
+        // 5. 记录访问日志
+        shareAuditService.logShareAccess(shareRecord);
+
+        return ShareAccessResult.builder()
+            .shareId(shareId)
+            .fileId(shareRecord.getFileId())
+            .permissions(shareRecord.getPermissions())
+            .accessTime(Instant.now())
+            .build();
     }
 }
 ```
 
-### 7. 分库分表策略
-
+#### 4.2 分享统计和监控
 ```java
 /**
- * 基于family_id的分库分表
+ * 分享统计和监控服务
  */
 @Component
-public class ShardingStrategy {
-    private static final int DB_COUNT = 8;
-    private static final int TABLE_COUNT = 32;
-    
-    public String getDatabase(String familyId) {
-        int hash = familyId.hashCode();
-        int dbIndex = Math.abs(hash % DB_COUNT);
-        return "smart_home_" + dbIndex;
+public class ShareAnalyticsService {
+
+    /**
+     * 记录分享访问
+     */
+    @Async("shareAnalyticsExecutor")
+    public void recordShareAccess(String shareId, String visitorId, String visitorIp, String userAgent) {
+        ShareAccessRecord accessRecord = ShareAccessRecord.builder()
+            .shareId(shareId)
+            .visitorId(visitorId)
+            .visitorIp(visitorIp)
+            .userAgent(userAgent)
+            .accessTime(Instant.now())
+            .build();
+
+        shareAccessRepository.save(accessRecord);
+
+        // 更新访问统计
+        updateShareStatistics(shareId);
     }
-    
-    public String getTable(String baseTable, String familyId) {
-        int hash = familyId.hashCode();
-        int tableIndex = Math.abs(hash % TABLE_COUNT);
-        return baseTable + "_" + tableIndex;
+
+    /**
+     * 获取分享统计信息
+     */
+    public ShareStatistics getShareStatistics(String shareId, String userId) {
+        // 验证权限
+        validateShareOwner(shareId, userId);
+
+        ShareRecord shareRecord = shareRepository.findByShareId(shareId)
+            .orElseThrow(() -> new ShareNotFoundException("分享不存在"));
+
+        // 获取访问统计
+        long totalAccess = shareAccessRepository.countByShareId(shareId);
+        long uniqueVisitors = shareAccessRepository.countDistinctVisitorByShareId(shareId);
+
+        // 获取最近访问记录
+        List<ShareAccessRecord> recentAccess = shareAccessRepository
+            .findTop10ByShareIdOrderByAccessTimeDesc(shareId);
+
+        // 获取访问趋势
+        Map<LocalDate, Long> dailyAccess = getDailyAccessTrend(shareId, 30);
+
+        return ShareStatistics.builder()
+            .shareId(shareId)
+            .totalAccess(totalAccess)
+            .uniqueVisitors(uniqueVisitors)
+            .recentAccess(recentAccess)
+            .dailyAccess(dailyAccess)
+            .createTime(shareRecord.getCreateTime())
+            .expireTime(shareRecord.getExpireTime())
+            .build();
+    }
+
+    /**
+     * 获取访问趋势数据
+     */
+    private Map<LocalDate, Long> getDailyAccessTrend(String shareId, int days) {
+        LocalDate endDate = LocalDate.now();
+        LocalDate startDate = endDate.minusDays(days);
+
+        List<DailyAccessCount> dailyCounts = shareAccessRepository
+            .countByShareIdAndDateRange(shareId, startDate, endDate);
+
+        return dailyCounts.stream()
+            .collect(Collectors.toMap(
+                DailyAccessCount::getDate,
+                DailyAccessCount::getCount,
+                (existing, replacement) -> existing
+            ));
     }
 }
 ```
 
-### 8. 数据备份实现
+### 5. 按家庭组织的存储结构
 
+#### 5.1 家庭存储管理
 ```java
 /**
- * 自动备份任务
+ * 按家庭组织的存储管理器
  */
 @Component
-public class BackupTask {
-    @Scheduled(cron = "0 0 2 * * ?")  // 每天凌晨2点
-    public void dailyBackup() {
-        // 1. MySQL全量备份
-        backupMySQL();
-        
-        // 2. MongoDB备份
-        backupMongoDB();
-        
-        // 3. 压缩加密
-        compressAndEncrypt();
-        
-        // 4. 上传到MinIO
-        uploadToMinIO();
-        
-        // 5. 清理过期备份
-        cleanOldBackups();
+public class FamilyStorageManager {
+
+    /**
+     * 创建家庭存储目录
+     */
+    public String createFamilyStoragePath(String familyId, String category, String fileName) {
+        // 存储路径结构：family/{familyId}/{category}/yyyy/MM/dd/{fileId}
+        String datePrefix = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
+        String fileId = FileUtils.generateFileId();
+
+        String storagePath = String.format("family/%s/%s/%s/%s",
+            familyId, category, datePrefix, fileId);
+
+        return storagePath;
+    }
+
+    /**
+     * 获取家庭存储统计
+     */
+    public FamilyStorageStats getFamilyStorageStats(String familyId) {
+        // 统计各类文件数量和大小
+        Map<String, FileStats> categoryStats = new HashMap<>();
+
+        // 图片统计
+        FileStats imageStats = getFileStatsByCategory(familyId, "images");
+        categoryStats.put("images", imageStats);
+
+        // 文档统计
+        FileStats documentStats = getFileStatsByCategory(familyId, "documents");
+        categoryStats.put("documents", documentStats);
+
+        // 视频统计
+        FileStats videoStats = getFileStatsByCategory(familyId, "videos");
+        categoryStats.put("videos", videoStats);
+
+        // 其他统计
+        FileStats otherStats = getFileStatsByCategory(familyId, "others");
+        categoryStats.put("others", otherStats);
+
+        // 总计
+        long totalFiles = categoryStats.values().stream()
+            .mapToLong(FileStats::getCount)
+            .sum();
+        long totalSize = categoryStats.values().stream()
+            .mapToLong(FileStats::getSize)
+            .sum();
+
+        return FamilyStorageStats.builder()
+            .familyId(familyId)
+            .totalFiles(totalFiles)
+            .totalSize(totalSize)
+            .categoryStats(categoryStats)
+            .build();
+    }
+
+    /**
+     * 清理家庭过期数据
+     */
+    @Scheduled(cron = "0 0 2 * * ?") // 每天凌晨2点执行
+    public void cleanupExpiredFamilyData() {
+        List<String> familyIds = familyService.getAllActiveFamilyIds();
+
+        for (String familyId : familyIds) {
+            try {
+                // 清理过期分享
+                cleanupExpiredShares(familyId);
+
+                // 清理临时缩略图
+                cleanupTempThumbnails(familyId);
+
+                // 清理孤儿文件
+                cleanupOrphanFiles(familyId);
+
+            } catch (Exception e) {
+                log.error("清理家庭数据失败: familyId={}", familyId, e);
+            }
+        }
     }
 }
 ```
 
-### 9. 监控和告警
+### 6. 性能优化策略
 
+#### 6.1 缩略图缓存
 ```java
 /**
- * 关键指标监控
+ * 缩略图缓存管理
  */
 @Component
-public class MetricsCollector {
-    private final MeterRegistry registry;
-    
-    // 查询性能监控
-    @Timed("storage.query.time")
-    public Object query(StorageRequest request) {
-        // 记录查询耗时
+public class ThumbnailCacheManager {
+
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
+
+    private static final String THUMBNAIL_CACHE_PREFIX = "thumbnail:";
+    private static final Duration CACHE_EXPIRE = Duration.ofDays(7);
+
+    /**
+     * 缓存缩略图URL
+     */
+    public void cacheThumbnailUrl(String fileId, ThumbnailSize size, String url) {
+        String cacheKey = buildCacheKey(fileId, size);
+        ThumbnailCache cache = ThumbnailCache.builder()
+            .fileId(fileId)
+            .size(size)
+            .url(url)
+            .createTime(Instant.now())
+            .build();
+
+        redisTemplate.opsForValue().set(cacheKey, cache, CACHE_EXPIRE);
     }
-    
-    // 连接池监控
-    @Scheduled(fixedRate = 60000)
-    public void collectPoolMetrics() {
-        // 记录连接池状态
-        registry.gauge("db.connections.active", dataSource.getActiveConnections());
-        registry.gauge("db.connections.idle", dataSource.getIdleConnections());
+
+    /**
+     * 获取缓存的缩略图URL
+     */
+    public String getCachedThumbnailUrl(String fileId, ThumbnailSize size) {
+        String cacheKey = buildCacheKey(fileId, size);
+        ThumbnailCache cache = (ThumbnailCache) redisTemplate.opsForValue().get(cacheKey);
+
+        return cache != null ? cache.getUrl() : null;
+    }
+
+    /**
+     * 预热家庭缩略图缓存
+     */
+    @Async("thumbnailWarmupExecutor")
+    public void warmupFamilyThumbnailCache(String familyId) {
+        // 获取家庭所有图片
+        List<FileMetadata> familyImages = fileMetadataService.getFamilyImages(familyId);
+
+        for (FileMetadata image : familyImages) {
+            for (ThumbnailSize size : ThumbnailSize.values()) {
+                try {
+                    // 检查缓存是否存在
+                    if (getCachedThumbnailUrl(image.getFileId(), size) == null) {
+                        // 异步生成缩略图
+                        thumbnailService.generateThumbnail(image.getFileId(), size);
+                    }
+                } catch (Exception e) {
+                    log.warn("预热缩略图缓存失败: fileId={}, size={}", image.getFileId(), size, e);
+                }
+            }
+        }
     }
 }
 ```
 
-### 10. 故障处理
-
-#### 10.1 熔断降级
-```java
-@Component
-public class CircuitBreakerConfig {
-    @Bean
-    public Customizer<Resilience4JCircuitBreakerFactory> defaultCustomizer() {
-        return factory -> factory.configureDefault(id -> new Resilience4JConfigBuilder(id)
-            .circuitBreakerConfig(CircuitBreakerConfig.custom()
-                .slidingWindowSize(10)
-                .permittedNumberOfCallsInHalfOpenState(3)
-                .failureRateThreshold(50.0f)
-                .waitDurationInOpenState(Duration.ofSeconds(30))
-                .build())
-            .build());
-    }
-}
-```
-
-#### 10.2 故障转移
-```yaml
-主从切换:
-  - 主库故障检测: 心跳超时3次
-  - 自动切换: 提升从库为主库
-  - 数据同步: 检查数据一致性
-  - 服务恢复: 更新连接配置
-```
-
-### 11. 开发注意事项
+### 7. 开发注意事项
 
 #### 必须做的事
-- 所有操作必须记录审计日志
-- 敏感数据必须加密存储
-- 必须进行SQL注入防护
-- 必须实现数据隔离
-- 必须进行权限校验
+- 所有文件操作必须进行权限验证和familyId隔离
+- 必须记录文件操作和分享操作的审计日志
+- 必须使用base-model提供的统一日志和异常处理
+- 必须使用common组件提供的通用工具类
+- 必须对图片进行自动处理（缩略图、EXIF、分类）
+- 必须实现分享权限控制和访问频率限制
+- 必须使用流式处理大文件，避免内存溢出
+- 必须实现存储容量监控和告警
 
 #### 不能做的事
-- 不能暴露数据库连接信息
-- 不能在日志中打印敏感数据
-- 不能跨家庭查询数据
-- 不能绕过缓存直接查库
-- 不能执行未经验证的SQL
+- 不能绕过familyId进行跨家庭数据访问
+- 不能在日志中记录文件内容和敏感信息
+- 不能硬编码存储路径和访问密钥
+- 不能允许未授权的文件分享
+- 不能忽略图片处理的错误，影响主流程
+- 不能在没有权限验证的情况下提供文件访问
+- 不能将缩略图和原图混在一起存储
+- 不能忽略分享链接的过期管理
 
-### 12. 性能调优建议
-- 使用连接池，避免频繁创建连接
-- 批量操作代替单条操作
-- 异步处理非关键路径
-- 合理使用索引
-- 定期分析慢查询
+### 8. 性能调优建议
+- 使用多线程池处理图片和分享任务
+- 实现多级缓存策略（Redis + 本地缓存）
+- 使用CDN加速缩略图和分享文件访问
+- 实现智能预加载，提前处理常用缩略图
+- 使用压缩算法减少存储空间和传输带宽
+- 实现分享链接的批量操作和统计
+- 定期分析性能瓶颈，优化热点代码
+
+### 9. 监控和告警
+- 文件上传下载成功率监控
+- 图片处理性能和成功率监控
+- 分享链接访问量和异常监控
+- 存储容量使用率监控
+- 权限验证失败次数监控
+- 系统资源使用情况监控
+
+### 10. 知识库集成支持
+作为知识库系统的存储基础，需要支持：
+- 文本文件内容提取（集成Apache Tika）
+- 支持知识索引服务的文件访问接口
+- 图片OCR识别（为图片中的文字建立索引）
+- 文件版本管理（为知识库更新提供基础）
+- 支持文件内容分享到知识库
+- 文件标签和元数据的智能推荐
