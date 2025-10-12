@@ -1,7 +1,8 @@
-package com.haven.storage.vectortag;
+package com.haven.storage.service;
 
 import com.haven.base.annotation.TraceLog;
 import com.haven.base.utils.TraceIdUtil;
+import com.haven.storage.domain.model.vectortag.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;

@@ -1,9 +1,13 @@
-package com.haven.storage.processing;
+package com.haven.storage.async;
 
 import com.haven.base.utils.TraceIdUtil;
 
-import com.haven.storage.file.FileMetadata;
-import com.haven.storage.file.FileUploadRequest;
+
+import com.haven.storage.adapter.processing.OCREngine;
+import com.haven.storage.adapter.processing.ThumbnailGenerator;
+import com.haven.storage.adapter.processing.VectorTagGenerator;
+import com.haven.storage.domain.model.file.FileMetadata;
+import com.haven.storage.domain.model.file.FileUploadRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

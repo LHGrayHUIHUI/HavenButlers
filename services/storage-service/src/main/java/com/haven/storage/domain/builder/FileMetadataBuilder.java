@@ -1,10 +1,11 @@
-package com.haven.storage.builder;
+package com.haven.storage.domain.builder;
 
 import com.haven.base.common.exception.SystemException;
 import com.haven.base.common.response.ErrorCode;
 import com.haven.base.utils.TraceIdUtil;
-import com.haven.storage.file.FileMetadata;
-import com.haven.storage.file.FileUploadRequest;
+import com.haven.storage.domain.model.file.FileMetadata;
+import com.haven.storage.domain.model.file.FileUploadRequest;
+import com.haven.storage.domain.model.file.AccessLevel;
 import com.haven.storage.security.UserContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -196,7 +197,7 @@ public class FileMetadataBuilder {
      * @throws SystemException 当更新失败时抛出
      */
     public FileMetadata updateAfterUpload(FileMetadata metadata,
-                                         com.haven.storage.file.FileUploadResult uploadResult) {
+                                         com.haven.storage.domain.model.file.FileUploadResult uploadResult) {
         String traceId = TraceIdUtil.getCurrentOrGenerate();
 
         try {

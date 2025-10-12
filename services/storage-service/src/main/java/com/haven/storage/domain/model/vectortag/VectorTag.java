@@ -1,6 +1,7 @@
-package com.haven.storage.vectortag;
+package com.haven.storage.domain.model.vectortag;
 
 import com.haven.base.model.entity.BaseEntity;
+import com.haven.storage.domain.model.vectortag.TagType;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import java.time.LocalDateTime;

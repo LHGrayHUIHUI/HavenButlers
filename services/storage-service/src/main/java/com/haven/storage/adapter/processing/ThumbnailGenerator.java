@@ -1,6 +1,6 @@
-package com.haven.storage.processing;
+package com.haven.storage.adapter.processing;
 
-import com.haven.storage.file.FileMetadata;
+import com.haven.storage.domain.model.file.FileMetadata;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;

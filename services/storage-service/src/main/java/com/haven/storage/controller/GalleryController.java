@@ -2,6 +2,13 @@ package com.haven.storage.controller;
 
 import com.haven.base.annotation.TraceLog;
 import com.haven.base.common.response.ResponseWrapper;
+import com.haven.storage.adapter.processing.ExifExtractionService;
+import com.haven.storage.adapter.processing.ImageClassificationService;
+import com.haven.storage.adapter.processing.ImageProcessingService;
+import com.haven.storage.domain.model.file.ThumbnailSize;
+import com.haven.storage.domain.model.gallery.ExifMetadata;
+import com.haven.storage.domain.model.gallery.ImageMetadata;
+import com.haven.storage.service.GalleryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -9,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
-import com.haven.storage.gallery.ImageProcessingService;
 
 /**
  * 图片画廊控制器
@@ -25,7 +31,7 @@ import com.haven.storage.gallery.ImageProcessingService;
 @RequiredArgsConstructor
 public class GalleryController {
 
-    private final  ImageProcessingService imageProcessingService;
+    private final ImageProcessingService imageProcessingService;
     private final ExifExtractionService exifExtractionService;
     private final ImageClassificationService classificationService;
     private final GalleryService galleryService;

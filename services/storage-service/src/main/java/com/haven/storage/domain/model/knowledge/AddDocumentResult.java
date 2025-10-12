@@ -1,5 +1,6 @@
-package com.haven.storage.knowledge;
+package com.haven.storage.domain.model.knowledge;
 
+import com.haven.storage.domain.model.knowledge.KnowledgeDocument;
 import lombok.Data;
 
 /**

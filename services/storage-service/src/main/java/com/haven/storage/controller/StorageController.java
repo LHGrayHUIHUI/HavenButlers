@@ -4,8 +4,16 @@ import com.haven.base.annotation.TraceLog;
 import com.haven.base.common.response.ResponseWrapper;
 import com.haven.base.utils.TraceIdUtil;
 import com.haven.storage.api.StorageHealthInfo;
+import com.haven.storage.domain.model.file.*;
+import com.haven.storage.domain.model.knowledge.*;
+import com.haven.storage.domain.model.vectortag.*;
 import com.haven.storage.security.UserContext;
-import com.haven.storage.file.FamilyFileStorageService;
+import com.haven.storage.service.FamilyFileStorageService;
+import com.haven.storage.service.FileMetadataService;
+import com.haven.storage.domain.builder.FileMetadataBuilder;
+import com.haven.storage.async.AsyncProcessingTrigger;
+import com.haven.storage.service.PersonalKnowledgeBaseService;
+import com.haven.storage.service.VectorTagService;
 import com.haven.storage.validator.StorageServiceValidator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -30,7 +38,7 @@ import java.util.Map;
  * - 向量标签服务
  * <p>
  * 💡 设计原则：
- * - RESTful API设计
+ * - Refile API设计
  * - 统一错误处理
  * - 请求参数验证
  * - 链路追踪支持
@@ -71,8 +79,8 @@ public class StorageController {
             // 1. 验证请求参数（使用专门的验证器）
             validator.validateUploadRequest(request);
 
-            // 2. 构建文件元数据（使用专门的构建器）
-            com.haven.storage.file.FileMetadata fileMetadata = metadataBuilder.buildFromRequest(request, fileStorageService.getCurrentStorageType());
+            // 2. 构建文件元数据（使用专门地构建器）
+           FileMetadata fileMetadata = metadataBuilder.buildFromRequest(request, fileStorageService.getCurrentStorageType());
 
             // 3. 保存文件元数据到数据库
             fileMetadata = fileMetadataService.saveFileMetadata(fileMetadata);
@@ -83,10 +91,10 @@ public class StorageController {
             if (!uploadResult.isSuccess()) {
                 // 上传失败，删除已保存的元数据
                 fileMetadataService.deleteFileMetadata(fileMetadata.getFileId());
-                return ResponseWrapper.<FileMetadata>error(40001, "文件上传失败: " + uploadResult.getErrorMessage(), null);
+                return ResponseWrapper.error(40001, "文件上传失败: " + uploadResult.getErrorMessage(), null);
             }
 
-            // 5. 更新文件元数据（使用专门的构建器）
+            // 5. 更新文件元数据（使用专门地构建器）
             fileMetadata = metadataBuilder.updateAfterUpload(fileMetadata, uploadResult);
             fileMetadata = fileMetadataService.updateFileMetadata(fileMetadata);
 
@@ -319,7 +327,7 @@ public class StorageController {
         if (success) {
             return ResponseWrapper.success("存储方式切换成功：" + storageType);
         } else {
-            return ResponseWrapper.<String>error(40001, "存储方式切换失败", null);
+            return ResponseWrapper.error(40001, "存储方式切换失败", null);
         }
     }
 
@@ -349,7 +357,7 @@ public class StorageController {
         if (accessUrl != null) {
             return ResponseWrapper.success(accessUrl);
         } else {
-            return ResponseWrapper.<String>error(40002, "无法生成文件访问URL", null);
+            return ResponseWrapper.error(40002, "无法生成文件访问URL", null);
         }
     }
 

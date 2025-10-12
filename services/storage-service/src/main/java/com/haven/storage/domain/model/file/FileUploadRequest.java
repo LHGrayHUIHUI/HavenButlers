@@ -1,4 +1,4 @@
-package com.haven.storage.file;
+package com.haven.storage.domain.model.file;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;

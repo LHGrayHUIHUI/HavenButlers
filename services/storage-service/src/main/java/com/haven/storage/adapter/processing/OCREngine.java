@@ -1,7 +1,7 @@
-package com.haven.storage.processing;
+package com.haven.storage.adapter.processing;
 
-import com.haven.base.utils.TraceIdUtil;
-import com.haven.storage.file.FileMetadata;
+
+import com.haven.storage.domain.model.file.FileMetadata;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;

@@ -1,4 +1,4 @@
-package com.haven.storage.vectortag;
+package com.haven.storage.domain.model.vectortag;
 
 /**
  * 标签类型枚举

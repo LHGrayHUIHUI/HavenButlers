@@ -1,4 +1,4 @@
-package com.haven.storage.knowledge;
+package com.haven.storage.domain.model.knowledge;
 
 import lombok.Data;
 import java.util.List;

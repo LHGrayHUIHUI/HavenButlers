@@ -1,4 +1,4 @@
-package com.haven.storage.vectortag;
+package com.haven.storage.domain.model.vectortag;
 
 import lombok.Data;
 import java.util.List;

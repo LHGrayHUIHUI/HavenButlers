@@ -1,9 +1,14 @@
-package com.haven.storage.gallery;
+package com.haven.storage.adapter.processing;
 
 import com.haven.base.annotation.TraceLog;
 import com.haven.base.utils.TraceIdUtil;
-import com.haven.storage.file.FileMetadata;
-import com.haven.storage.file.adapter.StorageAdapter;
+
+import com.haven.storage.adapter.storage.StorageAdapter;
+import com.haven.storage.domain.model.file.FileMetadata;
+import com.haven.storage.domain.model.file.ThumbnailSize;
+import com.haven.storage.domain.model.gallery.ExifMetadata;
+import com.haven.storage.domain.model.gallery.ImageMetadata;
+import com.haven.storage.domain.model.gallery.ImageProcessResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.coobird.thumbnailator.Thumbnails;
@@ -52,8 +57,8 @@ public class ImageProcessingService {
      */
     @TraceLog(value = "处理上传图片", module = "image-processing", type = "PROCESS_IMAGE")
     public CompletableFuture<ImageProcessResult> processUploadedImage(String fileId,
-                                                                   String familyId,
-                                                                   FileMetadata fileMetadata) {
+                                                                      String familyId,
+                                                                      FileMetadata fileMetadata) {
         String traceId = TraceIdUtil.getCurrentOrGenerate();
 
         return CompletableFuture.supplyAsync(() -> {

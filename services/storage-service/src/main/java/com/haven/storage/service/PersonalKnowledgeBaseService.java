@@ -1,7 +1,8 @@
-package com.haven.storage.knowledge;
+package com.haven.storage.service;
 
 import com.haven.base.annotation.TraceLog;
 import com.haven.base.utils.TraceIdUtil;
+import com.haven.storage.domain.model.knowledge.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -13,13 +14,13 @@ import java.util.stream.Collectors;
 
 /**
  * 个人知识库服务
- *
+ * <p>
  * 🎯 核心功能：
  * - 文档向量化和存储
  * - 知识库构建和管理
  * - 语义搜索和检索
  * - 知识图谱构建
- *
+ * <p>
  * 💡 使用场景：
  * - 个人学习笔记管理
  * - 工作文档知识库
@@ -354,7 +355,7 @@ public class PersonalKnowledgeBaseService {
     }
 
     private List<SearchResultItem> performVectorSearch(List<Double> queryVector,
-                                                      List<DocumentVector> allVectors, int topK) {
+                                                       List<DocumentVector> allVectors, int topK) {
         return allVectors.stream()
                 .map(docVector -> {
                     double similarity = calculateCosineSimilarity(queryVector, docVector.getVector());

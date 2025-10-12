@@ -1,4 +1,4 @@
-package com.haven.storage.gallery;
+package com.haven.storage.adapter.processing;
 
 import com.drew.imaging.ImageMetadataReader;
 import com.drew.imaging.ImageProcessingException;
@@ -11,6 +11,7 @@ import com.drew.metadata.exif.ExifSubIFDDirectory;
 import com.drew.metadata.exif.GpsDirectory;
 import com.haven.base.annotation.TraceLog;
 import com.haven.base.utils.TraceIdUtil;
+import com.haven.storage.domain.model.gallery.ExifMetadata;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 

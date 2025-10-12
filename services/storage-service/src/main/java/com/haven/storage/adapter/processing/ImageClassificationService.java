@@ -1,8 +1,9 @@
-package com.haven.storage.gallery;
+package com.haven.storage.adapter.processing;
 
 import com.haven.base.annotation.TraceLog;
 import com.haven.base.utils.TraceIdUtil;
-import com.haven.storage.file.FileMetadata;
+import com.haven.storage.domain.model.file.FileMetadata;
+import com.haven.storage.domain.model.gallery.ExifMetadata;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
