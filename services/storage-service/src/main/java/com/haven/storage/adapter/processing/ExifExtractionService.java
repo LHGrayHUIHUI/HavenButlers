@@ -343,7 +343,7 @@ public class ExifExtractionService {
      * 获取所有EXIF标签（用于调试）
      */
     public List<String> getAllExifTags(InputStream imageStream) {
-        List<String> tags = new ArrayList();
+        List<String> tags = new ArrayList<>();
         String traceId = TraceIdUtil.getCurrentOrGenerate();
 
         try {

@@ -155,7 +155,7 @@ public class DatabaseHealthService implements HealthIndicator {
                 status.setDetails("连接正常");
                 
                 // 获取Redis信息
-                Properties info = connection.info();
+                Properties info = connection.serverCommands().info();
                 status.setVersion(info.getProperty("redis_version"));
                 
                 // 获取内存使用情况

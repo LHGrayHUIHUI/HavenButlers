@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 
 /**
@@ -282,7 +283,7 @@ public class ExifMetadata {
             }
             if (exposureTime.compareTo(BigDecimal.ONE) < 0) {
                 // 小于1秒的曝光时间显示为分数
-                sb.append("1/").append(BigDecimal.ONE.divide(exposureTime, 0, BigDecimal.ROUND_HALF_UP)).append("s");
+                sb.append("1/").append(BigDecimal.ONE.divide(exposureTime, 0, RoundingMode.HALF_UP)).append("s");
             } else {
                 sb.append(exposureTime).append("s");
             }
