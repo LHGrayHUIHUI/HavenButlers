@@ -1,8 +1,7 @@
-package com.haven.storage.file.adapter;
+package com.haven.storage.adapter.storage;
 
-import com.haven.storage.file.FileUploadResult;
-import com.haven.storage.file.FileDownloadResult;
-import com.haven.storage.file.FileMetadata;
+
+import com.haven.storage.domain.model.file.FileUploadResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,7 +9,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -56,7 +54,7 @@ public class LocalStorageAdapter implements StorageAdapter {
 
     @Override
     public FileUploadResult uploadFile(String familyId, String folderPath,
-                                     MultipartFile file, String uploaderUserId) {
+                                       MultipartFile file, String uploaderUserId) {
         try {
             // 参数验证
             if (!StringUtils.hasText(familyId) || file == null || file.isEmpty()) {

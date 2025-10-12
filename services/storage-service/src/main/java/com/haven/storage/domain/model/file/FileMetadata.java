@@ -1,12 +1,15 @@
-package com.haven.storage.file;
+package com.haven.storage.domain.model.file;
 
 import com.haven.base.model.entity.BaseEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 
 import java.time.LocalDateTime;
 import java.util.List;
+
+
 
 /**
  * 文件元数据实体
@@ -208,6 +211,7 @@ public class FileMetadata extends BaseEntity {
     /**
      * 文件操作类型枚举
      */
+    @Getter
     public enum FileOperation {
         VIEW("查看"),
         DOWNLOAD("下载"),
@@ -220,9 +224,6 @@ public class FileMetadata extends BaseEntity {
             this.description = description;
         }
 
-        public String getDescription() {
-            return description;
-        }
     }
 
 }

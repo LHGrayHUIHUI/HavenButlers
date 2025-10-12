@@ -1,4 +1,6 @@
-package com.haven.storage.file;
+package com.haven.storage.domain.model.file;
+
+import lombok.Getter;
 
 /**
  * 文件访问权限级别
@@ -8,6 +10,7 @@ package com.haven.storage.file;
  *
  * @author HavenButler
  */
+@Getter
 public enum AccessLevel {
     /**
      * 私有文件
@@ -31,10 +34,6 @@ public enum AccessLevel {
 
     AccessLevel(String description) {
         this.description = description;
-    }
-
-    public String getDescription() {
-        return description;
     }
 
     /**

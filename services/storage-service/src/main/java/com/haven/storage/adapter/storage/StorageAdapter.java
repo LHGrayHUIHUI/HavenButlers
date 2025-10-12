@@ -1,7 +1,7 @@
-package com.haven.storage.file.adapter;
+package com.haven.storage.adapter.storage;
 
-import com.haven.storage.file.FileUploadResult;
-import com.haven.storage.file.FileDownloadResult;
+import com.haven.storage.domain.model.file.FileDownloadResult;
+import com.haven.storage.domain.model.file.FileUploadResult;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -28,7 +28,7 @@ public interface StorageAdapter {
      * @return 上传结果
      */
     FileUploadResult uploadFile(String familyId, String folderPath,
-                               MultipartFile file, String uploaderUserId);
+                                MultipartFile file, String uploaderUserId);
 
     /**
      * 下载文件

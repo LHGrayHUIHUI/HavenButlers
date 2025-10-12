@@ -1,4 +1,4 @@
-package com.haven.storage.file;
+package com.haven.storage.domain.model.file;
 
 import lombok.Data;
 
@@ -21,9 +21,7 @@ public class FileDeleteResult {
     }
 
     public static FileDeleteResult error(String errorMessage, String traceId) {
-        FileDeleteResult result = new FileDeleteResult();
-        result.success = false;
-        result.errorMessage = errorMessage;
+        FileDeleteResult result = failure(errorMessage);
         result.traceId = traceId;
         return result;
     }

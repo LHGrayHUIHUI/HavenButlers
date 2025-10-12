@@ -1,12 +1,12 @@
-package com.haven.storage.file.adapter;
+package com.haven.storage.adapter.storage;
 
-import com.haven.storage.file.FileUploadResult;
-import com.haven.storage.file.FileDownloadResult;
-import com.haven.storage.file.FileMetadata;
+
+import com.haven.storage.domain.model.file.FileDownloadResult;
+import com.haven.storage.domain.model.file.FileMetadata;
+import com.haven.storage.domain.model.file.FileUploadResult;
 import io.minio.*;
-import io.minio.errors.*;
-import io.minio.messages.Item;
 import io.minio.http.Method;
+import io.minio.messages.Item;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,9 +15,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -63,7 +60,7 @@ public class MinIOStorageAdapter implements StorageAdapter {
 
     @Override
     public FileUploadResult uploadFile(String familyId, String folderPath,
-                                     MultipartFile file, String uploaderUserId) {
+                                       MultipartFile file, String uploaderUserId) {
         try {
             // 参数验证
             if (!StringUtils.hasText(familyId) || file == null || file.isEmpty()) {

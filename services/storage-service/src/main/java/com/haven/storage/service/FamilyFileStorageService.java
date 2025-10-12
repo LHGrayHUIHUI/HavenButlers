@@ -1,17 +1,16 @@
-package com.haven.storage.file;
+package com.haven.storage.service;
 
 import com.haven.base.annotation.TraceLog;
 import com.haven.base.utils.TraceIdUtil;
-import com.haven.storage.file.adapter.StorageAdapter;
-import com.haven.storage.file.adapter.LocalStorageAdapter;
-import com.haven.storage.file.adapter.MinIOStorageAdapter;
+import com.haven.storage.adapter.storage.LocalStorageAdapter;
+import com.haven.storage.adapter.storage.MinIOStorageAdapter;
+import com.haven.storage.adapter.storage.StorageAdapter;
+import com.haven.storage.domain.model.file.*;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -20,7 +19,7 @@ import java.util.stream.Collectors;
 
 /**
  * 家庭文件存储服务
- *
+ * <p>
  * 🎯 核心功能：
  * - 多种存储方式支持（本地、MinIO、云存储）
  * - 家庭文件的上传、下载、删除
@@ -28,7 +27,7 @@ import java.util.stream.Collectors;
  * - 基于familyId的数据隔离
  * - 文件元数据管理
  * - 存储适配器模式动态切换
- *
+ * <p>
  * 💡 使用场景：
  * - 家庭照片、视频存储
  * - 重要文档管理
@@ -46,11 +45,9 @@ public class FamilyFileStorageService {
     private String storageType;
 
     // 存储适配器实例
-    @Autowired(required = false)
-    private LocalStorageAdapter localStorageAdapter;
+    private final LocalStorageAdapter localStorageAdapter;
 
-    @Autowired(required = false)
-    private MinIOStorageAdapter minioStorageAdapter;
+    private final MinIOStorageAdapter minioStorageAdapter;
 
 
     // 当前使用的存储适配器
@@ -61,6 +58,11 @@ public class FamilyFileStorageService {
 
     // 存储统计缓存
     private final Map<String, FamilyStorageStats> storageStatsCache = new ConcurrentHashMap<>();
+
+    public FamilyFileStorageService(LocalStorageAdapter localStorageAdapter, MinIOStorageAdapter minioStorageAdapter) {
+        this.localStorageAdapter = localStorageAdapter;
+        this.minioStorageAdapter = minioStorageAdapter;
+    }
 
     /**
      * 初始化存储适配器
@@ -104,7 +106,7 @@ public class FamilyFileStorageService {
      */
     @TraceLog(value = "上传家庭文件", module = "file-storage", type = "UPLOAD")
     public FileUploadResult uploadFile(String familyId, String folderPath, MultipartFile file,
-                                      String uploaderUserId) {
+                                       String uploaderUserId) {
         String traceId = TraceIdUtil.getCurrentOrGenerate();
 
         try {
@@ -270,8 +272,8 @@ public class FamilyFileStorageService {
             // 按文件名搜索
             List<FileMetadata> matchedFiles = allFiles.stream()
                     .filter(file -> file.getFileName().toLowerCase().contains(keyword.toLowerCase()) ||
-                                   (file.getTags() != null && file.getTags().stream()
-                                           .anyMatch(tag -> tag.toLowerCase().contains(keyword.toLowerCase()))))
+                            (file.getTags() != null && file.getTags().stream()
+                                    .anyMatch(tag -> tag.toLowerCase().contains(keyword.toLowerCase()))))
                     .sorted(Comparator.comparing(FileMetadata::getUploadTime).reversed())
                     .collect(Collectors.toList());
 

@@ -1,6 +1,7 @@
-package com.haven.storage.file;
+package com.haven.storage.domain.model.file;
 
 import lombok.Data;
+
 import java.util.List;
 
 /**

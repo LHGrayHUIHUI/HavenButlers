@@ -7,7 +7,8 @@ import com.haven.base.common.response.ResponseWrapper;
 import com.haven.base.common.response.ErrorCode;
 import com.haven.base.common.exception.BusinessException;
 import com.haven.base.utils.TraceIdUtil;
-import com.haven.storage.file.AccessLevel;
+
+import com.haven.storage.domain.model.file.AccessLevel;
 import com.haven.storage.service.FilePermissionService;
 import com.haven.storage.service.PermissionAuditService;
 import io.swagger.v3.oas.annotations.Operation;

@@ -1,5 +1,6 @@
-package com.haven.storage.file;
+package com.haven.storage.domain.model.file;
 
+import com.haven.storage.domain.model.file.FileMetadata;
 import lombok.Data;
 
 /**

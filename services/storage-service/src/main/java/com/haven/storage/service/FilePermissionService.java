@@ -2,9 +2,9 @@ package com.haven.storage.service;
 
 import com.haven.base.annotation.TraceLog;
 import com.haven.base.utils.TraceIdUtil;
-import com.haven.storage.file.AccessLevel;
-import com.haven.storage.file.FileMetadata;
-import com.haven.storage.file.FileMetadataService;
+
+import com.haven.storage.domain.model.file.AccessLevel;
+import com.haven.storage.domain.model.file.FileMetadata;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -47,7 +47,7 @@ public class FilePermissionService {
     @TraceLog(value = "变更文件权限级别", module = "file-permission", type = "CHANGE_ACCESS_LEVEL")
     @Transactional
     public PermissionChangeResult changeFileAccessLevel(String fileId, String userId,
-                                                      AccessLevel newAccessLevel, String reason) {
+                                                        AccessLevel newAccessLevel, String reason) {
         String traceId = TraceIdUtil.getCurrentOrGenerate();
 
         try {

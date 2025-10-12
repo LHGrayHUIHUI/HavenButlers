@@ -1,4 +1,4 @@
-package com.haven.storage.gallery;
+package com.haven.storage.service;
 
 import lombok.Data;
 import lombok.Builder;

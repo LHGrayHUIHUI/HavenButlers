@@ -1,7 +1,9 @@
-package com.haven.storage.file;
+package com.haven.storage.service;
 
 import com.haven.base.annotation.TraceLog;
 import com.haven.base.utils.TraceIdUtil;
+import com.haven.storage.domain.model.file.AccessLevel;
+import com.haven.storage.domain.model.file.FileMetadata;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
