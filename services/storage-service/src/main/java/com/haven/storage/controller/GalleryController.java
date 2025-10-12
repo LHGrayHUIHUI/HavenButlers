@@ -1,7 +1,14 @@
-package com.haven.storage.gallery;
+package com.haven.storage.controller;
 
 import com.haven.base.annotation.TraceLog;
 import com.haven.base.common.response.ResponseWrapper;
+import com.haven.storage.domain.model.gallery.ThumbnailSize;
+import com.haven.storage.domain.model.gallery.ExifMetadata;
+import com.haven.storage.domain.model.gallery.ImageMetadata;
+import com.haven.storage.service.GalleryService;
+import com.haven.storage.adapter.processing.ImageProcessingService;
+import com.haven.storage.adapter.processing.ExifExtractionService;
+import com.haven.storage.adapter.processing.ImageClassificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;

@@ -4,24 +4,18 @@ import com.haven.base.annotation.TraceLog;
 import com.haven.base.common.response.ResponseWrapper;
 import com.haven.base.utils.TraceIdUtil;
 import com.haven.storage.api.StorageHealthInfo;
-import com.haven.storage.file.*;
-import com.haven.storage.knowledge.*;
-import com.haven.storage.vectortag.*;
 import com.haven.storage.security.UserContext;
+import com.haven.storage.file.FamilyFileStorageService;
 import com.haven.storage.validator.StorageServiceValidator;
-import com.haven.storage.builder.FileMetadataBuilder;
-import com.haven.storage.processing.AsyncProcessingTrigger;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
-import jakarta.validation.Valid;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -29,12 +23,12 @@ import java.util.Map;
 
 /**
  * 存储服务统一API控制器
- *
+ * <p>
  * 🎯 核心功能：
  * - 家庭文件存储
  * - 个人知识库构建
  * - 向量标签服务
- *
+ * <p>
  * 💡 设计原则：
  * - RESTful API设计
  * - 统一错误处理
@@ -63,43 +57,33 @@ public class StorageController {
 
     /**
      * 增强文件上传
-     *
+     * <p>
      * 支持完整权限设置、元数据配置和异步处理
      */
     @PostMapping("/files/upload")
     @Operation(summary = "文件上传", description = "上传文件并设置权限和元数据")
     @TraceLog(value = "文件上传", module = "storage-api", type = "FILE_UPLOAD")
-    public ResponseWrapper<FileMetadata> uploadFile(
-            @Valid @ModelAttribute FileUploadRequest request) {
+    public ResponseWrapper<FileMetadata> uploadFile(@Valid @ModelAttribute FileUploadRequest request) {
         String traceId = TraceIdUtil.getCurrentOrGenerate();
         try {
-            log.info("开始文件上传: family={}, userId={}, file={}, accessLevel={}, traceId={}, userContext={}",
-                    request.getFamilyId(), request.getUploaderUserId(),
-                    request.getOriginalFileName(), request.getAccessLevel(), traceId,
-                    UserContext.getUserSummary());
+            log.info("开始文件上传: family={}, userId={}, file={}, accessLevel={}, traceId={}, userContext={}", request.getFamilyId(), request.getUploaderUserId(), request.getOriginalFileName(), request.getAccessLevel(), traceId, UserContext.getUserSummary());
 
             // 1. 验证请求参数（使用专门的验证器）
             validator.validateUploadRequest(request);
 
             // 2. 构建文件元数据（使用专门的构建器）
-            FileMetadata fileMetadata = metadataBuilder.buildFromRequest(
-                    request, fileStorageService.getCurrentStorageType());
+            com.haven.storage.file.FileMetadata fileMetadata = metadataBuilder.buildFromRequest(request, fileStorageService.getCurrentStorageType());
 
             // 3. 保存文件元数据到数据库
             fileMetadata = fileMetadataService.saveFileMetadata(fileMetadata);
 
             // 4. 调用存储服务上传文件
-            FileUploadResult uploadResult = fileStorageService.uploadFile(
-                    request.getFamilyId(),
-                    request.getFolderPath(),
-                    request.getFile(),
-                    request.getUploaderUserId());
+            FileUploadResult uploadResult = fileStorageService.uploadFile(request.getFamilyId(), request.getFolderPath(), request.getFile(), request.getUploaderUserId());
 
             if (!uploadResult.isSuccess()) {
                 // 上传失败，删除已保存的元数据
                 fileMetadataService.deleteFileMetadata(fileMetadata.getFileId());
-                return ResponseWrapper.<FileMetadata>error(40001,
-                    "文件上传失败: " + uploadResult.getErrorMessage(), null);
+                return ResponseWrapper.<FileMetadata>error(40001, "文件上传失败: " + uploadResult.getErrorMessage(), null);
             }
 
             // 5. 更新文件元数据（使用专门的构建器）
@@ -109,16 +93,12 @@ public class StorageController {
             // 6. 异步处理任务（缩略图生成、OCR识别等）
             asyncProcessingTrigger.triggerAsyncProcessing(request, fileMetadata);
 
-            log.info("文件上传成功: fileId={}, family={}, accessLevel={}, storageType={}, traceId={}",
-                    fileMetadata.getFileId(), request.getFamilyId(),
-                    request.getAccessLevel(), fileStorageService.getCurrentStorageType(), traceId);
+            log.info("文件上传成功: fileId={}, family={}, accessLevel={}, storageType={}, traceId={}", fileMetadata.getFileId(), request.getFamilyId(), request.getAccessLevel(), fileStorageService.getCurrentStorageType(), traceId);
 
-            return ResponseWrapper.success("文件上传成功",fileMetadata);
+            return ResponseWrapper.success("文件上传成功", fileMetadata);
 
         } catch (Exception e) {
-            log.error("文件上传失败: family={}, userId={}, file={}, error={}, traceId={}",
-                    request.getFamilyId(), request.getUploaderUserId(),
-                    request.getOriginalFileName(), e.getMessage(), traceId, e);
+            log.error("文件上传失败: family={}, userId={}, file={}, error={}, traceId={}", request.getFamilyId(), request.getUploaderUserId(), request.getOriginalFileName(), e.getMessage(), traceId, e);
 
             return ResponseWrapper.error(50001, "文件上传失败: " + e.getMessage(), null);
         }
@@ -129,18 +109,12 @@ public class StorageController {
      */
     @GetMapping("/files/download/{fileId}")
     @TraceLog(value = "文件下载", module = "storage-api", type = "FILE_DOWNLOAD")
-    public ResponseEntity<byte[]> downloadFile(
-            @PathVariable String fileId,
-            @RequestParam String familyId) {
+    public ResponseEntity<byte[]> downloadFile(@PathVariable String fileId, @RequestParam String familyId) {
 
         FileDownloadResult result = fileStorageService.downloadFile(fileId, familyId);
 
         if (result.isSuccess()) {
-            return ResponseEntity.ok()
-                    .header("Content-Disposition",
-                           "attachment; filename=\"" + result.getFileName() + "\"")
-                    .header("Content-Type", result.getContentType())
-                    .body(result.getFileContent());
+            return ResponseEntity.ok().header("Content-Disposition", "attachment; filename=\"" + result.getFileName() + "\"").header("Content-Type", result.getContentType()).body(result.getFileContent());
         } else {
             return ResponseEntity.notFound().build();
         }
@@ -151,9 +125,7 @@ public class StorageController {
      */
     @GetMapping("/files/list")
     @TraceLog(value = "获取文件列表", module = "storage-api", type = "FILE_LIST")
-    public ResponseEntity<FamilyFileList> getFamilyFiles(
-            @RequestParam String familyId,
-            @RequestParam(required = false, defaultValue = "/") String folderPath) {
+    public ResponseEntity<FamilyFileList> getFamilyFiles(@RequestParam String familyId, @RequestParam(required = false, defaultValue = "/") String folderPath) {
 
         FamilyFileList fileList = fileStorageService.getFamilyFiles(familyId, folderPath);
 
@@ -165,9 +137,7 @@ public class StorageController {
      */
     @GetMapping("/files/search")
     @TraceLog(value = "文件搜索", module = "storage-api", type = "FILE_SEARCH")
-    public ResponseEntity<FileSearchResult> searchFiles(
-            @RequestParam String familyId,
-            @RequestParam String keyword) {
+    public ResponseEntity<FileSearchResult> searchFiles(@RequestParam String familyId, @RequestParam String keyword) {
 
         FileSearchResult result = fileStorageService.searchFiles(familyId, keyword);
 
@@ -179,10 +149,7 @@ public class StorageController {
      */
     @DeleteMapping("/files/{fileId}")
     @TraceLog(value = "文件删除", module = "storage-api", type = "FILE_DELETE")
-    public ResponseEntity<FileDeleteResult> deleteFile(
-            @PathVariable String fileId,
-            @RequestParam String familyId,
-            @RequestParam String userId) {
+    public ResponseEntity<FileDeleteResult> deleteFile(@PathVariable String fileId, @RequestParam String familyId, @RequestParam String userId) {
 
         FileDeleteResult result = fileStorageService.deleteFile(fileId, familyId, userId);
 
@@ -194,8 +161,7 @@ public class StorageController {
      */
     @GetMapping("/files/stats")
     @TraceLog(value = "获取存储统计", module = "storage-api", type = "STORAGE_STATS")
-    public ResponseEntity<FamilyStorageStats> getStorageStats(
-            @RequestParam String familyId) {
+    public ResponseEntity<FamilyStorageStats> getStorageStats(@RequestParam String familyId) {
 
         FamilyStorageStats stats = fileStorageService.getFamilyStorageStats(familyId);
 
@@ -209,8 +175,7 @@ public class StorageController {
      */
     @PostMapping("/knowledge/bases")
     @TraceLog(value = "创建知识库", module = "storage-api", type = "CREATE_KB")
-    public ResponseEntity<KnowledgeBase> createKnowledgeBase(
-            @RequestBody CreateKnowledgeBaseRequest request) {
+    public ResponseEntity<KnowledgeBase> createKnowledgeBase(@RequestBody CreateKnowledgeBaseRequest request) {
 
         KnowledgeBase knowledgeBase = knowledgeBaseService.createKnowledgeBase(request);
 
@@ -222,9 +187,7 @@ public class StorageController {
      */
     @PostMapping("/knowledge/bases/{knowledgeBaseId}/documents")
     @TraceLog(value = "添加知识库文档", module = "storage-api", type = "ADD_DOCUMENT")
-    public ResponseEntity<AddDocumentResult> addDocument(
-            @PathVariable String knowledgeBaseId,
-            @RequestBody AddDocumentRequest request) {
+    public ResponseEntity<AddDocumentResult> addDocument(@PathVariable String knowledgeBaseId, @RequestBody AddDocumentRequest request) {
 
         AddDocumentResult result = knowledgeBaseService.addDocument(knowledgeBaseId, request);
 
@@ -236,12 +199,9 @@ public class StorageController {
      */
     @PostMapping("/knowledge/bases/{knowledgeBaseId}/search")
     @TraceLog(value = "知识库搜索", module = "storage-api", type = "SEARCH_KB")
-    public ResponseEntity<KnowledgeSearchResult> searchKnowledge(
-            @PathVariable String knowledgeBaseId,
-            @RequestBody KnowledgeSearchRequest request) {
+    public ResponseEntity<KnowledgeSearchResult> searchKnowledge(@PathVariable String knowledgeBaseId, @RequestBody KnowledgeSearchRequest request) {
 
-        KnowledgeSearchResult result = knowledgeBaseService
-                .searchKnowledge(knowledgeBaseId, request);
+        KnowledgeSearchResult result = knowledgeBaseService.searchKnowledge(knowledgeBaseId, request);
 
         return ResponseEntity.ok(result);
     }
@@ -251,12 +211,9 @@ public class StorageController {
      */
     @GetMapping("/knowledge/bases")
     @TraceLog(value = "获取知识库列表", module = "storage-api", type = "LIST_KB")
-    public ResponseEntity<List<KnowledgeBase>> getKnowledgeBases(
-            @RequestParam String familyId,
-            @RequestParam String userId) {
+    public ResponseEntity<List<KnowledgeBase>> getKnowledgeBases(@RequestParam String familyId, @RequestParam String userId) {
 
-        List<KnowledgeBase> knowledgeBases = knowledgeBaseService
-                .getKnowledgeBases(familyId, userId);
+        List<KnowledgeBase> knowledgeBases = knowledgeBaseService.getKnowledgeBases(familyId, userId);
 
         return ResponseEntity.ok(knowledgeBases);
     }
@@ -266,9 +223,7 @@ public class StorageController {
      */
     @DeleteMapping("/knowledge/bases/{knowledgeBaseId}")
     @TraceLog(value = "删除知识库", module = "storage-api", type = "DELETE_KB")
-    public ResponseEntity<Boolean> deleteKnowledgeBase(
-            @PathVariable String knowledgeBaseId,
-            @RequestParam String userId) {
+    public ResponseEntity<Boolean> deleteKnowledgeBase(@PathVariable String knowledgeBaseId, @RequestParam String userId) {
 
         boolean deleted = knowledgeBaseService.deleteKnowledgeBase(knowledgeBaseId, userId);
 
@@ -280,11 +235,9 @@ public class StorageController {
      */
     @GetMapping("/knowledge/bases/{knowledgeBaseId}/stats")
     @TraceLog(value = "获取知识库统计", module = "storage-api", type = "KB_STATS")
-    public ResponseEntity<KnowledgeBaseStats> getKnowledgeBaseStats(
-            @PathVariable String knowledgeBaseId) {
+    public ResponseEntity<KnowledgeBaseStats> getKnowledgeBaseStats(@PathVariable String knowledgeBaseId) {
 
-        KnowledgeBaseStats stats = knowledgeBaseService
-                .getKnowledgeBaseStats(knowledgeBaseId);
+        KnowledgeBaseStats stats = knowledgeBaseService.getKnowledgeBaseStats(knowledgeBaseId);
 
         return ResponseEntity.ok(stats);
     }
@@ -296,8 +249,7 @@ public class StorageController {
      */
     @PostMapping("/vector-tags/generate")
     @TraceLog(value = "生成向量标签", module = "storage-api", type = "GENERATE_TAGS")
-    public ResponseEntity<VectorTagResult> generateVectorTags(
-            @RequestBody GenerateVectorTagRequest request) {
+    public ResponseEntity<VectorTagResult> generateVectorTags(@RequestBody GenerateVectorTagRequest request) {
 
         VectorTagResult result = vectorTagService.generateVectorTags(request);
 
@@ -309,8 +261,7 @@ public class StorageController {
      */
     @PostMapping("/vector-tags/search")
     @TraceLog(value = "向量标签搜索", module = "storage-api", type = "VECTOR_SEARCH")
-    public ResponseEntity<VectorSearchResult> searchByVectorTags(
-            @RequestBody VectorSearchRequest request) {
+    public ResponseEntity<VectorSearchResult> searchByVectorTags(@RequestBody VectorSearchRequest request) {
 
         VectorSearchResult result = vectorTagService.searchByVectorTags(request);
 
@@ -322,9 +273,7 @@ public class StorageController {
      */
     @GetMapping("/vector-tags/files/{fileId}")
     @TraceLog(value = "获取文件标签", module = "storage-api", type = "GET_FILE_TAGS")
-    public ResponseEntity<List<VectorTag>> getFileVectorTags(
-            @PathVariable String fileId,
-            @RequestParam String familyId) {
+    public ResponseEntity<List<VectorTag>> getFileVectorTags(@PathVariable String fileId, @RequestParam String familyId) {
 
         List<VectorTag> vectorTags = vectorTagService.getFileVectorTags(fileId, familyId);
 
@@ -336,8 +285,7 @@ public class StorageController {
      */
     @GetMapping("/vector-tags/stats")
     @TraceLog(value = "获取标签统计", module = "storage-api", type = "TAG_STATS")
-    public ResponseEntity<FamilyTagStats> getFamilyTagStats(
-            @RequestParam String familyId) {
+    public ResponseEntity<FamilyTagStats> getFamilyTagStats(@RequestParam String familyId) {
 
         FamilyTagStats stats = vectorTagService.getFamilyTagStats(familyId);
 
@@ -349,9 +297,7 @@ public class StorageController {
      */
     @DeleteMapping("/vector-tags/files/{fileId}")
     @TraceLog(value = "删除文件标签", module = "storage-api", type = "DELETE_FILE_TAGS")
-    public ResponseEntity<Boolean> deleteFileVectorTags(
-            @PathVariable String fileId,
-            @RequestParam String familyId) {
+    public ResponseEntity<Boolean> deleteFileVectorTags(@PathVariable String fileId, @RequestParam String familyId) {
 
         boolean deleted = vectorTagService.deleteFileVectorTags(fileId, familyId);
 
@@ -396,10 +342,7 @@ public class StorageController {
      */
     @GetMapping("/files/access-url/{fileId}")
     @TraceLog(value = "获取文件访问URL", module = "storage-api", type = "FILE_ACCESS_URL")
-    public ResponseWrapper<String> getFileAccessUrl(
-            @PathVariable String fileId,
-            @RequestParam String familyId,
-            @RequestParam(defaultValue = "60") int expireMinutes) {
+    public ResponseWrapper<String> getFileAccessUrl(@PathVariable String fileId, @RequestParam String familyId, @RequestParam(defaultValue = "60") int expireMinutes) {
 
         String accessUrl = fileStorageService.getFileAccessUrl(fileId, familyId, expireMinutes);
 
@@ -425,4 +368,4 @@ public class StorageController {
     }
 
 
-  }
+}
