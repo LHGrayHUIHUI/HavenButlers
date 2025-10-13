@@ -1,8 +1,8 @@
 package com.haven.storage.service;
 
-import com.haven.storage.domain.model.file.ThumbnailSize;
 import com.haven.storage.domain.model.gallery.ExifMetadata;
 import com.haven.storage.domain.model.gallery.ImageMetadata;
+import com.haven.storage.domain.model.gallery.ThumbnailSize;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

@@ -6,7 +6,7 @@ import com.haven.base.common.exception.SystemException;
 import com.haven.base.common.exception.ValidationException;
 import com.haven.base.common.response.ErrorCode;
 import com.haven.base.utils.TraceIdUtil;
-import com.haven.storage.domain.model.file.AccessLevel;
+import com.haven.storage.domain.model.file.FileVisibility;
 import com.haven.storage.domain.model.file.FileUploadRequest;
 import com.haven.storage.security.UserContext;
 import lombok.extern.slf4j.Slf4j;
@@ -93,30 +93,30 @@ public class StorageServiceValidator {
         String traceId = TraceIdUtil.getCurrentOrGenerate();
 
         try {
-            // 1. 验证用户认证
-            validateUserAuthentication();
+            // 1. 验证用户ID是否为空
+            validateUserId(request.getUploaderUserId(), traceId);
 
-            // 2. 验证用户ID一致性
-            validateUserIdConsistency(request, traceId);
+            // 2. 验证家庭ID（可以为空）
+            validateFamilyIdOptional(request.getFamilyId(), traceId);
 
-            // 3. 验证家庭ID
-            validateFamilyId(request.getFamilyId(), traceId);
+            // 3. 验证文件是否为空
+            validateFileNotEmpty(request.getFile(), traceId);
 
-            // 4. 验证文件
-            validateFile(request.getFile(), traceId);
+            // 4. 验证文件大小
+            validateFileSize(request.getFile(), traceId);
 
-            // 5. 验证权限级别
-            validateAccessLevel(request.getAccessLevel(), traceId);
+            // 5. 验证文件名称
+            validateFileName(request.getFile(), traceId);
 
-            // 6. 验证文件夹路径
+            // 6. 验证文件分组（没有的话默认为用户ID私有）
+            validateFileVisibility(request.getVisibility(), request.getUploaderUserId(), traceId);
+
+            // 验证文件夹路径（可选）
             validateFolderPath(request.getFolderPath(), traceId);
 
-            // 7. 验证所有者ID（如果设置了）
-            validateOwnerId(request.getOwnerId(), request.getUploaderUserId(), traceId);
-
-            log.info("文件上传请求验证通过: family={}, userId={}, file={}, traceId={}",
+            log.info("文件上传请求验证通过: family={}, userId={}, file={}, visibility={}, traceId={}",
                     request.getFamilyId(), request.getUploaderUserId(),
-                    request.getOriginalFileName(), traceId);
+                    request.getOriginalFileName(), request.getVisibility(), traceId);
 
         } catch (ValidationException | AuthException e) {
             throw e; // 重新抛出已知异常
@@ -127,49 +127,64 @@ public class StorageServiceValidator {
     }
 
     /**
-     * 验证用户ID一致性
+     * 验证用户ID
      */
-    private void validateUserIdConsistency(FileUploadRequest fileUploadRequest, String traceId) {
-
-    }
-
-    /**
-     * 验证家庭ID
-     */
-    private void validateFamilyId(String familyId, String traceId) {
-        if (familyId == null || familyId.trim().isEmpty()) {
-            log.warn("家庭ID不能为空: traceId={}", traceId);
-            throw new ValidationException("家庭ID不能为空", "30001");
+    private void validateUserId(String userId, String traceId) {
+        if (userId == null || userId.trim().isEmpty()) {
+            log.warn("用户ID不能为空: traceId={}", traceId);
+            throw new ValidationException("用户ID不能为空", "30001");
         }
 
-        // 验证家庭ID格式（简单验证）
-        if (familyId.length() < 3 || familyId.length() > 50) {
-            log.warn("家庭ID格式不正确: familyId={}, traceId={}", familyId, traceId);
-            throw new ValidationException("家庭ID格式不正确", "30002");
+        // 验证用户ID格式（简单验证）
+        if (userId.length() < 3 || userId.length() > 50) {
+            log.warn("用户ID格式不正确: userId={}, traceId={}", userId, traceId);
+            throw new ValidationException("用户ID格式不正确", "30002");
         }
     }
 
     /**
-     * 验证上传文件
+     * 验证家庭ID（可以为空）
      */
-    private void validateFile(MultipartFile file, String traceId) {
+    private void validateFamilyIdOptional(String familyId, String traceId) {
+        if (familyId != null && !familyId.trim().isEmpty()) {
+            // 如果提供了家庭ID，则验证格式
+            if (familyId.length() < 3 || familyId.length() > 50) {
+                log.warn("家庭ID格式不正确: familyId={}, traceId={}", familyId, traceId);
+                throw new ValidationException("家庭ID格式不正确", "30003");
+            }
+        }
+        // 如果为空，则允许通过（用户私有文件）
+    }
+
+    /**
+     * 验证文件是否为空
+     */
+    private void validateFileNotEmpty(MultipartFile file, String traceId) {
         if (file == null || file.isEmpty()) {
             log.warn("上传文件不能为空: traceId={}", traceId);
-            throw new ValidationException("上传文件不能为空", "30003");
+            throw new ValidationException("上传文件不能为空", "30004");
         }
+    }
 
-        // 验证文件大小
+    /**
+     * 验证文件大小
+     */
+    private void validateFileSize(MultipartFile file, String traceId) {
         if (file.getSize() > MAX_FILE_SIZE) {
             log.warn("文件大小超过限制: size={}, maxSize={}, traceId={}",
                     file.getSize(), MAX_FILE_SIZE, traceId);
-            throw new ValidationException("文件大小不能超过100MB", "30004");
+            throw new ValidationException("文件大小不能超过100MB", "30005");
         }
+    }
 
-        // 验证文件名
+    /**
+     * 验证文件名称
+     */
+    private void validateFileName(MultipartFile file, String traceId) {
         String originalFilename = file.getOriginalFilename();
         if (originalFilename == null || originalFilename.trim().isEmpty()) {
             log.warn("文件名不能为空: traceId={}", traceId);
-            throw new ValidationException("文件名不能为空", "30005");
+            throw new ValidationException("文件名不能为空", "30006");
         }
 
         // 验证文件类型
@@ -177,7 +192,7 @@ public class StorageServiceValidator {
         if (!isValidFileType(contentType)) {
             log.warn("不支持的文件类型: contentType={}, fileName={}, traceId={}",
                     contentType, originalFilename, traceId);
-            throw new ValidationException("不支持的文件类型: " + contentType, "30006");
+            throw new ValidationException("不支持的文件类型: " + contentType, "30007");
         }
 
         // 验证文件扩展名
@@ -185,25 +200,27 @@ public class StorageServiceValidator {
         if (!isValidFileExtension(extension, contentType)) {
             log.warn("文件扩展名与内容类型不匹配: extension={}, contentType={}, traceId={}",
                     extension, contentType, traceId);
-            throw new ValidationException("文件扩展名与内容类型不匹配", "30007");
+            throw new ValidationException("文件扩展名与内容类型不匹配", "30008");
         }
     }
 
     /**
-     * 验证权限级别
+     * 验证文件可见性级别
      */
-    private void validateAccessLevel(AccessLevel accessLevel, String traceId) {
-        if (accessLevel == null) {
-            log.warn("权限级别不能为空: traceId={}", traceId);
-            throw new ValidationException("权限级别不能为空", "30008");
+    private void validateFileVisibility(FileVisibility visibility, String userId, String traceId) {
+        // 如果没有指定可见性级别，默认设为私有
+        if (visibility == null) {
+            log.info("未指定文件可见性级别，默认设置为私有: userId={}, traceId={}", userId, traceId);
+            // 不抛出异常，在service层会设置为PRIVATE
+            return;
         }
 
-        // 验证权限级别是否在有效范围内
+        // 验证可见性级别是否在有效范围内
         try {
-            AccessLevel.valueOf(accessLevel.name());
+            FileVisibility.valueOf(visibility.name());
         } catch (IllegalArgumentException e) {
-            log.warn("无效的权限级别: accessLevel={}, traceId={}", accessLevel, traceId);
-            throw new ValidationException("无效的权限级别: " + accessLevel, "30009");
+            log.warn("无效的文件可见性级别: visibility={}, traceId={}", visibility, traceId);
+            throw new ValidationException("无效的文件可见性级别: " + visibility, "30009");
         }
     }
 
@@ -238,22 +255,7 @@ public class StorageServiceValidator {
         }
     }
 
-    /**
-     * 验证所有者ID
-     */
-    private void validateOwnerId(String ownerId, String uploaderUserId, String traceId) {
-        if (ownerId != null && !ownerId.trim().isEmpty()) {
-            String currentUserId = UserContext.getCurrentUserId();
-
-            // 验证所有者ID是否为当前用户或当前用户有权限设置其他所有者
-            if (!ownerId.equals(currentUserId) && !ownerId.equals(uploaderUserId)) {
-                log.warn("无权设置指定所有者: ownerId={}, currentUserId={}, traceId={}",
-                        ownerId, currentUserId, traceId);
-                throw new AuthException(ErrorCode.ACCOUNT_LOCKED, "无权设置指定所有者");
-            }
-        }
-    }
-
+    
     /**
      * 检查文件类型是否有效
      */
@@ -350,8 +352,8 @@ public class StorageServiceValidator {
             // 1. 验证用户认证
             validateUserAuthentication();
 
-            // 2. 验证家庭ID
-            validateFamilyId(familyId, traceId);
+            // 2. 验证家庭ID（可以为空）
+            validateFamilyIdOptional(familyId, traceId);
 
             // 3. 验证文件ID
             if (fileId == null || fileId.trim().isEmpty()) {

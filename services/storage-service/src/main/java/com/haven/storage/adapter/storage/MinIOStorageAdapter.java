@@ -39,7 +39,11 @@ import java.util.stream.StreamSupport;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = "storage.file.storage-type", havingValue = "minio")
+@ConditionalOnProperty(
+        name = "storage.file.storage-type",  // 要检查的配置属性名称
+        havingValue = "minio",               // 该属性需要匹配的值
+        matchIfMissing = true                // 若配置中没有该属性，是否视为满足条件
+)
 public class MinIOStorageAdapter implements StorageAdapter {
 
     private final MinioClient minioClient;

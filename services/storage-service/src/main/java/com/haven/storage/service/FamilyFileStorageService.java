@@ -2,11 +2,8 @@ package com.haven.storage.service;
 
 import com.haven.base.annotation.TraceLog;
 import com.haven.base.utils.TraceIdUtil;
-import com.haven.storage.adapter.storage.LocalStorageAdapter;
-import com.haven.storage.adapter.storage.MinIOStorageAdapter;
 import com.haven.storage.adapter.storage.StorageAdapter;
 import com.haven.storage.domain.model.file.*;
-import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -44,14 +41,8 @@ public class FamilyFileStorageService {
     @Value("${storage.file.storage-type:local}")
     private String storageType;
 
-    // 存储适配器实例
-    private final LocalStorageAdapter localStorageAdapter;
-
-    private final MinIOStorageAdapter minioStorageAdapter;
-
-
-    // 当前使用的存储适配器
-    private StorageAdapter currentStorageAdapter;
+    // 存储适配器实例（使用策略模式，Spring会自动选择合适的实现）
+    private final StorageAdapter storageAdapter;
 
     // 文件元数据缓存 - 所有存储方式共用
     private final Map<String, List<FileMetadata>> familyFilesCache = new ConcurrentHashMap<>();
@@ -59,48 +50,23 @@ public class FamilyFileStorageService {
     // 存储统计缓存
     private final Map<String, FamilyStorageStats> storageStatsCache = new ConcurrentHashMap<>();
 
-    public FamilyFileStorageService(LocalStorageAdapter localStorageAdapter, MinIOStorageAdapter minioStorageAdapter) {
-        this.localStorageAdapter = localStorageAdapter;
-        this.minioStorageAdapter = minioStorageAdapter;
-    }
-
     /**
-     * 初始化存储适配器
+     * 构造函数 - Spring会根据配置自动注入合适的StorageAdapter实现
      */
-    @PostConstruct
-    public void initializeStorageAdapter() {
-        switch (storageType.toLowerCase()) {
-            case "local":
-                if (localStorageAdapter == null) {
-                    throw new IllegalStateException("LocalStorageAdapter未配置，无法使用本地存储");
-                }
-                currentStorageAdapter = localStorageAdapter;
-                break;
-            case "minio":
-                if (minioStorageAdapter == null) {
-                    throw new IllegalStateException("MinIOStorageAdapter未配置，无法使用MinIO存储");
-                }
-                currentStorageAdapter = minioStorageAdapter;
-                break;
-            default:
-                log.warn("未知的存储类型：{}，使用本地存储作为默认选项", storageType);
-                if (localStorageAdapter == null) {
-                    throw new IllegalStateException("LocalStorageAdapter未配置，无法使用默认本地存储");
-                }
-                currentStorageAdapter = localStorageAdapter;
-                break;
-        }
+    public FamilyFileStorageService(StorageAdapter storageAdapter) {
+        this.storageAdapter = storageAdapter;
 
         log.info("存储适配器初始化完成：{} ({})",
-                currentStorageAdapter.getStorageType(),
-                currentStorageAdapter.getClass().getSimpleName());
+                storageAdapter.getStorageType(),
+                storageAdapter.getClass().getSimpleName());
 
         // 执行健康检查
-        if (!currentStorageAdapter.isHealthy()) {
-            log.error("存储适配器健康检查失败：{}", currentStorageAdapter.getStorageType());
+        if (!storageAdapter.isHealthy()) {
+            log.error("存储适配器健康检查失败：{}", storageAdapter.getStorageType());
         }
     }
 
+    
     /**
      * 上传文件到家庭存储
      */
@@ -111,7 +77,7 @@ public class FamilyFileStorageService {
 
         try {
             // 使用存储适配器上传文件
-            FileUploadResult result = currentStorageAdapter.uploadFile(familyId, folderPath, file, uploaderUserId);
+            FileUploadResult result = storageAdapter.uploadFile(familyId, folderPath, file, uploaderUserId);
 
             if (result.isSuccess()) {
                 // 缓存文件元数据
@@ -122,14 +88,14 @@ public class FamilyFileStorageService {
 
                 log.info("文件上传成功: family={}, file={}, size={}bytes, storageType={}, TraceID={}",
                         familyId, file.getOriginalFilename(), file.getSize(),
-                        currentStorageAdapter.getStorageType(), traceId);
+                        storageAdapter.getStorageType(), traceId);
             }
 
             return result;
 
         } catch (Exception e) {
             log.error("文件上传失败: family={}, file={}, storageType={}, error={}, TraceID={}",
-                    familyId, file.getOriginalFilename(), currentStorageAdapter.getStorageType(), e.getMessage(), traceId);
+                    familyId, file.getOriginalFilename(), storageAdapter.getStorageType(), e.getMessage(), traceId);
             return FileUploadResult.failure("文件上传失败：" + e.getMessage());
         }
     }
@@ -143,7 +109,7 @@ public class FamilyFileStorageService {
 
         try {
             // 使用存储适配器下载文件
-            FileDownloadResult result = currentStorageAdapter.downloadFile(fileId, familyId);
+            FileDownloadResult result = storageAdapter.downloadFile(fileId, familyId);
 
             if (result.isSuccess()) {
                 // 更新缓存中的访问记录
@@ -155,14 +121,14 @@ public class FamilyFileStorageService {
 
                 log.info("文件下载成功: family={}, fileId={}, size={}bytes, storageType={}, TraceID={}",
                         familyId, fileId, result.getFileContent().length,
-                        currentStorageAdapter.getStorageType(), traceId);
+                        storageAdapter.getStorageType(), traceId);
             }
 
             return result;
 
         } catch (Exception e) {
             log.error("文件下载失败: family={}, fileId={}, storageType={}, error={}, TraceID={}",
-                    familyId, fileId, currentStorageAdapter.getStorageType(), e.getMessage(), traceId);
+                    familyId, fileId, storageAdapter.getStorageType(), e.getMessage(), traceId);
             return FileDownloadResult.failure("文件下载失败：" + e.getMessage());
         }
     }
@@ -222,7 +188,7 @@ public class FamilyFileStorageService {
             FileMetadata metadata = getFileMetadata(familyId, fileId);
 
             // 使用存储适配器删除文件
-            boolean deleted = currentStorageAdapter.deleteFile(fileId, familyId);
+            boolean deleted = storageAdapter.deleteFile(fileId, familyId);
 
             if (deleted) {
                 // 从缓存中移除文件信息
@@ -234,7 +200,7 @@ public class FamilyFileStorageService {
                 }
 
                 log.info("文件删除成功: family={}, fileId={}, storageType={}, TraceID={}",
-                        familyId, fileId, currentStorageAdapter.getStorageType(), traceId);
+                        familyId, fileId, storageAdapter.getStorageType(), traceId);
 
                 return FileDeleteResult.success(metadata != null ? metadata.getOriginalName() : "文件", traceId);
             } else {
@@ -243,7 +209,7 @@ public class FamilyFileStorageService {
 
         } catch (Exception e) {
             log.error("文件删除失败: family={}, fileId={}, storageType={}, error={}, TraceID={}",
-                    familyId, fileId, currentStorageAdapter.getStorageType(), e.getMessage(), traceId);
+                    familyId, fileId, storageAdapter.getStorageType(), e.getMessage(), traceId);
             return FileDeleteResult.failure("文件删除失败：" + e.getMessage());
         }
     }
@@ -254,8 +220,8 @@ public class FamilyFileStorageService {
     @TraceLog(value = "获取存储统计", module = "file-storage", type = "STATS")
     public FamilyStorageStats getFamilyStorageStats(String familyId) {
         FamilyStorageStats stats = storageStatsCache.computeIfAbsent(familyId, this::calculateStorageStats);
-        stats.setStorageType(currentStorageAdapter.getStorageType());
-        stats.setStorageHealthy(currentStorageAdapter.isHealthy());
+        stats.setStorageType(storageAdapter.getStorageType());
+        stats.setStorageHealthy(storageAdapter.isHealthy());
         return stats;
     }
 
@@ -297,63 +263,33 @@ public class FamilyFileStorageService {
     }
 
     /**
-     * 动态切换存储适配器
+     * 动态切换存储适配器（已弃用，因为使用策略模式由Spring自动管理）
      */
     public boolean switchStorageAdapter(String newStorageType) {
-        try {
-            StorageAdapter newAdapter = null;
-
-            switch (newStorageType.toLowerCase()) {
-                case "local":
-                    newAdapter = localStorageAdapter;
-                    break;
-                case "minio":
-                    newAdapter = minioStorageAdapter;
-                    break;
-                default:
-                    log.error("不支持的存储类型：{}", newStorageType);
-                    return false;
-            }
-
-            // 健康检查
-            if (!newAdapter.isHealthy()) {
-                log.error("新存储适配器健康检查失败：{}", newStorageType);
-                return false;
-            }
-
-            // 切换适配器
-            String oldType = currentStorageAdapter.getStorageType();
-            currentStorageAdapter = newAdapter;
-            storageType = newStorageType;
-
-            log.info("存储适配器切换成功：{} -> {}", oldType, newStorageType);
-            return true;
-
-        } catch (Exception e) {
-            log.error("存储适配器切换失败：{}, error={}", newStorageType, e.getMessage());
-            return false;
-        }
+        log.warn("存储适配器动态切换功能已弃用。当前使用的是：{}",
+                storageAdapter.getStorageType());
+        return false;
     }
 
     /**
      * 获取文件访问URL
      */
     public String getFileAccessUrl(String fileId, String familyId, int expireMinutes) {
-        return currentStorageAdapter.getFileAccessUrl(fileId, familyId, expireMinutes);
+        return storageAdapter.getFileAccessUrl(fileId, familyId, expireMinutes);
     }
 
     /**
      * 获取当前存储类型
      */
     public String getCurrentStorageType() {
-        return currentStorageAdapter.getStorageType();
+        return storageAdapter.getStorageType();
     }
 
     /**
      * 检查存储健康状态
      */
     public boolean isStorageHealthy() {
-        return currentStorageAdapter.isHealthy();
+        return storageAdapter.isHealthy();
     }
 
     // 私有方法实现
@@ -403,8 +339,8 @@ public class FamilyFileStorageService {
                         Collectors.collectingAndThen(Collectors.counting(), Math::toIntExact)
                 ));
         stats.setFilesByType(filesByType);
-        stats.setStorageType(currentStorageAdapter.getStorageType());
-        stats.setStorageHealthy(currentStorageAdapter.isHealthy());
+        stats.setStorageType(storageAdapter.getStorageType());
+        stats.setStorageHealthy(storageAdapter.isHealthy());
 
         return stats;
     }

@@ -3,7 +3,7 @@ package com.haven.storage.service;
 import com.haven.base.annotation.TraceLog;
 import com.haven.base.utils.TraceIdUtil;
 
-import com.haven.storage.domain.model.file.AccessLevel;
+import com.haven.storage.domain.model.file.FileVisibility;
 import com.haven.storage.domain.model.file.FileMetadata;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,7 +47,7 @@ public class FilePermissionService {
     @TraceLog(value = "变更文件权限级别", module = "file-permission", type = "CHANGE_ACCESS_LEVEL")
     @Transactional
     public PermissionChangeResult changeFileAccessLevel(String fileId, String userId,
-                                                        AccessLevel newAccessLevel, String reason) {
+                                                        FileVisibility newAccessLevel, String reason) {
         String traceId = TraceIdUtil.getCurrentOrGenerate();
 
         try {
@@ -76,7 +76,7 @@ public class FilePermissionService {
 
             
             // 4. 记录变更前状态
-            AccessLevel oldAccessLevel = fileMetadata.getAccessLevel();
+            FileVisibility oldAccessLevel = fileMetadata.getFileVisibility();
 
             // 5. 执行权限变更
             fileMetadata.changeAccessLevel(userId, newAccessLevel, reason);
@@ -122,7 +122,7 @@ public class FilePermissionService {
     @TraceLog(value = "批量变更文件权限", module = "file-permission", type = "BATCH_CHANGE_ACCESS_LEVEL")
     @Transactional
     public BatchPermissionChangeResult batchChangeAccessLevel(List<String> fileIds, String userId,
-                                                             AccessLevel newAccessLevel, String reason) {
+                                                             FileVisibility newAccessLevel, String reason) {
         String traceId = TraceIdUtil.getCurrentOrGenerate();
 
         try {
@@ -224,7 +224,7 @@ public class FilePermissionService {
                     .accessible(accessible)
                     .fileId(fileId)
                     .fileName(fileMetadata.getOriginalFileName())
-                    .accessLevel(fileMetadata.getAccessLevel())
+                    .accessLevel(fileMetadata.getFileVisibility())
                     .ownerId(fileMetadata.getOwnerId())
                     .familyId(fileMetadata.getFamilyId())
                     .build();
@@ -246,7 +246,7 @@ public class FilePermissionService {
      * 验证权限变更条件
      */
     private PermissionValidationResult validatePermissionChange(FileMetadata fileMetadata, String userId,
-                                                               AccessLevel newAccessLevel) {
+                                                               FileVisibility newAccessLevel) {
         // 检查用户是否为文件所有者
         if (!userId.equals(fileMetadata.getOwnerId())) {
             return PermissionValidationResult.builder()
@@ -257,7 +257,7 @@ public class FilePermissionService {
         }
 
         // 检查权限级别是否相同
-        if (newAccessLevel == fileMetadata.getAccessLevel()) {
+        if (newAccessLevel == fileMetadata.getFileVisibility()) {
             return PermissionValidationResult.builder()
                     .valid(false)
                     .errorCode(40001)
@@ -281,7 +281,7 @@ public class FilePermissionService {
     /**
      * 检查权限是否被收窄
      */
-    private boolean isAccessLevelNarrowed(AccessLevel oldLevel, AccessLevel newLevel) {
+    private boolean isAccessLevelNarrowed(FileVisibility oldLevel, FileVisibility newLevel) {
         // 权限级别：PUBLIC > FAMILY > PRIVATE
         return newLevel.ordinal() < oldLevel.ordinal();
     }
@@ -292,7 +292,7 @@ public class FilePermissionService {
      * 创建权限变更记录
      */
     private PermissionChangeRecord createPermissionChangeRecord(String fileId, String userId,
-                                                                AccessLevel oldLevel, AccessLevel newLevel,
+                                                                FileVisibility oldLevel, FileVisibility newLevel,
                                                                 String reason, String traceId) {
         return PermissionChangeRecord.builder()
                 .recordId(generateRecordId())
@@ -339,8 +339,8 @@ public class FilePermissionService {
         private Integer errorCode;
         private String errorMessage;
         private String fileId;
-        private AccessLevel oldAccessLevel;
-        private AccessLevel newAccessLevel;
+        private FileVisibility oldAccessLevel;
+        private FileVisibility newAccessLevel;
         private LocalDateTime changeTime;
     }
 
@@ -409,7 +409,7 @@ public class FilePermissionService {
         private String errorMessage;
         private String fileId;
         private String fileName;
-        private AccessLevel accessLevel;
+        private FileVisibility accessLevel;
         private String ownerId;
         private String familyId;
     }
@@ -439,8 +439,8 @@ public class FilePermissionService {
         private String recordId;
         private String fileId;
         private String operatorId;
-        private AccessLevel oldAccessLevel;
-        private AccessLevel newAccessLevel;
+        private FileVisibility oldAccessLevel;
+        private FileVisibility newAccessLevel;
         private String changeReason;
         private LocalDateTime changeTime;
         private String traceId;

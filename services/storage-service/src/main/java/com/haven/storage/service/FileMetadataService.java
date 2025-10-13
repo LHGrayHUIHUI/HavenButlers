@@ -2,7 +2,7 @@ package com.haven.storage.service;
 
 import com.haven.base.annotation.TraceLog;
 import com.haven.base.utils.TraceIdUtil;
-import com.haven.storage.domain.model.file.AccessLevel;
+import com.haven.storage.domain.model.file.FileVisibility;
 import com.haven.storage.domain.model.file.FileMetadata;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -54,14 +54,9 @@ public class FileMetadataService {
             }
             fileMetadata.setUpdateTime(LocalDateTime.now());
 
-            if (fileMetadata.getAccessLevel() == null) {
-                fileMetadata.setAccessLevel(AccessLevel.PRIVATE);
+            if (fileMetadata.getFileVisibility() == null) {
+                fileMetadata.setFileVisibility(FileVisibility.PRIVATE);
             }
-
-            // 暂时简化状态设置
-            // if (fileMetadata.getStatus() == null) {
-            //     fileMetadata.setStatus(1); // 1=启用
-            // }
 
             if (fileMetadata.getDeleted() == null) {
                 fileMetadata.setDeleted(0); // 0=未删除
@@ -212,7 +207,7 @@ public class FileMetadataService {
      * @param accessLevel 权限级别过滤
      * @return 文件列表
      */
-    public List<FileMetadata> getFamilyFiles(String familyId, AccessLevel accessLevel) {
+    public List<FileMetadata> getFamilyFiles(String familyId, FileVisibility accessLevel) {
         String traceId = TraceIdUtil.getCurrentOrGenerate();
 
         try {
@@ -222,7 +217,7 @@ public class FileMetadataService {
                     // 暂时简化状态检查
                     // .filter(file -> file.getStatus() == 1)
                     .filter(file -> accessLevel == null ||
-                            file.getAccessLevel().ordinal() >= accessLevel.ordinal())
+                            file.getFileVisibility().ordinal() >= accessLevel.ordinal())
                     .sorted((f1, f2) -> f2.getCreateTime().compareTo(f1.getCreateTime()))
                     .toList();
 
@@ -303,7 +298,7 @@ public class FileMetadataService {
         String traceId = TraceIdUtil.getCurrentOrGenerate();
 
         try {
-            List<FileMetadata> familyFiles = getFamilyFiles(familyId, AccessLevel.PRIVATE);
+            List<FileMetadata> familyFiles = getFamilyFiles(familyId, FileVisibility.PRIVATE);
 
             long totalFiles = familyFiles.size();
             long totalSize = familyFiles.stream()

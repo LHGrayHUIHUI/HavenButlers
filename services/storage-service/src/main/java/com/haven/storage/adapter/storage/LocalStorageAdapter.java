@@ -7,6 +7,7 @@ import com.haven.storage.domain.model.file.FileUploadResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -38,6 +39,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "storage.file.storage-type", havingValue = "local")
 public class LocalStorageAdapter implements StorageAdapter {
 
     @Value("${storage.file.local.base-path:/data/haven-storage}")

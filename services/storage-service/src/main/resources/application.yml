@@ -1,4 +1,4 @@
-# Storage Service 本地开发环境配置
+# Storage Service 配置 - 支持本地和Nacos环境
 server:
   port: 8081
 
@@ -6,20 +6,14 @@ spring:
   application:
     name: storage-service
 
-  # 配置导入策略 - 本地开发优先使用本地配置
-  config:
-    import:
-      - optional:nacos:havenbutler-common.yml
-      - optional:nacos:storage-service.yml
-
-  # Nacos配置 - 本地环境
+  # Nacos配置 - 支持环境变量控制
   cloud:
     nacos:
       discovery:
         server-addr: ${NACOS_ADDR:localhost:8848}
         namespace: ${NACOS_NAMESPACE:public}
         group: ${NACOS_GROUP:DEFAULT_GROUP}
-        enabled: true
+        enabled: ${NACOS_ENABLED:false}
         service: ${spring.application.name}
         metadata:
           management.context-path: /actuator
@@ -31,17 +25,9 @@ spring:
         namespace: ${NACOS_NAMESPACE:public}
         group: ${NACOS_GROUP:DEFAULT_GROUP}
         file-extension: yml
-        enabled: true
-        shared-configs:
-          - data-id: havenbutler-common.yml
-            group: DEFAULT_GROUP
-            refresh: true
-        extension-configs:
-          - data-id: storage-service.yml
-            group: DEFAULT_GROUP
-            refresh: true
+        enabled: ${NACOS_ENABLED:false}
 
-  # 本地数据源配置
+  # 数据源配置 - 本地默认配置，支持环境变量覆盖
   datasource:
     driver-class-name: org.postgresql.Driver
     url: jdbc:postgresql://${POSTGRESQL_HOST:localhost}:${POSTGRESQL_PORT:5432}/${POSTGRESQL_DB:smarthome}
@@ -63,11 +49,11 @@ spring:
       password: ${MONGODB_PASSWORD:password}
       authentication-database: admin
 
-  # Redis配置
+  # Redis配置 - 本地使用密码认证
   redis:
     host: ${REDIS_HOST:localhost}
     port: ${REDIS_PORT:6379}
-    password: ${REDIS_PASSWORD:password}
+    password: ${REDIS_PASSWORD:redis123}
     timeout: 5000ms
     database: 0
     lettuce:
@@ -87,7 +73,7 @@ spring:
         format_sql: true
     show-sql: false
 
-# MinIO配置
+# MinIO配置 - 本地默认配置，支持环境变量覆盖
 minio:
   endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
   access-key: ${MINIO_ACCESS_KEY:minioadmin}

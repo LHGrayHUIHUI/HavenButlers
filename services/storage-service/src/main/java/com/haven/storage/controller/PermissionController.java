@@ -8,7 +8,7 @@ import com.haven.base.common.response.ErrorCode;
 import com.haven.base.common.exception.BusinessException;
 import com.haven.base.utils.TraceIdUtil;
 
-import com.haven.storage.domain.model.file.AccessLevel;
+import com.haven.storage.domain.model.file.FileVisibility;
 import com.haven.storage.service.FilePermissionService;
 import com.haven.storage.service.PermissionAuditService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -267,7 +267,7 @@ public class PermissionController {
     public ResponseWrapper<List<AccessLevelDescription>> getAccessLevelDescriptions() {
         List<AccessLevelDescription> descriptions = List.of(
                 AccessLevelDescription.builder()
-                        .level(AccessLevel.PRIVATE)
+                        .level(FileVisibility.PRIVATE)
                         .name("私有文件")
                         .description("归属当前用户，绑定用户ID和家庭ID，支持通过分享功能向其他用户开放不同权限")
                         .permissions(List.of("查看", "修改", "删除", "分享"))
@@ -275,7 +275,7 @@ public class PermissionController {
                         .build(),
 
                 AccessLevelDescription.builder()
-                        .level(AccessLevel.FAMILY)
+                        .level(FileVisibility.FAMILY)
                         .name("家庭文件")
                         .description("属于家庭分组，该家庭所有成员可访问，支持通过分享转为其他家庭成员的私有文件")
                         .permissions(List.of("查看"))
@@ -283,7 +283,7 @@ public class PermissionController {
                         .build(),
 
                 AccessLevelDescription.builder()
-                        .level(AccessLevel.PUBLIC)
+                        .level(FileVisibility.PUBLIC)
                         .name("公共文件")
                         .description("对所有登录用户开放访问权限，无需分享即可访问")
                         .permissions(List.of("查看"))
@@ -406,7 +406,7 @@ public class PermissionController {
         private String userId;
 
         @NotNull(message = "新权限级别不能为空")
-        private AccessLevel newAccessLevel;
+        private FileVisibility newAccessLevel;
 
         @NotBlank(message = "变更原因不能为空")
         private String reason;
@@ -426,7 +426,7 @@ public class PermissionController {
         private String userId;
 
         @NotNull(message = "新权限级别不能为空")
-        private AccessLevel newAccessLevel;
+        private FileVisibility newAccessLevel;
 
         @NotBlank(message = "变更原因不能为空")
         private String reason;
@@ -440,7 +440,7 @@ public class PermissionController {
     @lombok.NoArgsConstructor
     @lombok.AllArgsConstructor
     public static class AccessLevelDescription {
-        private AccessLevel level;
+        private FileVisibility level;
         private String name;
         private String description;
         private List<String> permissions;

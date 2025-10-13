@@ -3,15 +3,15 @@ package com.haven.storage.domain.model.file;
 import lombok.Getter;
 
 /**
- * 文件访问权限级别
+ * 文件可见性级别
  *
- * 定义文件的访问权限控制级别
- * 支持从私有到公开的多级权限管理
+ * 定义文件的可见性控制级别
+ * 支持从私有到公开的多级可见性管理
  *
  * @author HavenButler
  */
 @Getter
-public enum AccessLevel {
+public enum FileVisibility {
     /**
      * 私有文件
      * 仅文件所有者可以访问
@@ -32,27 +32,27 @@ public enum AccessLevel {
 
     private final String description;
 
-    AccessLevel(String description) {
+    FileVisibility(String description) {
         this.description = description;
     }
 
     /**
-     * 检查权限级别是否高于指定级别
+     * 检查可见性级别是否高于指定级别
      *
-     * @param other 另一个权限级别
+     * @param other 另一个可见性级别
      * @return 是否更高
      */
-    public boolean isHigherThan(AccessLevel other) {
+    public boolean isHigherThan(FileVisibility other) {
         return this.ordinal() > other.ordinal();
     }
 
     /**
-     * 检查权限级别是否低于指定级别
+     * 检查可见性级别是否低于指定级别
      *
-     * @param other 另一个权限级别
+     * @param other 另一个可见性级别
      * @return 是否更低
      */
-    public boolean isLowerThan(AccessLevel other) {
+    public boolean isLowerThan(FileVisibility other) {
         return this.ordinal() < other.ordinal();
     }
 }

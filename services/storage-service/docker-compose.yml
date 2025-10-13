@@ -112,34 +112,49 @@ services:
       timeout: 10s
       retries: 3
 
-# 可选服务（根据需要启用）
-  # PostgreSQL数据库（用于文件元数据存储，由file-metadata-service管理）
-  # postgresql:
-  #   image: postgres:15-alpine
-  #   container_name: postgresql
-  #   environment:
-  #     POSTGRES_DB: haven_files
-  #     POSTGRES_USER: postgres
-  #     POSTGRES_PASSWORD: postgres123
-  #   ports:
-  #     - "5432:5432"
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #   networks:
-  #     - haven-network
-  #   restart: unless-stopped
+# PostgreSQL数据库（用于文件元数据存储）
+  postgresql:
+    image: postgres:15-alpine
+    container_name: postgresql
+    environment:
+      POSTGRES_DB: smarthome
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
+    networks:
+      - haven-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  # 向量数据库（用于知识库，由knowledge-index-service管理）
-  # milvus:
-  #   image: milvusdb/milvus:v2.3.0
-  #   container_name: milvus
-  #   ports:
-  #     - "19530:19530"
-  #   volumes:
-  #     - milvus_data:/var/lib/milvus
-  #   networks:
-  #     - haven-network
-  #   restart: unless-stopped
+  # MongoDB数据库（用于文档存储）
+  mongodb:
+    image: mongo:7.0
+    container_name: mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: smarthome
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./docker/mongodb/init:/docker-entrypoint-initdb.d
+    networks:
+      - haven-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
   minio_data:
@@ -152,10 +167,10 @@ volumes:
     driver: local
   redis_data:
     driver: local
-  # postgres_data:
-  #   driver: local
-  # milvus_data:
-  #   driver: local
+  postgres_data:
+    driver: local
+  mongodb_data:
+    driver: local
 
 networks:
   haven-network:

@@ -74,13 +74,11 @@ public class StorageController {
     public ResponseWrapper<FileMetadata> uploadFile(@Valid @ModelAttribute FileUploadRequest request) {
         String traceId = TraceIdUtil.getCurrentOrGenerate();
         try {
-            log.info("开始文件上传: family={}, userId={}, file={}, accessLevel={}, traceId={}, userContext={}", request.getFamilyId(), request.getUploaderUserId(), request.getOriginalFileName(), request.getAccessLevel(), traceId, UserContext.getUserSummary());
-
+            log.info("开始文件上传: family={}, userId={}, file={}, accessLevel={}, traceId={}, userContext={}", request.getFamilyId(), request.getUploaderUserId(), request.getOriginalFileName(), request.getVisibility(), traceId, UserContext.getUserSummary());
             // 1. 验证请求参数（使用专门的验证器）
             validator.validateUploadRequest(request);
-
             // 2. 构建文件元数据（使用专门地构建器）
-           FileMetadata fileMetadata = metadataBuilder.buildFromRequest(request, fileStorageService.getCurrentStorageType());
+            FileMetadata fileMetadata = metadataBuilder.buildFromRequest(request, fileStorageService.getCurrentStorageType());
 
             // 3. 保存文件元数据到数据库
             fileMetadata = fileMetadataService.saveFileMetadata(fileMetadata);
@@ -101,7 +99,7 @@ public class StorageController {
             // 6. 异步处理任务（缩略图生成、OCR识别等）
             asyncProcessingTrigger.triggerAsyncProcessing(request, fileMetadata);
 
-            log.info("文件上传成功: fileId={}, family={}, accessLevel={}, storageType={}, traceId={}", fileMetadata.getFileId(), request.getFamilyId(), request.getAccessLevel(), fileStorageService.getCurrentStorageType(), traceId);
+            log.info("文件上传成功: fileId={}, family={}, accessLevel={}, storageType={}, traceId={}", fileMetadata.getFileId(), request.getFamilyId(), request.getVisibility(), fileStorageService.getCurrentStorageType(), traceId);
 
             return ResponseWrapper.success("文件上传成功", fileMetadata);
 

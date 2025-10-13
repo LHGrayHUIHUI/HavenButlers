@@ -5,7 +5,8 @@ import com.haven.base.common.response.ErrorCode;
 import com.haven.base.utils.TraceIdUtil;
 import com.haven.storage.domain.model.file.FileMetadata;
 import com.haven.storage.domain.model.file.FileUploadRequest;
-import com.haven.storage.domain.model.file.AccessLevel;
+import com.haven.storage.domain.model.file.FileUploadResult;
+import com.haven.storage.domain.model.file.FileVisibility;
 import com.haven.storage.security.UserContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -127,10 +128,10 @@ public class FileMetadataBuilder {
             // 优先使用JWT上下文的用户ID作为所有者
             String ownerId = currentUserId != null ? currentUserId : request.getEffectiveOwnerId();
             metadata.setOwnerId(ownerId);
-            metadata.setAccessLevel(request.getAccessLevel());
+            metadata.setFileVisibility(request.getVisibility());
 
             log.debug("权限信息设置完成: ownerId={}, accessLevel={}, traceId={}",
-                    ownerId, metadata.getAccessLevel(), traceId);
+                    ownerId, metadata.getFileVisibility(), traceId);
 
         } catch (Exception e) {
             log.error("设置权限信息失败: traceId={}, error={}", traceId, e.getMessage(), e);
@@ -175,11 +176,11 @@ public class FileMetadataBuilder {
      */
     private void setCustomMetadata(FileMetadata metadata, FileUploadRequest request, String traceId) {
         try {
-           // metadata.setDescription(request.getDescription());
+            metadata.setDescription(request.getDescription());
             metadata.setTags(request.getTags());
 
             log.debug("自定义元数据设置完成: description={}, tags={}, traceId={}",
-                   // metadata.getDescription(),
+                    metadata.getDescription(),
                     metadata.getTags(), traceId);
 
         } catch (Exception e) {
@@ -197,7 +198,7 @@ public class FileMetadataBuilder {
      * @throws SystemException 当更新失败时抛出
      */
     public FileMetadata updateAfterUpload(FileMetadata metadata,
-                                         com.haven.storage.domain.model.file.FileUploadResult uploadResult) {
+                                        FileUploadResult uploadResult) {
         String traceId = TraceIdUtil.getCurrentOrGenerate();
 
         try {

@@ -2,7 +2,7 @@ package com.haven.storage.service;
 
 import com.haven.base.annotation.TraceLog;
 import com.haven.base.utils.TraceIdUtil;
-import com.haven.storage.domain.model.file.AccessLevel;
+import com.haven.storage.domain.model.file.FileVisibility;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -318,8 +318,8 @@ public class PermissionAuditService {
         private String operatorId;
         private PermissionOperationType operationType;
         private String accessOperation;
-        private AccessLevel oldAccessLevel;
-        private AccessLevel newAccessLevel;
+        private FileVisibility oldAccessLevel;
+        private FileVisibility newAccessLevel;
         private String operationReason;
         private boolean accessResult;
         private String failureReason;

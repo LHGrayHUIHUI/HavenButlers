@@ -5,10 +5,10 @@ import com.haven.base.utils.TraceIdUtil;
 
 import com.haven.storage.adapter.storage.StorageAdapter;
 import com.haven.storage.domain.model.file.FileMetadata;
-import com.haven.storage.domain.model.file.ThumbnailSize;
 import com.haven.storage.domain.model.gallery.ExifMetadata;
 import com.haven.storage.domain.model.gallery.ImageMetadata;
 import com.haven.storage.domain.model.gallery.ImageProcessResult;
+import com.haven.storage.domain.model.gallery.ThumbnailSize;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.coobird.thumbnailator.Thumbnails;
@@ -155,17 +155,15 @@ public class ImageProcessingService {
                     // 生成缩略图
                     byte[] thumbnailBytes = generateThumbnail(imageStream, size);
 
-                    if (thumbnailBytes != null) {
-                        // 构建缩略图文件名
-                        String thumbnailId = generateThumbnailId(fileId, size);
+                    // 构建缩略图文件名
+                    String thumbnailId = generateThumbnailId(fileId, size);
 
-                        // 这里应该将缩略图保存到存储适配器
-                        // 暂时返回缩略图ID，实际实现中需要调用storageAdapter上传
-                        String thumbnailPath = String.format("thumbnails/%s/%s", size.getName(), thumbnailId);
-                        thumbnails.put(size, thumbnailPath);
+                    // 这里应该将缩略图保存到存储适配器
+                    // 暂时返回缩略图ID，实际实现中需要调用storageAdapter上传
+                    String thumbnailPath = String.format("thumbnails/%s/%s", size.getName(), thumbnailId);
+                    thumbnails.put(size, thumbnailPath);
 
-                        log.debug("缩略图生成成功: fileId={}, size={}, traceId={}", fileId, size, traceId);
-                    }
+                    log.debug("缩略图生成成功: fileId={}, size={}, traceId={}", fileId, size, traceId);
 
                 } catch (Exception e) {
                     log.error("缩略图生成失败: fileId={}, size={}, error={}, traceId={}",

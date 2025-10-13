@@ -1,4 +1,4 @@
-package com.haven.storage.gallery;
+package com.haven.storage.domain.model.gallery;
 
 /**
  * 缩略图尺寸枚举

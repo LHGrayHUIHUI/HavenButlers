@@ -36,8 +36,8 @@ public class FileUploadRequest {
     @Schema(description = "上传用户ID", example = "user_456")
     private String uploaderUserId;
 
-    @Schema(description = "文件权限级别", example = "FAMILY")
-    private AccessLevel accessLevel;
+    @Schema(description = "文件可见性级别", example = "FAMILY")
+    private FileVisibility visibility;
 
     @Schema(description = "文件描述", example = "家庭聚会照片")
     private String description;

@@ -4,11 +4,9 @@ import com.haven.base.model.entity.BaseEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import org.jetbrains.annotations.NotNull;
 
 import java.time.LocalDateTime;
 import java.util.List;
-
 
 
 /**
@@ -34,6 +32,7 @@ public class FileMetadata extends BaseEntity {
     private LocalDateTime uploadTime;    // 上传时间
     private int accessCount;
     private List<String> tags;
+    private String description;//可见行的描述的
 
     // 存储相关字段
     private String storagePath;         // 存储路径
@@ -45,7 +44,7 @@ public class FileMetadata extends BaseEntity {
 
     // 权限相关字段
     private String ownerId;               // 文件所有者ID
-    private AccessLevel accessLevel;      // 访问权限级别
+    private FileVisibility fileVisibility = FileVisibility.PRIVATE;     // 文件可见性级别
 
     // 权限变更相关字段
     private String accessChangeReason;     // 权限变更原因
@@ -60,7 +59,7 @@ public class FileMetadata extends BaseEntity {
     /**
      * 检查用户是否可以访问文件
      *
-     * @param userId 用户ID
+     * @param userId       用户ID
      * @param userFamilyId 用户所属家庭ID
      * @return 是否可访问
      */
@@ -79,12 +78,12 @@ public class FileMetadata extends BaseEntity {
             return true;
         }
 
-        // 3. 根据权限级别检查
-        if (accessLevel == null) {
-            accessLevel = AccessLevel.PRIVATE; // 默认私有
+        // 3. 根据可见性级别检查
+        if (fileVisibility == null) {
+            fileVisibility = FileVisibility.PRIVATE; // 默认私有
         }
 
-        switch (accessLevel) {
+        switch (fileVisibility) {
             case PUBLIC:
                 return true;  // 所有人可访问
             case FAMILY:
@@ -99,9 +98,9 @@ public class FileMetadata extends BaseEntity {
     /**
      * 检查用户是否可以对文件执行指定操作
      *
-     * @param userId 用户ID
+     * @param userId       用户ID
      * @param userFamilyId 用户所属家庭ID
-     * @param operation 操作类型
+     * @param operation    操作类型
      * @return 是否可执行操作
      */
     public boolean canPerformOperation(String userId, String userFamilyId, FileOperation operation) {
@@ -114,8 +113,8 @@ public class FileMetadata extends BaseEntity {
             return true;
         }
 
-        // 根据权限级别和操作类型判断
-        switch (accessLevel) {
+        // 根据可见性级别和操作类型判断
+        switch (fileVisibility) {
             case PUBLIC:
                 // 公共文件：所有用户都可以查看，但不能修改或删除
                 return operation == FileOperation.VIEW;
@@ -137,74 +136,74 @@ public class FileMetadata extends BaseEntity {
      */
     public boolean isValidForOperation() {
         return (getDeleted() == null || getDeleted() != 1) &&
-               // 暂时简化状态检查
-               // (getStatus() == null || getStatus() == 1) &&
-               ownerId != null && !ownerId.trim().isEmpty() &&
-               familyId != null && !familyId.trim().isEmpty();
+                // 暂时简化状态检查
+                // (getStatus() == null || getStatus() == 1) &&
+                ownerId != null && !ownerId.trim().isEmpty() &&
+                familyId != null && !familyId.trim().isEmpty();
     }
 
     /**
-     * 检查是否可以变更权限级别
+     * 检查是否可以变更可见性级别
      *
-     * @param userId 操作用户ID
-     * @param newLevel 新的权限级别
+     * @param userId   操作用户ID
+     * @param newLevel 新的可见性级别
      * @return 是否可以变更
      */
-    public boolean canChangeAccessLevel(String userId, AccessLevel newLevel) {
-        // 只有所有者可以变更权限
+    public boolean canChangeVisibility(String userId, FileVisibility newLevel) {
+        // 只有所有者可以变更可见性
         if (ownerId == null || !ownerId.equals(userId)) {
             return false;
         }
 
-        // 权限不能变更为相同级别
-        if (newLevel == this.accessLevel) {
+        // 可见性不能变更为相同级别
+        if (newLevel == this.fileVisibility) {
             return false;
         }
 
-        // 检查权限变更的合理性
-        return validateAccessLevelChange(newLevel);
+        // 检查可见性变更的合理性
+        return validateVisibilityChange(newLevel);
     }
 
     /**
-     * 变更权限级别
+     * 变更可见性级别
      *
-     * @param userId 操作用户ID
-     * @param newLevel 新的权限级别
-     * @param reason 变更原因
+     * @param userId   操作用户ID
+     * @param newLevel 新的可见性级别
+     * @param reason   变更原因
      */
-    public void changeAccessLevel(String userId, AccessLevel newLevel, String reason) {
-        if (!canChangeAccessLevel(userId, newLevel)) {
-            throw new SecurityException("无权限变更文件权限级别");
+    public void changeVisibility(String userId, FileVisibility newLevel, String reason) {
+        if (!canChangeVisibility(userId, newLevel)) {
+            throw new SecurityException("无权限变更文件可见性级别");
         }
 
-        this.accessLevel = newLevel;
+        this.fileVisibility = newLevel;
         this.accessChangeOperator = userId;
         this.accessChangeReason = reason;
         this.accessChangeTime = LocalDateTime.now();
         setUpdateTime(LocalDateTime.now());
     }
 
-    
+
     /**
-     * 获取权限级别描述
+     * 获取可见性级别描述
      *
-     * @return 权限级别描述
+     * @return 可见性级别描述
      */
-    public String getAccessLevelDescription() {
-        if (accessLevel == null) {
+    public String getVisibilityDescription() {
+        if (fileVisibility == null) {
             return "未知";
         }
-        return accessLevel.getDescription();
+        return fileVisibility.getDescription();
     }
 
     /**
-     * 验证权限级别变更的合理性
+     * 验证可见性级别变更的合理性
      *
-     * @param newLevel 新的权限级别
+     * @param newLevel 新的可见性级别
      * @return 是否合理
      */
-    private boolean validateAccessLevelChange(AccessLevel newLevel) {
-        // 权限变更的基本验证
+    private boolean validateVisibilityChange(FileVisibility newLevel) {
+        // 可见性变更的基本验证
         return true;
     }
 
@@ -225,5 +224,58 @@ public class FileMetadata extends BaseEntity {
         }
 
     }
+
+    /**
+     * 变更权限级别
+     *
+     * @param userId   操作用户ID
+     * @param newLevel 新的权限级别
+     * @param reason   变更原因
+     */
+    public void changeAccessLevel(String userId, FileVisibility newLevel, String reason) {
+        if (!canChangeAccessLevel(userId, newLevel)) {
+            throw new SecurityException("无权限变更文件权限级别");
+        }
+
+        this.fileVisibility = newLevel;
+        this.accessChangeOperator = userId;
+        this.accessChangeReason = reason;
+        this.accessChangeTime = LocalDateTime.now();
+        setUpdateTime(LocalDateTime.now());
+    }
+
+    /**
+     * 检查是否可以变更权限级别
+     *
+     * @param userId   操作用户ID
+     * @param newLevel 新的权限级别
+     * @return 是否可以变更
+     */
+    public boolean canChangeAccessLevel(String userId, FileVisibility newLevel) {
+        // 只有所有者可以变更权限
+        if (ownerId == null || !ownerId.equals(userId)) {
+            return false;
+        }
+
+        // 权限不能变更为相同级别
+        if (newLevel == this.fileVisibility) {
+            return false;
+        }
+
+        // 检查权限变更的合理性
+        return validateAccessLevelChange(newLevel);
+    }
+
+    /**
+     * 验证权限级别变更的合理性
+     *
+     * @param newLevel 新的权限级别
+     * @return 是否合理
+     */
+    private boolean validateAccessLevelChange(FileVisibility newLevel) {
+        // 权限变更的基本验证
+        return true;
+    }
+
 
 }
