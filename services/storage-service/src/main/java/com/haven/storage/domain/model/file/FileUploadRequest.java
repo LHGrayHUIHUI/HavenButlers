@@ -12,7 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
  * 文件上传请求
  *
  * 简化的文件上传请求类，只包含必要的请求参数
- * 验证逻辑由StorageServiceValidator处理
+ * 验证逻辑由UnifiedFileValidator处理
  *
  * @author HavenButler
  */

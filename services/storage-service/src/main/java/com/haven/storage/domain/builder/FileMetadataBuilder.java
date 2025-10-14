@@ -8,6 +8,7 @@ import com.haven.storage.domain.model.file.FileUploadRequest;
 import com.haven.storage.domain.model.file.FileUploadResult;
 import com.haven.storage.domain.model.file.FileVisibility;
 import com.haven.storage.security.UserContext;
+import com.haven.storage.utils.FileTypeDetector;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -24,6 +25,12 @@ import java.time.LocalDateTime;
 @Slf4j
 @Component
 public class FileMetadataBuilder {
+
+    private final FileTypeDetector fileTypeDetector;
+
+    public FileMetadataBuilder(FileTypeDetector fileTypeDetector) {
+        this.fileTypeDetector = fileTypeDetector;
+    }
 
     /**
      * 从上传请求构建文件元数据
@@ -106,9 +113,20 @@ public class FileMetadataBuilder {
     private void setFileInfo(FileMetadata metadata, FileUploadRequest request, String traceId) {
         try {
             metadata.setFileSize(request.getFileSize());
-            metadata.setFileType(detectFileType(request.getFileExtension(), request.getContentType()));
-            metadata.setMimeType(request.getContentType());
+
+            // 使用统一的文件类型检测器
+            FileTypeDetector.FileTypeDetectionResult detectionResult =
+                fileTypeDetector.detectFileType(request.getOriginalFileName(), request.getContentType(), traceId);
+
+            // 设置检测到的文件类型信息
+            metadata.setFileType(detectionResult.getCategory());
+            metadata.setMimeType(detectionResult.getDetectedMimeType());
             metadata.setContentType(request.getContentType());
+
+            log.info("文件类型检测完成: fileName={}, originalMimeType={}, detectedMimeType={}, fileType={}, detectionMethod={}, traceId={}",
+                    request.getOriginalFileName(), detectionResult.getOriginalMimeType(),
+                    detectionResult.getDetectedMimeType(), detectionResult.getCategory(),
+                    detectionResult.getDetectionMethod(), traceId);
 
             log.debug("文件信息设置完成: fileSize={}, fileType={}, contentType={}, traceId={}",
                     metadata.getFileSize(), metadata.getFileType(), metadata.getContentType(), traceId);
@@ -210,8 +228,12 @@ public class FileMetadataBuilder {
                     metadata.setStoragePath(uploadedMetadata.getStoragePath());
                 }
 
-                if (uploadedMetadata.getFileId() != null) {
-                    metadata.setFileId(uploadedMetadata.getFileId());
+                // 简化fileId处理：直接使用存储适配器生成的fileId
+                String newFileId = uploadedMetadata.getFileId();
+                if (newFileId != null && !newFileId.equals(metadata.getFileId())) {
+                    metadata.setFileId(newFileId);
+                    log.info("fileId更新: oldFileId={}, newFileId={}, traceId={}",
+                            metadata.getFileId(), newFileId, traceId);
                 }
 
                 log.info("文件元数据上传后更新完成: fileId={}, storagePath={}, traceId={}",
@@ -249,58 +271,7 @@ public class FileMetadataBuilder {
         return cleanName + "_" + timestamp + extension;
     }
 
-    /**
-     * 检测文件类型
-     *
-     * @param extension 文件扩展名
-     * @param mimeType MIME类型
-     * @return 文件类型
-     */
-    private String detectFileType(String extension, String mimeType) {
-        if (mimeType != null) {
-            String lowerMimeType = mimeType.toLowerCase();
-
-            if (lowerMimeType.startsWith("image/")) {
-                return "image";
-            } else if (lowerMimeType.startsWith("video/")) {
-                return "video";
-            } else if (lowerMimeType.startsWith("audio/")) {
-                return "audio";
-            } else if (lowerMimeType.startsWith("text/")) {
-                return "text";
-            } else if (lowerMimeType.equals("application/pdf")) {
-                return "pdf";
-            } else if (lowerMimeType.contains("document") ||
-                       lowerMimeType.contains("office") ||
-                       lowerMimeType.contains("word")) {
-                return "document";
-            }
-        }
-
-        // 根据扩展名检测
-        if (extension != null) {
-            String lowerExt = extension.toLowerCase();
-
-            if (lowerExt.matches("jpg|jpeg|png|gif|bmp|webp|svg")) {
-                return "image";
-            } else if (lowerExt.matches("mp4|avi|mov|wmv|flv|webm")) {
-                return "video";
-            } else if (lowerExt.matches("mp3|wav|flac|aac|ogg")) {
-                return "audio";
-            } else if (lowerExt.matches("txt|md|json|xml|csv")) {
-                return "text";
-            } else if (lowerExt.equals("pdf")) {
-                return "pdf";
-            } else if (lowerExt.matches("doc|docx|xls|xlsx|ppt|pptx")) {
-                return "document";
-            } else if (lowerExt.matches("zip|rar|7z|tar|gz")) {
-                return "archive";
-            }
-        }
-
-        return "unknown";
-    }
-
+    
     /**
      * 创建文件删除元数据
      *

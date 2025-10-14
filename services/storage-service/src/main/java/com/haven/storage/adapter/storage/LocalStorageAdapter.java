@@ -4,8 +4,10 @@ package com.haven.storage.adapter.storage;
 import com.haven.storage.domain.model.file.FileDownloadResult;
 import com.haven.storage.domain.model.file.FileMetadata;
 import com.haven.storage.domain.model.file.FileUploadResult;
+import com.haven.storage.validator.UnifiedFileValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -17,16 +19,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
  * 本地文件存储适配器
- *
+ * <p>
  * 功能特性：
  * - 基于家庭ID的目录隔离
  * - 自动创建目录结构
@@ -54,31 +53,26 @@ public class LocalStorageAdapter implements StorageAdapter {
     @Value("${storage.file.local.allowed-extensions:pdf,doc,docx,txt,jpg,jpeg,png,gif,mp4,avi,mp3,wav,zip,rar}")
     private String allowedExtensions;
 
+    @Autowired
+    private UnifiedFileValidator storageServiceValidator;
+
     private static final String STORAGE_TYPE = "local";
 
+
     @Override
-    public FileUploadResult uploadFile(String familyId, String folderPath,
-                                       MultipartFile file, String uploaderUserId) {
+    public FileUploadResult uploadFile(FileMetadata fileMetadata, MultipartFile file) {
         try {
-            // 参数验证
-            if (!StringUtils.hasText(familyId) || file == null || file.isEmpty()) {
-                return FileUploadResult.failure("参数错误：familyId和file不能为空");
-            }
-
-            // 文件大小验证
-            if (file.getSize() > maxFileSize) {
-                return FileUploadResult.failure("文件大小超过限制：" + (maxFileSize / 1024 / 1024) + "MB");
-            }
-
-            // 文件类型验证
-            String fileName = file.getOriginalFilename();
-            if (!isAllowedFileType(fileName)) {
-                return FileUploadResult.failure("不支持的文件类型：" + getFileExtension(fileName));
+            // 使用统一文件验证器进行统一验证
+            UnifiedFileValidator.ValidationResult validationResult = storageServiceValidator.validateFileUpload(
+                fileMetadata.getFamilyId(), file, maxFileSize);
+            if (!validationResult.valid()) {
+                log.warn("本地存储文件上传验证失败：{}", validationResult.errorMessage());
+                return FileUploadResult.failure(validationResult.errorMessage());
             }
 
             // 构建存储路径
-            String familyDir = buildFamilyDirectory(familyId);
-            String targetDir = buildTargetDirectory(familyDir, folderPath);
+            String familyDir = buildFamilyDirectory(fileMetadata.getFamilyId());
+            String targetDir = buildTargetDirectory(familyDir, fileMetadata.getFolderPath());
 
             // 创建目录
             Path targetPath = Paths.get(targetDir);
@@ -87,36 +81,23 @@ public class LocalStorageAdapter implements StorageAdapter {
                 log.info("创建存储目录：{}", targetPath);
             }
 
-            // 生成唯一文件名
-            String fileId = UUID.randomUUID().toString();
+            // 使用传入的fileId生成文件名
+            String fileName = file.getOriginalFilename();
             String fileExtension = getFileExtension(fileName);
-            String savedFileName = fileId + "." + fileExtension;
+            String savedFileName = fileMetadata.getFileId() + "." + fileExtension;
             Path filePath = targetPath.resolve(savedFileName);
 
             // 保存文件
             Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 
-            // 创建文件元数据
-            FileMetadata metadata = new FileMetadata();
-            metadata.setFileId(fileId);
-            metadata.setOriginalName(fileName);
-            metadata.setFileSize(file.getSize());
-            metadata.setContentType(file.getContentType());
-            metadata.setFamilyId(familyId);
-            metadata.setFolderPath(folderPath);
-            metadata.setStoragePath(filePath.toString());
-            metadata.setStorageType(STORAGE_TYPE);
-            metadata.setUploaderUserId(uploaderUserId);
-            metadata.setUploadTime(LocalDateTime.now());
+            // 创建文件元数据（使用传入的fileId）
+            fileMetadata.setStorageType(STORAGE_TYPE);
+            log.info("本地存储文件上传成功(使用指定fileId)：fileMetadata={}", fileMetadata);
 
-            log.info("文件上传成功：familyId={}, fileId={}, fileName={}, size={}",
-                    familyId, fileId, fileName, file.getSize());
-
-            return FileUploadResult.success(metadata, "tr-" + System.currentTimeMillis());
+            return FileUploadResult.success(fileMetadata, "tr-" + System.currentTimeMillis());
 
         } catch (IOException e) {
-            log.error("文件上传失败：familyId={}, fileName={}, error={}",
-                    familyId, file.getOriginalFilename(), e.getMessage());
+            log.error("本地存储文件上传失败：fileMetadata={}", fileMetadata, e);
             return FileUploadResult.failure("文件上传失败：" + e.getMessage());
         }
     }
@@ -299,22 +280,7 @@ public class LocalStorageAdapter implements StorageAdapter {
         return "";
     }
 
-    /**
-     * 检查文件类型是否允许
-     */
-    private boolean isAllowedFileType(String fileName) {
-        if (!StringUtils.hasText(allowedExtensions)) {
-            return true; // 如果没有配置限制，则允许所有类型
-        }
-
-        String extension = getFileExtension(fileName);
-        if (!StringUtils.hasText(extension)) {
-            return false;
-        }
-
-        List<String> allowed = Arrays.asList(allowedExtensions.split(","));
-        return allowed.stream().anyMatch(ext -> ext.trim().equalsIgnoreCase(extension));
-    }
+    // 注意：文件类型验证已统一使用UnifiedFileValidator，移除重复的isAllowedFileType方法
 
     /**
      * 根据文件名获取Content-Type
@@ -322,17 +288,30 @@ public class LocalStorageAdapter implements StorageAdapter {
     private String getContentType(String fileName) {
         String extension = getFileExtension(fileName);
         switch (extension) {
-            case "pdf": return "application/pdf";
-            case "doc": case "docx": return "application/msword";
-            case "txt": return "text/plain";
-            case "jpg": case "jpeg": return "image/jpeg";
-            case "png": return "image/png";
-            case "gif": return "image/gif";
-            case "mp4": return "video/mp4";
-            case "mp3": return "audio/mpeg";
-            case "zip": return "application/zip";
-            case "rar": return "application/x-rar-compressed";
-            default: return "application/octet-stream";
+            case "pdf":
+                return "application/pdf";
+            case "doc":
+            case "docx":
+                return "application/msword";
+            case "txt":
+                return "text/plain";
+            case "jpg":
+            case "jpeg":
+                return "image/jpeg";
+            case "png":
+                return "image/png";
+            case "gif":
+                return "image/gif";
+            case "mp4":
+                return "video/mp4";
+            case "mp3":
+                return "audio/mpeg";
+            case "zip":
+                return "application/zip";
+            case "rar":
+                return "application/x-rar-compressed";
+            default:
+                return "application/octet-stream";
         }
     }
 }

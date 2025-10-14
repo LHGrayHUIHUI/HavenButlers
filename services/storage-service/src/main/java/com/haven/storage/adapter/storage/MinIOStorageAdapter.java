@@ -4,11 +4,14 @@ package com.haven.storage.adapter.storage;
 import com.haven.storage.domain.model.file.FileDownloadResult;
 import com.haven.storage.domain.model.file.FileMetadata;
 import com.haven.storage.domain.model.file.FileUploadResult;
+import com.haven.storage.utils.FileTypeDetector;
+import com.haven.storage.validator.UnifiedFileValidator;
 import io.minio.*;
 import io.minio.http.Method;
 import io.minio.messages.Item;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -17,16 +20,14 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 /**
  * MinIO对象存储适配器
- *
+ * <p>
  * 功能特性：
  * - 基于桶的家庭数据隔离
  * - 自动创建存储桶
@@ -47,6 +48,10 @@ import java.util.stream.StreamSupport;
 public class MinIOStorageAdapter implements StorageAdapter {
 
     private final MinioClient minioClient;
+    private final FileTypeDetector fileTypeDetector;
+
+    @Autowired
+    private UnifiedFileValidator storageServiceValidator;
 
     @Value("${storage.file.minio.bucket-prefix:family}")
     private String bucketPrefix;
@@ -57,35 +62,25 @@ public class MinIOStorageAdapter implements StorageAdapter {
     @Value("${storage.file.local.max-file-size:104857600}") // 100MB
     private long maxFileSize;
 
-    @Value("${storage.file.local.allowed-extensions:pdf,doc,docx,txt,jpg,jpeg,png,gif,mp4,avi,mp3,wav,zip,rar}")
-    private String allowedExtensions;
 
     private static final String STORAGE_TYPE = "minio";
 
+
     @Override
-    public FileUploadResult uploadFile(String familyId, String folderPath,
-                                       MultipartFile file, String uploaderUserId) {
+    public FileUploadResult uploadFile(FileMetadata fileMetadata, MultipartFile file) {
         try {
-            // 参数验证
-            if (!StringUtils.hasText(familyId) || file == null || file.isEmpty()) {
-                return FileUploadResult.failure("参数错误：familyId和file不能为空");
+            // 使用统一文件验证器进行统一验证
+            UnifiedFileValidator.ValidationResult validationResult = storageServiceValidator.validateFileUpload(
+                fileMetadata.getFamilyId(), file, maxFileSize);
+            if (!validationResult.valid()) {
+                log.warn("MinIO文件上传验证失败：{}", validationResult.errorMessage());
+                return FileUploadResult.failure(validationResult.errorMessage());
             }
 
-            // 文件大小验证
-            if (file.getSize() > maxFileSize) {
-                return FileUploadResult.failure("文件大小超过限制：" + (maxFileSize / 1024 / 1024) + "MB");
-            }
-
-            // 文件类型验证
+            // 构建桶名和对象名（使用传入的fileId）
+            String bucketName = buildBucketName(fileMetadata.getFamilyId());
             String fileName = file.getOriginalFilename();
-            if (!isAllowedFileType(fileName)) {
-                return FileUploadResult.failure("不支持的文件类型：" + getFileExtension(fileName));
-            }
-
-            // 构建桶名和对象名
-            String bucketName = buildBucketName(familyId);
-            String fileId = UUID.randomUUID().toString();
-            String objectName = buildObjectName(folderPath, fileId, fileName);
+            String objectName = buildObjectName(fileMetadata.getFolderPath(), fileMetadata.getFileId(), fileName);
 
             // 确保桶存在
             ensureBucketExists(bucketName);
@@ -105,31 +100,20 @@ public class MinIOStorageAdapter implements StorageAdapter {
                     SetObjectTagsArgs.builder()
                             .bucket(bucketName)
                             .object(objectName)
-                            .tags(buildObjectTags(familyId, uploaderUserId))
+                            .tags(buildObjectTags(fileMetadata.getFamilyId(), fileMetadata.getUploaderUserId()))
                             .build()
             );
 
-            // 创建文件元数据
-            FileMetadata metadata = new FileMetadata();
-            metadata.setFileId(fileId);
-            metadata.setOriginalName(fileName);
-            metadata.setFileSize(file.getSize());
-            metadata.setContentType(file.getContentType());
-            metadata.setFamilyId(familyId);
-            metadata.setFolderPath(folderPath);
-            metadata.setStoragePath(bucketName + "/" + objectName);
-            metadata.setStorageType(STORAGE_TYPE);
-            metadata.setUploaderUserId(uploaderUserId);
-            metadata.setUploadTime(LocalDateTime.now());
+            // 创建文件元数据（使用传入的fileId）
+            fileMetadata.setStoragePath(bucketName + "/" + objectName);
+            fileMetadata.setStorageType(STORAGE_TYPE);
+            fileMetadata.setUploadTime(LocalDateTime.now());
 
-            log.info("MinIO文件上传成功：familyId={}, fileId={}, bucket={}, object={}, size={}",
-                    familyId, fileId, bucketName, objectName, file.getSize());
-
-            return FileUploadResult.success(metadata, "tr-" + System.currentTimeMillis());
+            log.info("MinIO文件上传成功(使用指定fileId)：fileMetadata={}", fileMetadata);
+            return FileUploadResult.success(fileMetadata, "tr-" + System.currentTimeMillis());
 
         } catch (Exception e) {
-            log.error("MinIO文件上传失败：familyId={}, fileName={}, error={}",
-                    familyId, file.getOriginalFilename(), e.getMessage());
+            log.error("MinIO文件上传失败：fileMetadata={}", fileMetadata, e);
             return FileUploadResult.failure("文件上传失败：" + e.getMessage());
         }
     }
@@ -422,40 +406,14 @@ public class MinIOStorageAdapter implements StorageAdapter {
         return "";
     }
 
-    /**
-     * 检查文件类型是否允许
-     */
-    private boolean isAllowedFileType(String fileName) {
-        if (!StringUtils.hasText(allowedExtensions)) {
-            return true;
-        }
-
-        String extension = getFileExtension(fileName);
-        if (!StringUtils.hasText(extension)) {
-            return false;
-        }
-
-        List<String> allowed = Arrays.asList(allowedExtensions.split(","));
-        return allowed.stream().anyMatch(ext -> ext.trim().equalsIgnoreCase(extension));
-    }
+    // 注意：文件类型验证已统一使用UnifiedFileValidator，移除重复的isAllowedFileType方法
 
     /**
      * 根据文件名获取Content-Type
+     * <p>
+     * 使用统一的文件类型检测器获取准确的MIME类型
      */
     private String getContentType(String fileName) {
-        String extension = getFileExtension(fileName);
-        switch (extension) {
-            case "pdf": return "application/pdf";
-            case "doc": case "docx": return "application/msword";
-            case "txt": return "text/plain";
-            case "jpg": case "jpeg": return "image/jpeg";
-            case "png": return "image/png";
-            case "gif": return "image/gif";
-            case "mp4": return "video/mp4";
-            case "mp3": return "audio/mpeg";
-            case "zip": return "application/zip";
-            case "rar": return "application/x-rar-compressed";
-            default: return "application/octet-stream";
-        }
+        return fileTypeDetector.getMimeTypeByExtension(fileName);
     }
 }

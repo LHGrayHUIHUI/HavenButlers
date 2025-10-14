@@ -4,6 +4,7 @@ import com.haven.base.annotation.TraceLog;
 import com.haven.base.utils.TraceIdUtil;
 import com.haven.storage.adapter.storage.StorageAdapter;
 import com.haven.storage.domain.model.file.*;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,7 @@ import java.util.stream.Collectors;
  * @author HavenButler
  */
 @Slf4j
+@RequiredArgsConstructor
 @Service
 public class FamilyFileStorageService {
 
@@ -50,34 +52,23 @@ public class FamilyFileStorageService {
     // 存储统计缓存
     private final Map<String, FamilyStorageStats> storageStatsCache = new ConcurrentHashMap<>();
 
-    /**
-     * 构造函数 - Spring会根据配置自动注入合适的StorageAdapter实现
-     */
-    public FamilyFileStorageService(StorageAdapter storageAdapter) {
-        this.storageAdapter = storageAdapter;
 
-        log.info("存储适配器初始化完成：{} ({})",
-                storageAdapter.getStorageType(),
-                storageAdapter.getClass().getSimpleName());
-
-        // 执行健康检查
-        if (!storageAdapter.isHealthy()) {
-            log.error("存储适配器健康检查失败：{}", storageAdapter.getStorageType());
-        }
-    }
-
-    
     /**
      * 上传文件到家庭存储
      */
-    @TraceLog(value = "上传家庭文件", module = "file-storage", type = "UPLOAD")
-    public FileUploadResult uploadFile(String familyId, String folderPath, MultipartFile file,
-                                       String uploaderUserId) {
+    @TraceLog(value = "上传家庭文件(FileMetadata)", module = "file-storage", type = "UPLOAD_METADATA")
+    public FileUploadResult uploadFile(FileMetadata fileMetadata, MultipartFile file) {
         String traceId = TraceIdUtil.getCurrentOrGenerate();
 
         try {
-            // 使用存储适配器上传文件
-            FileUploadResult result = storageAdapter.uploadFile(familyId, folderPath, file, uploaderUserId);
+            // 从FileMetadata中提取参数，避免重复构造
+            String familyId = fileMetadata.getFamilyId();
+            String folderPath = fileMetadata.getFolderPath();
+            String uploaderUserId = fileMetadata.getUploaderUserId();
+            String fileId = fileMetadata.getFileId();
+
+            // 使用存储适配器上传文件（传入fileId）
+            FileUploadResult result = storageAdapter.uploadFile(fileMetadata, file);
 
             if (result.isSuccess()) {
                 // 缓存文件元数据
@@ -86,16 +77,17 @@ public class FamilyFileStorageService {
                 // 更新存储统计
                 updateStorageStats(familyId, file.getSize(), 1);
 
-                log.info("文件上传成功: family={}, file={}, size={}bytes, storageType={}, TraceID={}",
-                        familyId, file.getOriginalFilename(), file.getSize(),
+                log.info("文件上传成功(FileMetadata): family={}, file={}, fileId={}, size={}bytes, storageType={}, TraceID={}",
+                        familyId, file.getOriginalFilename(), fileId, file.getSize(),
                         storageAdapter.getStorageType(), traceId);
             }
 
             return result;
 
         } catch (Exception e) {
-            log.error("文件上传失败: family={}, file={}, storageType={}, error={}, TraceID={}",
-                    familyId, file.getOriginalFilename(), storageAdapter.getStorageType(), e.getMessage(), traceId);
+            log.error("文件上传失败(FileMetadata): family={}, file={}, fileId={}, storageType={}, error={}, TraceID={}",
+                    fileMetadata.getFamilyId(), fileMetadata.getOriginalFileName(), fileMetadata.getFileId(),
+                    storageAdapter.getStorageType(), e.getMessage(), traceId);
             return FileUploadResult.failure("文件上传失败：" + e.getMessage());
         }
     }

@@ -4,6 +4,7 @@ import com.haven.base.annotation.TraceLog;
 import com.haven.base.utils.TraceIdUtil;
 import com.haven.storage.domain.model.file.FileVisibility;
 import com.haven.storage.domain.model.file.FileMetadata;
+import com.haven.storage.utils.FileUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -44,8 +45,10 @@ public class FileMetadataService {
         String traceId = TraceIdUtil.getCurrentOrGenerate();
 
         try {
+            // 有ID就用，没有就生成
             if (fileMetadata.getFileId() == null || fileMetadata.getFileId().trim().isEmpty()) {
-                fileMetadata.setFileId(generateFileId());
+                fileMetadata.setFileId(FileUtils.generateFileId());
+                log.debug("生成新的fileId: fileId={}, traceId={}", fileMetadata.getFileId(), traceId);
             }
 
             // 设置默认值
@@ -140,6 +143,7 @@ public class FileMetadataService {
         }
     }
 
+    
     /**
      * 删除文件元数据（软删除）
      *

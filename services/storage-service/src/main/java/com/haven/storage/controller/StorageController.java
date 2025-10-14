@@ -14,7 +14,7 @@ import com.haven.storage.domain.builder.FileMetadataBuilder;
 import com.haven.storage.async.AsyncProcessingTrigger;
 import com.haven.storage.service.PersonalKnowledgeBaseService;
 import com.haven.storage.service.VectorTagService;
-import com.haven.storage.validator.StorageServiceValidator;
+import com.haven.storage.validator.UnifiedFileValidator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -57,7 +57,7 @@ public class StorageController {
     private final PersonalKnowledgeBaseService knowledgeBaseService;
     private final VectorTagService vectorTagService;
     private final FileMetadataService fileMetadataService;
-    private final StorageServiceValidator validator;
+    private final UnifiedFileValidator validator;
     private final FileMetadataBuilder metadataBuilder;
     private final AsyncProcessingTrigger asyncProcessingTrigger;
 
@@ -80,11 +80,11 @@ public class StorageController {
             // 2. 构建文件元数据（使用专门地构建器）
             FileMetadata fileMetadata = metadataBuilder.buildFromRequest(request, fileStorageService.getCurrentStorageType());
 
-            // 3. 保存文件元数据到数据库
+            // 3. 保存文件元数据到数据库（生成文件的fileid）
             fileMetadata = fileMetadataService.saveFileMetadata(fileMetadata);
 
-            // 4. 调用存储服务上传文件
-            FileUploadResult uploadResult = fileStorageService.uploadFile(request.getFamilyId(), request.getFolderPath(), request.getFile(), request.getUploaderUserId());
+            // 4. 调用存储服务上传文件（使用优化的FileMetadata方法）
+            FileUploadResult uploadResult = fileStorageService.uploadFile(fileMetadata, request.getFile());
 
             if (!uploadResult.isSuccess()) {
                 // 上传失败，删除已保存的元数据
