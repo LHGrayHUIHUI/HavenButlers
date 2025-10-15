@@ -78,8 +78,8 @@ public class UserContext {
      * 检查当前用户是否已认证
      */
     public static boolean isAuthenticated() {
-        return getCurrentUserInfo().isPresent() &&
-                StringUtils.hasText(getCurrentUserInfo().get().userId());
+        return getCurrentUserInfo().isEmpty() ||
+                !StringUtils.hasText(getCurrentUserInfo().get().userId());
     }
 
     /**
@@ -158,28 +158,4 @@ public class UserContext {
         }
     }
 
-    // ------------------ 内部数据封装类 ------------------
-
-    /**
-         * 用户信息封装类
-         */
-        // 使用 Lombok 生成构造函数
-        public record UserInfo(String userId, String familyId, String userName) {
-            /**
-             * 构建用户信息摘要（用于日志）
-             */
-            public String toSummaryString() {
-                StringBuilder summary = new StringBuilder();
-                summary.append("userId=").append(userId);
-
-                if (StringUtils.hasText(familyId)) {
-                    summary.append(", familyId=").append(familyId);
-                }
-
-                if (StringUtils.hasText(userName)) {
-                    summary.append(", userName=").append(userName);
-                }
-                return summary.toString();
-            }
-        }
-}
+  }

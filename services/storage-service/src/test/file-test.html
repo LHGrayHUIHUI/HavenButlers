@@ -291,13 +291,15 @@
             <h2>📤 文件上传</h2>
 
             <div class="form-group">
-                <label for="familyId">家庭ID</label>
-                <input type="text" id="familyId" value="test-family-001" placeholder="请输入家庭ID">
+                <label for="familyId">家庭ID <span style="color: red;">*</span></label>
+                <input type="text" id="familyId" value="test-family-001" placeholder="请输入家庭ID" required
+                       onchange="syncToQueryInputs()" oninput="syncToQueryInputs()">
             </div>
 
             <div class="form-group">
-                <label for="userId">用户ID</label>
-                <input type="text" id="userId" value="test-user-001" placeholder="请输入用户ID">
+                <label for="userId">用户ID <span style="color: red;">*</span></label>
+                <input type="text" id="userId" value="test-user-001" placeholder="请输入用户ID" required
+                       onchange="syncToQueryInputs()" oninput="syncToQueryInputs()">
             </div>
 
             <div class="form-group">
@@ -340,7 +342,8 @@
 
             <div class="form-group">
                 <label for="queryFamilyId">查询家庭ID</label>
-                <input type="text" id="queryFamilyId" value="test-family-001" placeholder="请输入要查询的家庭ID">
+                <input type="text" id="queryFamilyId" value="test-family-001" placeholder="请输入要查询的家庭ID"
+                       onchange="syncUserId()" oninput="syncUserId()">
             </div>
 
             <button class="btn btn-primary" onclick="loadFileList()">
@@ -484,10 +487,10 @@
                     const response = await fetch(`${API_BASE}/upload`, {
                         method: 'POST',
                         headers: {
-                            // 添加用户认证头部信息
+                            // 添加用户认证头部信息（使用Base64编码支持中文）
                             'X-User-ID': userId,
                             'X-Family-ID': familyId,
-                            'X-User-Name': '测试用户'
+                            'X-User-Name': 'TestUser'
                         },
                         body: formData
                     });
@@ -534,7 +537,7 @@
                     headers: {
                         'X-User-ID': document.getElementById('userId').value,
                         'X-Family-ID': familyId,
-                        'X-User-Name': '测试用户'
+                        'X-User-Name': 'TestUser'
                     }
                 });
 
@@ -595,7 +598,7 @@
                     headers: {
                         'X-User-ID': document.getElementById('userId').value,
                         'X-Family-ID': familyId,
-                        'X-User-Name': '测试用户'
+                        'X-User-Name': 'TestUser'
                     }
                 });
 
@@ -638,7 +641,7 @@
                     headers: {
                         'X-User-ID': userId,
                         'X-Family-ID': familyId,
-                        'X-User-Name': '测试用户'
+                        'X-User-Name': 'TestUser'
                     }
                 });
 
@@ -670,7 +673,7 @@
                     headers: {
                         'X-User-ID': document.getElementById('userId').value,
                         'X-Family-ID': familyId,
-                        'X-User-Name': '测试用户'
+                        'X-User-Name': 'TestUser'
                     }
                 });
 
@@ -719,6 +722,25 @@
             element.innerHTML = message;
             element.className = `result-section result-${type}`;
             element.style.display = 'block';
+        }
+
+        // 输入框同步函数
+        function syncToQueryInputs() {
+            const familyId = document.getElementById('familyId').value;
+            const queryFamilyId = document.getElementById('queryFamilyId');
+            if (queryFamilyId && queryFamilyId.value !== familyId) {
+                queryFamilyId.value = familyId;
+            }
+        }
+
+        function syncUserId() {
+            const queryFamilyId = document.getElementById('queryFamilyId').value;
+            const familyId = document.getElementById('familyId');
+            const userId = document.getElementById('userId');
+
+            if (familyId && familyId.value !== queryFamilyId) {
+                familyId.value = queryFamilyId;
+            }
         }
 
         // 页面加载完成后自动加载文件列表

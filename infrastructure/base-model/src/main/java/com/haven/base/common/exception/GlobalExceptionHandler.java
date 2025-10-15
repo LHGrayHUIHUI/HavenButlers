@@ -2,6 +2,7 @@ package com.haven.base.common.exception;
 
 import com.haven.base.common.response.ErrorCode;
 import com.haven.base.common.response.ResponseWrapper;
+import com.haven.base.utils.FileSizeUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.BindException;
@@ -159,13 +160,24 @@ public class GlobalExceptionHandler {
 
     /**
      * 处理文件上传大小超限异常
+     * <p>
+     * 使用FileSizeUtil工具类格式化文件大小显示，提供更友好的错误消息
+     * FileSizeUtil现在已经内置了对异常大小值（maxSize <= 0）的处理逻辑
+     *
+     * @param e 文件上传大小超限异常
+     * @return 错误响应，包含格式化的文件大小限制信息
      */
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ResponseWrapper<?> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException e) {
-        String message = String.format("文件大小超出限制: %d bytes", e.getMaxUploadSize());
-        log.warn("文件上传大小超限: {}", e.getMaxUploadSize());
-        return ResponseWrapper.error(ErrorCode.FILE_SIZE_EXCEED.getCode(), message);
+        long maxSize = e.getMaxUploadSize();
+        // 使用FileSizeUtil工具类格式化文件大小显示
+        // 现在FileSizeUtil.formatFileSize已经内置了对maxSize <= 0的处理逻辑
+        String sizeStr = FileSizeUtil.formatFileSize(maxSize);
+        // 记录日志，包含原始大小值和格式化后的结果
+        log.warn("文件上传大小超限: {} bytes ({})", maxSize, sizeStr);
+
+        return ResponseWrapper.error(ErrorCode.FILE_SIZE_EXCEED.getCode(), String.format("文件大小超出限制，最大允许: %s", sizeStr));
     }
 
     /**

@@ -8,12 +8,12 @@ import com.haven.base.common.response.ErrorCode;
 import com.haven.base.utils.TraceIdUtil;
 import com.haven.storage.domain.model.file.FileVisibility;
 import com.haven.storage.domain.model.file.FileUploadRequest;
+import com.haven.storage.security.UserInfo;
 import com.haven.storage.security.UserContext;
 import com.haven.storage.utils.FileTypeDetector;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -45,33 +45,73 @@ public class UnifiedFileValidator {
     private static final long MAX_FILE_SIZE = 100 * 1024 * 1024L;
 
     /**
-     * 验证用户认证状态
+     * 统一验证用户身份和权限
+     * 整合用户认证、身份一致性验证、家庭ID验证，提高验证效率和代码可维护性
+     *
+     * @param uploaderUserId 请求中的上传者用户ID
+     * @param familyId 请求中的家庭ID（可选）
+     * @param traceId 链路追踪ID
+     * @return 已验证的用户信息
+     * @throws AuthException 当认证失败或身份不一致时抛出
+     * @throws ValidationException 当参数格式不正确时抛出
+     */
+    public UserInfo validateUserIdentityAndPermissions(String uploaderUserId, String familyId, String traceId) {
+        try {
+            // 1. 验证用户认证状态和获取当前用户信息
+            if (UserContext.isAuthenticated()) {
+                throw new AuthException(ErrorCode.ACCOUNT_NOT_FOUND, "用户未认证，请重新登录");
+            }
+
+            String currentUserId = UserContext.getCurrentUserId();
+            if (currentUserId == null || currentUserId.trim().isEmpty()) {
+                throw new AuthException(ErrorCode.ACCOUNT_NOT_FOUND, "无法获取用户身份信息");
+            }
+
+            // 2. 验证请求中的上传者用户ID与当前认证用户是否一致
+            if (uploaderUserId == null || !uploaderUserId.trim().equals(currentUserId.trim())) {
+                log.warn("用户身份不一致 - 当前用户: {}, 请求上传者: {}, traceId={}",
+                        currentUserId, uploaderUserId, traceId);
+                throw new AuthException(ErrorCode.ACCOUNT_NOT_FOUND,
+                    "用户身份验证失败：请求中的上传者与当前认证用户不一致");
+            }
+
+            // 3. 验证家庭ID格式（如果提供）
+            if (familyId != null && !familyId.trim().isEmpty()) {
+                if (familyId.length() < 3 || familyId.length() > 50) {
+                    throw new ValidationException("家庭ID格式不正确", "30003");
+                }
+            }
+
+            return UserContext.getCurrentUserInfo().orElse(null);
+
+        } catch (AuthException | ValidationException e) {
+            throw e; // 重新抛出已知异常
+        } catch (Exception e) {
+            log.error("用户身份和权限验证失败: traceId={}, error={}", traceId, e.getMessage(), e);
+            throw new SystemException(ErrorCode.SERVICE_UNAVAILABLE, e);
+        }
+    }
+
+    /**
+     * 验证用户认证状态（保留供其他场景使用）
      *
      * @throws AuthException 当用户未认证时抛出
      */
     public void validateUserAuthentication() {
         String traceId = TraceIdUtil.getCurrentOrGenerate();
 
-        try {
-            if (!UserContext.isAuthenticated()) {
-                log.warn("用户未认证，拒绝访问: traceId={}", traceId);
-                throw new AuthException(ErrorCode.ACCOUNT_NOT_FOUND, "用户未认证，请重新登录");
-            }
-
-            String currentUserId = UserContext.getCurrentUserId();
-            if (currentUserId == null || currentUserId.trim().isEmpty()) {
-                log.warn("无法获取用户身份信息: traceId={}", traceId);
-                throw new AuthException(ErrorCode.ACCOUNT_NOT_FOUND, "无法获取用户身份信息");
-            }
-
-            log.debug("用户认证验证通过: userId={}, traceId={}", currentUserId, traceId);
-
-        } catch (AuthException e) {
-            throw e; // 重新抛出认证异常
-        } catch (Exception e) {
-            log.error("用户认证验证失败: traceId={}, error={}", traceId, e.getMessage(), e);
-            throw new SystemException(ErrorCode.SERVICE_UNAVAILABLE, e);
+        if (UserContext.isAuthenticated()) {
+            log.warn("用户未认证，拒绝访问: traceId={}", traceId);
+            throw new AuthException(ErrorCode.ACCOUNT_NOT_FOUND, "用户未认证，请重新登录");
         }
+
+        String currentUserId = UserContext.getCurrentUserId();
+        if (currentUserId == null || currentUserId.trim().isEmpty()) {
+            log.warn("无法获取用户身份信息: traceId={}", traceId);
+            throw new AuthException(ErrorCode.ACCOUNT_NOT_FOUND, "无法获取用户身份信息");
+        }
+
+        log.debug("用户认证验证通过: userId={}, traceId={}", currentUserId, traceId);
     }
 
     /**
@@ -84,26 +124,21 @@ public class UnifiedFileValidator {
         String traceId = TraceIdUtil.getCurrentOrGenerate();
 
         try {
-            // 1. 验证用户认证状态
-            validateUserAuthentication();
+            // 1. 统一验证用户身份和权限（整合了原来的3个验证方法）
+            UserInfo userInfo = validateUserIdentityAndPermissions(
+                request.getUploaderUserId(), request.getFamilyId(), traceId);
 
-            // 2. 验证用户ID是否为空
-            validateUserId(request.getUploaderUserId(), traceId);
+            // 2. 验证文件分组（没有的话默认为用户ID私有）
+            validateFileVisibility(request.getVisibility(), userInfo.userId(), traceId);
 
-            // 3. 验证家庭ID（可以为空）
-            validateFamilyIdOptional(request.getFamilyId(), traceId);
-
-            // 4. 验证文件分组（没有的话默认为用户ID私有）
-            validateFileVisibility(request.getVisibility(), request.getUploaderUserId(), traceId);
-
-            // 验证文件夹路径（可选）
+            // 3. 验证文件夹路径（可选）
             validateFolderPath(request.getFolderPath(), traceId);
 
-            // 5. 文件相关验证（大小、类型等）
+            // 4. 文件相关验证（大小、类型等）
             validateUploadedFile(request.getFile(), traceId);
 
             log.info("文件上传请求验证通过: family={}, userId={}, file={}, visibility={}, traceId={}",
-                    request.getFamilyId(), request.getUploaderUserId(),
+                    userInfo.familyId(), userInfo.userId(),
                     request.getOriginalFileName(), request.getVisibility(), traceId);
 
         } catch (ValidationException | AuthException e) {
@@ -114,36 +149,8 @@ public class UnifiedFileValidator {
         }
     }
 
-    /**
-     * 验证用户ID
-     */
-    private void validateUserId(String userId, String traceId) {
-        if (userId == null || userId.trim().isEmpty()) {
-            log.warn("用户ID不能为空: traceId={}", traceId);
-            throw new ValidationException("用户ID不能为空", "30001");
-        }
-
-        // 验证用户ID格式（简单验证）
-        if (userId.length() < 3 || userId.length() > 50) {
-            log.warn("用户ID格式不正确: userId={}, traceId={}", userId, traceId);
-            throw new ValidationException("用户ID格式不正确", "30002");
-        }
-    }
-
-    /**
-     * 验证家庭ID（可以为空）
-     */
-    private void validateFamilyIdOptional(String familyId, String traceId) {
-        if (familyId != null && !familyId.trim().isEmpty()) {
-            // 如果提供了家庭ID，则验证格式
-            if (familyId.length() < 3 || familyId.length() > 50) {
-                log.warn("家庭ID格式不正确: familyId={}, traceId={}", familyId, traceId);
-                throw new ValidationException("家庭ID格式不正确", "30003");
-            }
-        }
-        // 如果为空，则允许通过（用户私有文件）
-    }
-
+    
+    
     /**
      * 验证上传的文件
      *
@@ -287,8 +294,13 @@ public class UnifiedFileValidator {
             // 1. 验证用户认证
             validateUserAuthentication();
 
-            // 2. 验证家庭ID（可以为空）
-            validateFamilyIdOptional(familyId, traceId);
+            // 2. 验证家庭ID格式（如果提供）
+            if (familyId != null && !familyId.trim().isEmpty()) {
+                if (familyId.length() < 3 || familyId.length() > 50) {
+                    log.warn("家庭ID格式不正确: familyId={}, traceId={}", familyId, traceId);
+                    throw new ValidationException("家庭ID格式不正确", "30003");
+                }
+            }
 
             // 3. 验证文件ID
             if (fileId == null || fileId.trim().isEmpty()) {
@@ -401,4 +413,5 @@ public class UnifiedFileValidator {
                         "ValidationResult{valid=false, errorMessage='" + errorMessage + "'}";
             }
         }
-}
+
+  }
