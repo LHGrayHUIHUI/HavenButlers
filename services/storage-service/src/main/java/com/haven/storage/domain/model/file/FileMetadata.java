@@ -1,66 +1,137 @@
 package com.haven.storage.domain.model.file;
 
 import com.haven.base.model.entity.BaseEntity;
-import com.haven.storage.utils.FileUtils;
-import jakarta.persistence.Entity;
+import jakarta.persistence.*;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
-
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 
 /**
  * 文件元数据实体
- * 继承BaseEntity获得通用字段和方法
  */
 @Data
-@EqualsAndHashCode(callSuper = true)
+@Entity
+@Table(name = "file_metadata", indexes = {
+    @Index(name = "idx_family_id", columnList = "family_id"),
+    @Index(name = "idx_owner_id", columnList = "owner_id"),
+    @Index(name = "idx_file_type", columnList = "file_type"),
+    @Index(name = "idx_upload_time", columnList = "upload_time"),
+    @Index(name = "idx_family_owner", columnList = "family_id, owner_id"),
+    @Index(name = "idx_family_type", columnList = "family_id, file_type")
+})
 public class FileMetadata extends BaseEntity {
+
+    @Id
+    @Column(name = "file_id", length = 64, nullable = false)
     private String fileId;
+
+    // 基础字段
+    @Column(name = "id")
+    private Long id;
+
+    @Column(name = "create_time")
+    private LocalDateTime createTime;
+
+    @Column(name = "update_time")
+    private LocalDateTime updateTime;
+
+    @Column(name = "deleted")
+    private Integer deleted;
+
+    @Column(name = "status")
+    private Integer status;
+
+    @Column(name = "family_id", length = 50, nullable = false)
     private String familyId;
+
+    @Column(name = "file_name", length = 255)
     private String fileName;
-    private String originalName;        // 原始文件名
+
+    @Column(name = "original_name", length = 255)        // 原始文件名
+    private String originalName;
+
+    @Column(name = "relative_path", length = 500)
     private String relativePath;
+
+    @Column(name = "folder_path", length = 255)
     private String folderPath;
+
+    @Column(name = "file_size", nullable = false)
     private long fileSize;
+
+    @Column(name = "file_type", length = 100)
     private String fileType;
+
+    @Column(name = "mime_type", length = 200)
     private String mimeType;
-    private String contentType;         // 内容类型
+
+    @Column(name = "content_type", length = 200)         // 内容类型
+    private String contentType;
+
+    @Column(name = "uploaded_by", length = 50)
     private String uploadedBy;
-    private String uploaderUserId;      // 上传用户ID
+
+    @Column(name = "uploader_user_id", length = 50)      // 上传用户ID
+    private String uploaderUserId;
+
+    @Column(name = "last_access_time")
     private LocalDateTime lastAccessTime;
-    private LocalDateTime uploadTime;    // 上传时间
+
+    @Column(name = "upload_time")    // 上传时间
+    private LocalDateTime uploadTime;
+
+    @Column(name = "access_count")
     private int accessCount;
+
+    @ElementCollection
+    @CollectionTable(name = "file_tags", joinColumns = @JoinColumn(name = "file_id"))
+    @Column(name = "tag", length = 100)
     private List<String> tags;
-    private String description;//可见行的描述的
+
+    @Column(name = "description", length = 1000)    // 可见性的描述
+    private String description;
 
     // 存储相关字段
-    private String storagePath;         // 存储路径
-    private String storageType;         // 存储类型
+    @Column(name = "storage_path", length = 500)         // 存储路径
+    private String storagePath;
+
+    @Column(name = "storage_type", length = 50)         // 存储类型
+    private String storageType;
 
     // 文件预览信息（可选）
+    @Column(name = "thumbnail_path", length = 500)
     private String thumbnailPath;
+
+    @Column(name = "has_preview")
     private boolean hasPreview;
 
     // 权限相关字段
-    private String ownerId;               // 文件所有者ID
+    @Column(name = "owner_id", length = 50)               // 文件所有者ID
+    private String ownerId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "file_visibility", length = 20)
     private FileVisibility fileVisibility = FileVisibility.PRIVATE;     // 文件可见性级别
 
     // 权限变更相关字段
-    private String accessChangeReason;     // 权限变更原因
-    private String accessChangeOperator;   // 权限变更操作者
-    private LocalDateTime accessChangeTime; // 权限变更时间
+    @Column(name = "access_change_reason", length = 500)     // 权限变更原因
+    private String accessChangeReason;
+
+    @Column(name = "access_change_operator", length = 50)   // 权限变更操作者
+    private String accessChangeOperator;
+
+    @Column(name = "access_change_time") // 权限变更时间
+    private LocalDateTime accessChangeTime;
 
     /**
-     * fileid
+     * 获取文件ID
      * @return
      */
     public String getFileId() {
         if (fileId == null) {
-            fileId = FileUtils.generateFileId();
+            fileId = generateFileId();
         }
         return fileId;
     }
@@ -289,6 +360,70 @@ public class FileMetadata extends BaseEntity {
     private boolean validateAccessLevelChange(FileVisibility newLevel) {
         // 权限变更的基本验证
         return true;
+    }
+
+    // 基础字段的 getter/setter 方法
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public LocalDateTime getCreateTime() {
+        return createTime;
+    }
+
+    public void setCreateTime(LocalDateTime createTime) {
+        this.createTime = createTime;
+    }
+
+    public LocalDateTime getUpdateTime() {
+        return updateTime;
+    }
+
+    public void setUpdateTime(LocalDateTime updateTime) {
+        this.updateTime = updateTime;
+    }
+
+    public Integer getDeleted() {
+        return deleted;
+    }
+
+    public void setDeleted(Integer deleted) {
+        this.deleted = deleted;
+    }
+
+    public Integer getStatus() {
+        return status;
+    }
+
+    public void setStatus(Integer status) {
+        this.status = status;
+    }
+
+    // JPA 生命周期回调
+    @PrePersist
+    protected void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        this.createTime = now;
+        this.updateTime = now;
+        this.deleted = 0;  // 默认未删除
+        this.status = 1;   // 默认正常状态
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updateTime = LocalDateTime.now();
+    }
+
+    // 生成文件ID的方法
+    public String generateFileId() {
+        if (fileId == null) {
+            fileId = "file_" + System.currentTimeMillis() + "_" + (int)(Math.random() * 10000);
+        }
+        return fileId;
     }
 
 

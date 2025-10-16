@@ -15,7 +15,7 @@ public class FileUtils {
      */
     public static String generateFileId() {
         return "file_" + System.currentTimeMillis() + "_" +
-               Integer.toHexString((int) (Math.random() * 0xFFFF));
+                Integer.toHexString((int) (Math.random() * 0xFFFF));
     }
 
     /**
@@ -133,7 +133,7 @@ public class FileUtils {
         }
 
         String[] documentExtensions = {"pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
-                                     "txt", "rtf", "odt", "ods", "odp"};
+                "txt", "rtf", "odt", "ods", "odp"};
         for (String docExt : documentExtensions) {
             if (docExt.equalsIgnoreCase(extension)) {
                 return true;
@@ -159,32 +159,6 @@ public class FileUtils {
     }
 
     /**
-     * 根据MIME类型获取文件分类
-     */
-    public static String getCategoryByMimeType(String mimeType) {
-        if (mimeType == null || mimeType.isEmpty()) {
-            return "others";
-        }
-
-        if (mimeType.startsWith("image/")) {
-            return "images";
-        } else if (mimeType.startsWith("video/")) {
-            return "videos";
-        } else if (mimeType.startsWith("audio/")) {
-            return "audio";
-        } else if (mimeType.startsWith("text/") || mimeType.contains("document") ||
-                  mimeType.contains("pdf") || mimeType.contains("spreadsheet") ||
-                  mimeType.contains("presentation")) {
-            return "documents";
-        } else if (mimeType.contains("zip") || mimeType.contains("rar") ||
-                  mimeType.contains("tar") || mimeType.contains("7z")) {
-            return "archives";
-        } else {
-            return "others";
-        }
-    }
-
-    /**
      * 验证文件名是否合法
      */
     public static boolean isValidFileName(String fileName) {
@@ -202,9 +176,9 @@ public class FileUtils {
 
         // 检查是否为保留名称
         String[] reservedNames = {"CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3",
-                                 "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
-                                 "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6",
-                                 "LPT7", "LPT8", "LPT9"};
+                "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+                "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6",
+                "LPT7", "LPT8", "LPT9"};
 
         String nameWithoutExt = getFileNameWithoutExtension(fileName).toUpperCase();
         for (String reservedName : reservedNames) {

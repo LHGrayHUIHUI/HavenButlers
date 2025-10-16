@@ -1,6 +1,7 @@
 package com.haven.storage.utils;
 
 import com.haven.base.utils.TraceIdUtil;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -577,7 +578,9 @@ public class FileTypeDetector {
     /**
      * 文件类型检测结果
      */
+    @Getter
     public static class FileTypeDetectionResult {
+        // Getters
         private final String fileName;
         private final String extension;
         private final String detectedMimeType;
@@ -610,16 +613,6 @@ public class FileTypeDetector {
         public static Builder builder() {
             return new Builder();
         }
-
-        // Getters
-        public String getFileName() { return fileName; }
-        public String getExtension() { return extension; }
-        public String getDetectedMimeType() { return detectedMimeType; }
-        public String getOriginalMimeType() { return originalMimeType; }
-        public String getCategory() { return category; }
-        public boolean isSupported() { return isSupported; }
-        public String getDetectionMethod() { return detectionMethod; }
-        public String getTraceId() { return traceId; }
 
         @Override
         public String toString() {

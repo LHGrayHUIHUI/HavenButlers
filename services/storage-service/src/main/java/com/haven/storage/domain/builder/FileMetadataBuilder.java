@@ -43,6 +43,8 @@ public class FileMetadataBuilder {
      */
     public FileMetadata buildFromRequest(FileUploadRequest request, String currentStorageType) {
         String traceId = TraceIdUtil.getCurrentOrGenerate();
+        log.debug("开始构建文件元数据: family={}, userId={}, file={}",
+                request.getFamilyId(), request.getUploaderUserId(), request.getOriginalFileName());
 
         try {
             // 确保使用JWT上下文中的用户信息
@@ -67,6 +69,8 @@ public class FileMetadataBuilder {
             log.info("文件元数据构建完成: fileId={}, fileName={}, familyId={}, userId={}, traceId={}",
                     metadata.getFileId(), metadata.getFileName(), metadata.getFamilyId(),
                     metadata.getUploaderUserId(), traceId);
+            log.debug("文件元数据构建完成: fileId={}, fileName={}, family={}",
+                    metadata.getFileId(), metadata.getOriginalFileName(), metadata.getFamilyId());
 
             return metadata;
 

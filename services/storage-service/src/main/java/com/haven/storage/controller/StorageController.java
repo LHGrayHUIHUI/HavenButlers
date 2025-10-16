@@ -279,23 +279,7 @@ public class StorageController {
 
     // ===== 健康检查和系统信息 API =====
 
-    /**
-     * 动态切换存储方式
-     */
-    @PostMapping("/files/switch-storage")
-    @TraceLog(value = "切换存储方式", module = "storage-api", type = "SWITCH_STORAGE")
-    public ResponseWrapper<String> switchStorage(@RequestBody Map<String, String> request) {
-        String storageType = request.get("storageType");
-
-        boolean success = fileStorageService.switchStorageAdapter(storageType);
-
-        if (success) {
-            return ResponseWrapper.success("存储方式切换成功：" + storageType);
-        } else {
-            return ResponseWrapper.error(40001, "存储方式切换失败", null);
-        }
-    }
-
+    
     /**
      * 获取存储适配器状态
      */
