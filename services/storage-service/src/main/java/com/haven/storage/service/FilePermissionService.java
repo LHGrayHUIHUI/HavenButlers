@@ -27,7 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 public class FilePermissionService {
 
-    private final FileMetadataService fileMetadataService;
+    private final FileStorageService fileMetadataService;
     private final PermissionAuditService permissionAuditService;
 
     /**

@@ -9,6 +9,7 @@ import com.haven.storage.domain.model.file.FileUploadResult;
 import com.haven.storage.domain.model.file.FileVisibility;
 import com.haven.storage.security.UserContext;
 import com.haven.storage.utils.FileTypeDetector;
+import com.haven.storage.utils.FileUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -16,7 +17,7 @@ import java.time.LocalDateTime;
 
 /**
  * 文件元数据构建器
- *
+ * <p>
  * 负责从上传请求构建文件元数据对象
  * 遵循base-model的数据构建规范
  *
@@ -35,7 +36,7 @@ public class FileMetadataBuilder {
     /**
      * 从上传请求构建文件元数据
      *
-     * @param request 文件上传请求
+     * @param request            文件上传请求
      * @param currentStorageType 当前存储类型
      * @return 构建完成的文件元数据
      * @throws SystemException 当构建过程中发生系统异常时抛出
@@ -49,28 +50,20 @@ public class FileMetadataBuilder {
             String currentFamilyId = UserContext.getCurrentFamilyId();
             String uploaderUserId = currentUserId != null ? currentUserId : request.getUploaderUserId();
             String familyId = currentFamilyId != null ? currentFamilyId : request.getFamilyId();
-
             // 构建基础元数据
             FileMetadata metadata = new FileMetadata();
-
             // 1. 设置基础信息
-            setBasicInfo(metadata, request, familyId, uploaderUserId, traceId);
-
+            setBasicInfo(metadata, request, FileUtils.generateFileId(), familyId, uploaderUserId, traceId);
             // 2. 设置文件相关信息
             setFileInfo(metadata, request, traceId);
-
             // 3. 设置权限相关信息
             setPermissionInfo(metadata, request, currentUserId, traceId);
-
             // 4. 设置存储相关信息
             setStorageInfo(metadata, currentStorageType, traceId);
-
             // 5. 设置预览相关信息
             setPreviewInfo(metadata, traceId);
-
             // 6. 设置元数据
             setCustomMetadata(metadata, request, traceId);
-
             log.info("文件元数据构建完成: fileId={}, fileName={}, familyId={}, userId={}, traceId={}",
                     metadata.getFileId(), metadata.getFileName(), metadata.getFamilyId(),
                     metadata.getUploaderUserId(), traceId);
@@ -86,9 +79,10 @@ public class FileMetadataBuilder {
     /**
      * 设置基础信息
      */
-    private void setBasicInfo(FileMetadata metadata, FileUploadRequest request,
+    private void setBasicInfo(FileMetadata metadata, FileUploadRequest request, String fileID,
                               String familyId, String uploaderUserId, String traceId) {
         try {
+            metadata.setFileId(fileID);
             metadata.setFamilyId(familyId);
             metadata.setOriginalName(request.getOriginalFileName());
             metadata.setFileName(generateUniqueFileName(request.getOriginalFileName()));
@@ -116,7 +110,7 @@ public class FileMetadataBuilder {
 
             // 使用统一的文件类型检测器
             FileTypeDetector.FileTypeDetectionResult detectionResult =
-                fileTypeDetector.detectFileType(request.getOriginalFileName(), request.getContentType(), traceId);
+                    fileTypeDetector.detectFileType(request.getOriginalFileName(), request.getContentType(), traceId);
 
             // 设置检测到的文件类型信息
             metadata.setFileType(detectionResult.getCategory());
@@ -141,7 +135,7 @@ public class FileMetadataBuilder {
      * 设置权限相关信息
      */
     private void setPermissionInfo(FileMetadata metadata, FileUploadRequest request,
-                                  String currentUserId, String traceId) {
+                                   String currentUserId, String traceId) {
         try {
             // 优先使用JWT上下文的用户ID作为所有者
             String ownerId = currentUserId != null ? currentUserId : request.getEffectiveOwnerId();
@@ -169,7 +163,7 @@ public class FileMetadataBuilder {
 
         } catch (Exception e) {
             log.error("设置存储信息失败: traceId={}, error={}", traceId, e.getMessage(), e);
-            throw new SystemException(ErrorCode.SYSTEM_ERROR,e);
+            throw new SystemException(ErrorCode.SYSTEM_ERROR, e);
         }
     }
 
@@ -185,7 +179,7 @@ public class FileMetadataBuilder {
 
         } catch (Exception e) {
             log.error("设置预览信息失败: traceId={}, error={}", traceId, e.getMessage(), e);
-            throw new SystemException(ErrorCode.SYSTEM_ERROR,e);
+            throw new SystemException(ErrorCode.SYSTEM_ERROR, e);
         }
     }
 
@@ -210,13 +204,13 @@ public class FileMetadataBuilder {
     /**
      * 上传后更新文件元数据
      *
-     * @param metadata 文件元数据
+     * @param metadata     文件元数据
      * @param uploadResult 上传结果
      * @return 更新后的文件元数据
      * @throws SystemException 当更新失败时抛出
      */
     public FileMetadata updateAfterUpload(FileMetadata metadata,
-                                        FileUploadResult uploadResult) {
+                                          FileUploadResult uploadResult) {
         String traceId = TraceIdUtil.getCurrentOrGenerate();
 
         try {
@@ -271,13 +265,13 @@ public class FileMetadataBuilder {
         return cleanName + "_" + timestamp + extension;
     }
 
-    
+
     /**
      * 创建文件删除元数据
      *
-     * @param fileId 文件ID
+     * @param fileId   文件ID
      * @param familyId 家庭ID
-     * @param userId 用户ID
+     * @param userId   用户ID
      * @return 删除操作的元数据记录
      */
     public FileMetadata createDeleteMetadata(String fileId, String familyId, String userId) {
@@ -292,8 +286,8 @@ public class FileMetadataBuilder {
 
             // 标记为已删除
             metadata.setDeleted(0);
-           // metadata.setDeleteTime(LocalDateTime.now());
-          //  metadata.setDeleteUserId(userId);
+            // metadata.setDeleteTime(LocalDateTime.now());
+            //  metadata.setDeleteUserId(userId);
 
             log.info("文件删除元数据创建完成: fileId={}, familyId={}, userId={}, traceId={}",
                     fileId, familyId, userId, traceId);

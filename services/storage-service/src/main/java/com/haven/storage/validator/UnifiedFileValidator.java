@@ -58,7 +58,7 @@ public class UnifiedFileValidator {
     public UserInfo validateUserIdentityAndPermissions(String uploaderUserId, String familyId, String traceId) {
         try {
             // 1. 验证用户认证状态和获取当前用户信息
-            if (UserContext.isAuthenticated()) {
+            if (!UserContext.isAuthenticated()) {
                 throw new AuthException(ErrorCode.ACCOUNT_NOT_FOUND, "用户未认证，请重新登录");
             }
 
@@ -100,7 +100,7 @@ public class UnifiedFileValidator {
     public void validateUserAuthentication() {
         String traceId = TraceIdUtil.getCurrentOrGenerate();
 
-        if (UserContext.isAuthenticated()) {
+        if (!UserContext.isAuthenticated()) {
             log.warn("用户未认证，拒绝访问: traceId={}", traceId);
             throw new AuthException(ErrorCode.ACCOUNT_NOT_FOUND, "用户未认证，请重新登录");
         }

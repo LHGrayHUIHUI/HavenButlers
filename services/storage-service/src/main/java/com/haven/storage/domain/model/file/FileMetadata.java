@@ -1,12 +1,15 @@
 package com.haven.storage.domain.model.file;
 
 import com.haven.base.model.entity.BaseEntity;
+import com.haven.storage.utils.FileUtils;
+import jakarta.persistence.Entity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 
 /**
@@ -50,6 +53,17 @@ public class FileMetadata extends BaseEntity {
     private String accessChangeReason;     // 权限变更原因
     private String accessChangeOperator;   // 权限变更操作者
     private LocalDateTime accessChangeTime; // 权限变更时间
+
+    /**
+     * fileid
+     * @return
+     */
+    public String getFileId() {
+        if (fileId == null) {
+            fileId = FileUtils.generateFileId();
+        }
+        return fileId;
+    }
 
     // 便捷方法
     public String getOriginalFileName() {

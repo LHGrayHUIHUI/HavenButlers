@@ -2,19 +2,14 @@ package com.haven.storage.controller;
 
 import com.haven.base.annotation.TraceLog;
 import com.haven.base.common.response.ResponseWrapper;
-import com.haven.base.utils.TraceIdUtil;
 import com.haven.storage.api.StorageHealthInfo;
+import com.haven.storage.async.AsyncProcessingTrigger;
 import com.haven.storage.domain.model.file.*;
 import com.haven.storage.domain.model.knowledge.*;
 import com.haven.storage.domain.model.vectortag.*;
-import com.haven.storage.security.UserContext;
-import com.haven.storage.service.FamilyFileStorageService;
-import com.haven.storage.service.FileMetadataService;
-import com.haven.storage.domain.builder.FileMetadataBuilder;
-import com.haven.storage.async.AsyncProcessingTrigger;
+import com.haven.storage.service.FileStorageService;
 import com.haven.storage.service.PersonalKnowledgeBaseService;
 import com.haven.storage.service.VectorTagService;
-import com.haven.storage.validator.UnifiedFileValidator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -53,12 +48,9 @@ import java.util.Map;
 @Tag(name = "存储服务", description = "文件存储、知识库和向量标签服务")
 public class StorageController {
 
-    private final FamilyFileStorageService fileStorageService;
+    private final FileStorageService fileStorageService;
     private final PersonalKnowledgeBaseService knowledgeBaseService;
     private final VectorTagService vectorTagService;
-    private final FileMetadataService fileMetadataService;
-    private final UnifiedFileValidator validator;
-    private final FileMetadataBuilder metadataBuilder;
     private final AsyncProcessingTrigger asyncProcessingTrigger;
 
     // ===== 家庭文件存储 API =====
@@ -72,42 +64,14 @@ public class StorageController {
     @Operation(summary = "文件上传", description = "上传文件并设置权限和元数据")
     @TraceLog(value = "文件上传", module = "storage-api", type = "FILE_UPLOAD")
     public ResponseWrapper<FileMetadata> uploadFile(@Valid @ModelAttribute FileUploadRequest request) {
-        String traceId = TraceIdUtil.getCurrentOrGenerate();
-        try {
-            log.info("开始文件上传: family={}, userId={}, file={}, accessLevel={}, traceId={}, userContext={}", request.getFamilyId(), request.getUploaderUserId(), request.getOriginalFileName(), request.getVisibility(), traceId, UserContext.getUserSummary());
-            // 1. 验证请求参数（使用专门的验证器）
-            validator.validateUploadRequest(request);
-            // 2. 构建文件元数据（使用专门地构建器）
-            FileMetadata fileMetadata = metadataBuilder.buildFromRequest(request, fileStorageService.getCurrentStorageType());
+        // 1. 执行统一文件上传处理（包含验证、元数据构建、物理存储）
+        FileMetadata fileMetadata = fileStorageService.completeFileUpload(request);
 
-            // 3. 保存文件元数据到数据库（生成文件的fileid）
-            fileMetadata = fileMetadataService.saveFileMetadata(fileMetadata);
+        // 2. 上传成功，触发异步后处理任务（缩略图生成、OCR识别等）
+        asyncProcessingTrigger.triggerAsyncProcessing(request, fileMetadata);
 
-            // 4. 调用存储服务上传文件（使用优化的FileMetadata方法）
-            FileUploadResult uploadResult = fileStorageService.uploadFile(fileMetadata, request.getFile());
-
-            if (!uploadResult.isSuccess()) {
-                // 上传失败，删除已保存的元数据
-                fileMetadataService.deleteFileMetadata(fileMetadata.getFileId());
-                return ResponseWrapper.error(40001, "文件上传失败: " + uploadResult.getErrorMessage(), null);
-            }
-
-            // 5. 更新文件元数据（使用专门地构建器）
-            fileMetadata = metadataBuilder.updateAfterUpload(fileMetadata, uploadResult);
-            fileMetadata = fileMetadataService.updateFileMetadata(fileMetadata);
-
-            // 6. 异步处理任务（缩略图生成、OCR识别等）
-            asyncProcessingTrigger.triggerAsyncProcessing(request, fileMetadata);
-
-            log.info("文件上传成功: fileId={}, family={}, accessLevel={}, storageType={}, traceId={}", fileMetadata.getFileId(), request.getFamilyId(), request.getVisibility(), fileStorageService.getCurrentStorageType(), traceId);
-
-            return ResponseWrapper.success("文件上传成功", fileMetadata);
-
-        } catch (Exception e) {
-            log.error("文件上传失败: family={}, userId={}, file={}, error={}, traceId={}", request.getFamilyId(), request.getUploaderUserId(), request.getOriginalFileName(), e.getMessage(), traceId, e);
-
-            return ResponseWrapper.error(50001, "文件上传失败: " + e.getMessage(), null);
-        }
+        // 3. 返回成功响应（异常处理由GlobalExceptionHandler统一处理）
+        return ResponseWrapper.success("文件上传成功", fileMetadata);
     }
 
     /**
@@ -120,7 +84,10 @@ public class StorageController {
         FileDownloadResult result = fileStorageService.downloadFile(fileId, familyId);
 
         if (result.isSuccess()) {
-            return ResponseEntity.ok().header("Content-Disposition", "attachment; filename=\"" + result.getFileName() + "\"").header("Content-Type", result.getContentType()).body(result.getFileContent());
+            return ResponseEntity.ok()
+                    .header("Content-Disposition", "attachment; filename=\"" + result.getFileName() + "\"")
+                    .header("Content-Type", result.getContentType())
+                    .body(result.getFileContent());
         } else {
             return ResponseEntity.notFound().build();
         }
