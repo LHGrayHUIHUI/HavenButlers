@@ -1,6 +1,7 @@
 package com.haven.storage.adapter.storage;
 
 
+import com.haven.base.utils.TraceIdUtil;
 import com.haven.storage.domain.model.file.FileDownloadResult;
 import com.haven.storage.domain.model.file.FileMetadata;
 import com.haven.storage.domain.model.file.FileUploadResult;
@@ -71,7 +72,7 @@ public class MinIOStorageAdapter implements StorageAdapter {
         try {
             // 使用统一文件验证器进行统一验证
             UnifiedFileValidator.ValidationResult validationResult = storageServiceValidator.validateFileUpload(
-                fileMetadata.getFamilyId(), file, maxFileSize);
+                    fileMetadata.getFamilyId(), file, maxFileSize);
             if (!validationResult.valid()) {
                 log.warn("MinIO文件上传验证失败：{}", validationResult.errorMessage());
                 return FileUploadResult.failure(validationResult.errorMessage());
@@ -149,13 +150,7 @@ public class MinIOStorageAdapter implements StorageAdapter {
 
             log.info("MinIO文件下载成功：familyId={}, fileId={}, size={}",
                     familyId, fileId, fileContent.length);
-
-            // 创建临时的FileMetadata用于返回
-            FileMetadata tempMetadata = new FileMetadata();
-            tempMetadata.setOriginalName(fileName);
-            tempMetadata.setContentType(contentType);
-
-            return FileDownloadResult.success(fileContent, tempMetadata, "tr-" + System.currentTimeMillis());
+            return FileDownloadResult.success(fileContent, fileName, contentType, TraceIdUtil.getCurrentOrGenerate());
 
         } catch (Exception e) {
             log.error("MinIO文件下载失败：familyId={}, fileId={}, error={}",

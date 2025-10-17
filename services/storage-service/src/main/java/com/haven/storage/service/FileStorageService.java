@@ -51,7 +51,6 @@ import java.util.stream.Collectors;
 @Service
 public class FileStorageService extends BaseService {
 
-    
 
     private final StorageAdapter storageAdapter;// 存储适配器实例（使用策略模式，Spring会自动选择合适的实现）
     private final UnifiedFileValidator unifiedFileValidator; // 统一文件验证器
@@ -127,15 +126,15 @@ public class FileStorageService extends BaseService {
             // 2. 构建文件元数据（生成ID、设置默认值等）
             FileMetadata fileMetadata = metadataBuilder.buildFromRequest(request, getCurrentStorageType());
             // 3. 保存文件元数据到PostgreSQL（事务内）
-             fileMetadata = saveFileMetadata(fileMetadata);
+            fileMetadata = saveFileMetadata(fileMetadata);
             // 4. 使用存储适配器上传物理文件到MinIO
             FileUploadResult storageResult = storageAdapter.uploadFile(fileMetadata, request.getFile());
             if (!storageResult.isSuccess()) {
                 // 物理文件上传失败，事务会回滚自动清理元数据
-                throw new FileUploadException( "物理文件上传失败: " + storageResult.getErrorMessage(), request.getFamilyId(), request.getUploaderUserId(), request.getOriginalFileName());
+                throw new FileUploadException("物理文件上传失败: " + storageResult.getErrorMessage(), request.getFamilyId(), request.getUploaderUserId(), request.getOriginalFileName());
             }
             // 5. 更新最终元数据（可能包含存储路径等信息）
-            fileMetadata= updateFileMetadata(storageResult.getFileMetadata());
+            fileMetadata = updateFileMetadata(storageResult.getFileMetadata());
             // 6. 缓存文件元数据到Redis（提升后续查询性能）
             cacheService.cacheFileMetadata(fileMetadata);
             // 7. 更新家庭存储统计信息（文件上传成功）
@@ -162,8 +161,8 @@ public class FileStorageService extends BaseService {
                     getCurrentStorageType(), e.getMessage(), traceId, e);
 
             throw new FileUploadException(
-                "文件上传过程中发生系统异常: " + e.getMessage(),
-                request.getFamilyId(), request.getUploaderUserId(), request.getOriginalFileName()
+                    "文件上传过程中发生系统异常: " + e.getMessage(),
+                    request.getFamilyId(), request.getUploaderUserId(), request.getOriginalFileName()
             );
         }
     }
@@ -202,16 +201,10 @@ public class FileStorageService extends BaseService {
 
             // 3. 使用存储适配器下载物理文件
             FileDownloadResult result = storageAdapter.downloadFile(fileId, familyId);
-
-            if (result.isSuccess()) {
-                // 4. 异步更新访问统计（避免影响下载性能）
-                updateAccessStatsAsync(metadata);
-
-                log.info("文件下载成功: family={}, fileId={}, size={}bytes, storageType={}, traceId={}",
-                        familyId, fileId, result.getFileContent().length,
-                        storageAdapter.getStorageType(), traceId);
-            }
-
+            updateAccessStatsAsync(metadata);
+            log.info("文件下载成功: family={}, fileId={}, size={}bytes, storageType={}, traceId={}",
+                    familyId, fileId, result.getFileContent().length,
+                    storageAdapter.getStorageType(), traceId);
             return result;
 
         } catch (Exception e) {
@@ -413,12 +406,12 @@ public class FileStorageService extends BaseService {
             }
             fileMetadata.setUpdateTime(LocalDateTime.now());
 
-            fileMetadata= fileMetadataRepository.save(fileMetadata);
+            fileMetadata = fileMetadataRepository.save(fileMetadata);
 
             // 缓存文件元数据
             cacheService.cacheFileMetadata(fileMetadata);
 
-            log.debug("文件元数据保存成功: fileMetadata={}",fileMetadata);
+            log.debug("文件元数据保存成功: fileMetadata={}", fileMetadata);
             return fileMetadata;
 
         } catch (Exception e) {
@@ -540,7 +533,7 @@ public class FileStorageService extends BaseService {
         return getFileMetadataFromDatabase(fileId, familyId);
     }
 
-    
+
     /**
      * 删除文件元数据（兼容性方法）
      */
@@ -576,7 +569,7 @@ public class FileStorageService extends BaseService {
         }
     }
 
-      /**
+    /**
      * 从PostgreSQL计算存储统计
      */
     private FamilyStorageStats calculateStorageStatsFromDatabase(String familyId) {
@@ -650,4 +643,4 @@ public class FileStorageService extends BaseService {
         return storageAdapter.getFileAccessUrl(fileId, familyId, expireMinutes);
     }
 
-    }
+}
