@@ -178,7 +178,7 @@ public class FileTypeDetector {
     /**
      * 所有支持的MIME类型
      */
-    private static final Set<String> SUPPORTED_MIME_TYPES = Collections.unmodifiableSet(EXTENSION_TO_MIME.keySet());
+    private static final Set<String> SUPPORTED_MIME_TYPES = Set.copyOf(EXTENSION_TO_MIME.values());
 
     /**
      * 支持的文档MIME类型（用于验证器）

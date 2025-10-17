@@ -100,7 +100,7 @@ public class UnifiedFileValidator {
     public void validateUserAuthentication() {
         String traceId = TraceIdUtil.getCurrentOrGenerate();
 
-        if (!UserContext.isAuthenticated()) {
+        if (UserContext.isAuthenticated()) {
             log.warn("用户未认证，拒绝访问: traceId={}", traceId);
             throw new AuthException(ErrorCode.ACCOUNT_NOT_FOUND, "用户未认证，请重新登录");
         }

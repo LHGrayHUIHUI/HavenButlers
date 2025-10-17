@@ -117,7 +117,7 @@ services:
     image: postgres:15-alpine
     container_name: postgresql
     environment:
-      POSTGRES_DB: smarthome
+      POSTGRES_DB: storage_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
     ports:
@@ -141,7 +141,7 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: password
-      MONGO_INITDB_DATABASE: smarthome
+      MONGO_INITDB_DATABASE: storage_db
     ports:
       - "27017:27017"
     volumes:

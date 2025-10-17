@@ -78,8 +78,8 @@ public class UserContext {
      * 检查当前用户是否已认证
      */
     public static boolean isAuthenticated() {
-        return getCurrentUserInfo().isEmpty() ||
-                !StringUtils.hasText(getCurrentUserInfo().get().userId());
+        return getCurrentUserInfo().isPresent() &&
+                StringUtils.hasText(getCurrentUserInfo().get().userId());
     }
 
     /**

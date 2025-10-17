@@ -413,14 +413,13 @@ public class FileStorageService extends BaseService {
             }
             fileMetadata.setUpdateTime(LocalDateTime.now());
 
-            FileMetadata saved = fileMetadataRepository.save(fileMetadata);
+            fileMetadata= fileMetadataRepository.save(fileMetadata);
 
             // 缓存文件元数据
-            cacheService.cacheFileMetadata(saved);
+            cacheService.cacheFileMetadata(fileMetadata);
 
-            log.debug("文件元数据保存成功: fileId={}, fileName={}, familyId={}, traceId={}",
-                    saved.getFileId(), saved.getOriginalFileName(), saved.getFamilyId(), traceId);
-            return saved;
+            log.debug("文件元数据保存成功: fileMetadata={}",fileMetadata);
+            return fileMetadata;
 
         } catch (Exception e) {
             log.error("保存文件元数据失败: fileName={}, error={}, traceId={}",

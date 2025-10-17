@@ -30,7 +30,7 @@ spring:
   # 数据源配置 - 本地默认配置，支持环境变量覆盖
   datasource:
     driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://${POSTGRESQL_HOST:localhost}:${POSTGRESQL_PORT:5432}/${POSTGRESQL_DB:smarthome}
+    url: jdbc:postgresql://${POSTGRESQL_HOST:localhost}:${POSTGRESQL_PORT:5432}/${POSTGRESQL_DB:storage_db}
     username: ${POSTGRESQL_USER:postgres}
     password: ${POSTGRESQL_PASSWORD:password}
     hikari:
@@ -44,7 +44,7 @@ spring:
     mongodb:
       host: ${MONGODB_HOST:localhost}
       port: ${MONGODB_PORT:27017}
-      database: ${MONGODB_DB:smarthome}
+      database: ${MONGODB_DB:storage_db}
       username: ${MONGODB_USER:admin}
       password: ${MONGODB_PASSWORD:password}
       authentication-database: admin
@@ -85,7 +85,7 @@ minio:
   endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
   access-key: ${MINIO_ACCESS_KEY:minioadmin}
   secret-key: ${MINIO_SECRET_KEY:minioadmin}
-  bucket: ${MINIO_BUCKET:smarthome}
+  bucket: ${MINIO_BUCKET:storage_db}
   console:
     endpoint: ${MINIO_CONSOLE_ENDPOINT:http://localhost:9001}
 
