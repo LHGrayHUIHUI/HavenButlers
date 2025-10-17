@@ -6,10 +6,12 @@ import com.haven.base.common.exception.SystemException;
 import com.haven.base.common.exception.ValidationException;
 import com.haven.base.common.response.ErrorCode;
 import com.haven.base.utils.TraceIdUtil;
+import com.haven.storage.domain.model.file.FileMetadata;
 import com.haven.storage.domain.model.file.FileVisibility;
 import com.haven.storage.domain.model.file.FileUploadRequest;
 import com.haven.storage.security.UserInfo;
 import com.haven.storage.security.UserContext;
+import com.haven.storage.service.FileStorageService;
 import com.haven.storage.utils.FileTypeDetector;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,10 +51,10 @@ public class UnifiedFileValidator {
      * 整合用户认证、身份一致性验证、家庭ID验证，提高验证效率和代码可维护性
      *
      * @param uploaderUserId 请求中的上传者用户ID
-     * @param familyId 请求中的家庭ID（可选）
-     * @param traceId 链路追踪ID
+     * @param familyId       请求中的家庭ID（可选）
+     * @param traceId        链路追踪ID
      * @return 已验证的用户信息
-     * @throws AuthException 当认证失败或身份不一致时抛出
+     * @throws AuthException       当认证失败或身份不一致时抛出
      * @throws ValidationException 当参数格式不正确时抛出
      */
     public UserInfo validateUserIdentityAndPermissions(String uploaderUserId, String familyId, String traceId) {
@@ -72,7 +74,7 @@ public class UnifiedFileValidator {
                 log.warn("用户身份不一致 - 当前用户: {}, 请求上传者: {}, traceId={}",
                         currentUserId, uploaderUserId, traceId);
                 throw new AuthException(ErrorCode.ACCOUNT_NOT_FOUND,
-                    "用户身份验证失败：请求中的上传者与当前认证用户不一致");
+                        "用户身份验证失败：请求中的上传者与当前认证用户不一致");
             }
 
             // 3. 验证家庭ID格式（如果提供）
@@ -126,7 +128,7 @@ public class UnifiedFileValidator {
         try {
             // 1. 统一验证用户身份和权限（整合了原来的3个验证方法）
             UserInfo userInfo = validateUserIdentityAndPermissions(
-                request.getUploaderUserId(), request.getFamilyId(), traceId);
+                    request.getUploaderUserId(), request.getFamilyId(), traceId);
 
             // 2. 验证文件分组（没有的话默认为用户ID私有）
             validateFileVisibility(request.getVisibility(), userInfo.userId(), traceId);
@@ -149,12 +151,11 @@ public class UnifiedFileValidator {
         }
     }
 
-    
-    
+
     /**
      * 验证上传的文件
      *
-     * @param file 上传的文件
+     * @param file    上传的文件
      * @param traceId 链路追踪ID
      * @throws ValidationException 当文件验证失败时抛出
      */
@@ -212,7 +213,7 @@ public class UnifiedFileValidator {
 
         // 基于Content-Type验证（如果存在）
         if (contentType != null && !contentType.trim().isEmpty() &&
-            !fileTypeDetector.isSupportedMimeType(contentType)) {
+                !fileTypeDetector.isSupportedMimeType(contentType)) {
             log.warn("不支持的MIME类型: contentType={}, fileName={}, traceId={}",
                     contentType, fileName, traceId);
             throw new ValidationException("不支持的文件类型：" + contentType, "30005");
@@ -329,8 +330,8 @@ public class UnifiedFileValidator {
      * 验证文件上传（适配器层专用，返回ValidationResult）
      * 供LocalStorageAdapter和MinIOStorageAdapter使用
      *
-     * @param familyId 家庭ID
-     * @param file 上传的文件
+     * @param familyId    家庭ID
+     * @param file        上传的文件
      * @param maxFileSize 最大文件大小限制
      * @return 验证结果
      */
@@ -375,7 +376,7 @@ public class UnifiedFileValidator {
             // 6. 如果有Content-Type，也进行验证
             String contentType = file.getContentType();
             if (contentType != null && !contentType.trim().isEmpty() &&
-                !fileTypeDetector.isSupportedMimeType(contentType)) {
+                    !fileTypeDetector.isSupportedMimeType(contentType)) {
                 log.warn("适配器层文件验证失败：不支持的MIME类型，contentType={}, fileName={}, familyId={}, traceId={}",
                         contentType, fileName, familyId, traceId);
                 return ValidationResult.failure("不支持的文件类型：" + contentType);
@@ -393,25 +394,139 @@ public class UnifiedFileValidator {
     }
 
     /**
-         * 验证结果封装类
-         * 用于适配器层，提供成功/失败结果而不抛出异常
-         */
-        public record ValidationResult(boolean valid, String errorMessage) {
+     * 对于元数据进行判断是否存在存储的信息，物理存储的地址的进行判断
+     *
+     * @param metadata 文件元数据
+     * @return 存储信息是否有效
+     */
+    public boolean isValidStorageMetadata(FileMetadata metadata) {
+        String traceId = TraceIdUtil.getCurrentOrGenerate();
+
+        try {
+            if (metadata == null) {
+                log.warn("文件元数据为空: traceId={}", traceId);
+                return false;
+            }
+
+            // 1. 检查基本字段
+            if (metadata.getFileId() == null || metadata.getFamilyId() == null) {
+                log.warn("文件元数据缺少必要字段: fileId={}, familyId={}, traceId={}",
+                        metadata.getFileId(), metadata.getFamilyId(), traceId);
+                return false;
+            }
+
+            // 2. 检查存储路径信息
+            if (metadata.getStoragePath() == null || metadata.getStoragePath().trim().isEmpty()) {
+                log.warn("文件存储路径为空: fileId={}, storagePath={}, traceId={}",
+                        metadata.getFileId(), metadata.getStoragePath(), traceId);
+                return false;
+            }
+
+            // 3. 检查文件大小信息
+            if (metadata.getFileSize() <= 0) {
+                log.warn("文件大小信息无效: fileId={}, fileSize={}, traceId={}",
+                        metadata.getFileId(), metadata.getFileSize(), traceId);
+                return false;
+            }
+
+            // 4. 检查文件状态
+            Integer deleted = metadata.getDeleted();
+            if (deleted != null && deleted == 1) {
+                log.warn("文件已被删除: fileId={}, deleted={}, traceId={}",
+                        metadata.getFileId(), deleted, traceId);
+                return false;
+            }
+
+            log.debug("文件存储元数据验证通过: fileId={}, traceId={}", metadata.getFileId(), traceId);
+            return true;
+
+        } catch (Exception e) {
+            log.error("验证文件存储元数据异常: fileId={}, error={}, traceId={}",
+                    metadata != null ? metadata.getFileId() : "null", e.getMessage(), traceId, e);
+            return false;
+        }
+    }
+
+    /**
+     * 通过用户ID或家庭ID去匹配文件，校验当前用户是否有权限读取这个文件
+     *
+     * @param metadata        文件元数据
+     * @param currentUserId   当前用户ID
+     * @param currentFamilyId 当前家庭ID
+     * @param requestFamilyId 请求中的家庭ID（可能为空）
+     * @return 是否有权限读取文件
+     */
+    public boolean validateFileReadPermission(FileMetadata metadata, String currentUserId,
+                                              String currentFamilyId, String requestFamilyId) {
+        String traceId = TraceIdUtil.getCurrentOrGenerate();
+
+        try {
+            // 1. 检查用户身份是否有效
+            if (currentUserId == null) {
+                log.warn("用户身份验证失败: 用户ID为空, fileId={}, traceId={}", metadata.getFileId(), traceId);
+                return false;
+            }
+
+            // 2. 文件所有者权限：文件的所有者可以直接访问
+            if (currentUserId.equals(metadata.getOwnerId())) {
+                log.debug("文件所有者权限验证通过: fileId={}, ownerId={}, traceId={}",
+                        metadata.getFileId(), currentUserId, traceId);
+                return true;
+            }
+
+            // 3. 家庭成员权限：同一家庭的成员可以访问家庭文件
+            // 首先检查请求中的familyId是否与文件的家庭ID匹配
+            String targetFamilyId = requestFamilyId != null ? requestFamilyId : currentFamilyId;
+
+            if (targetFamilyId != null && targetFamilyId.equals(metadata.getFamilyId())) {
+                // 检查当前用户是否属于该家庭
+                if (currentFamilyId != null && currentFamilyId.equals(metadata.getFamilyId())) {
+                    log.debug("家庭成员权限验证通过: fileId={}, userId={}, familyId={}, traceId={}",
+                            metadata.getFileId(), currentUserId, metadata.getFamilyId(), traceId);
+                    return true;
+                }
+            }
+
+            // 4. 公开文件权限：如果文件设置为公开，则任何人都可以访问
+            if (FileVisibility.PUBLIC.equals(metadata.getFileVisibility())) {
+                log.debug("公开文件权限验证通过: fileId={}, visibility={}, traceId={}",
+                        metadata.getFileId(), metadata.getFileVisibility(), traceId);
+                return true;
+            }
+
+            // 5. 权限验证失败
+            log.warn("文件访问权限验证失败: fileId={}, userId={}, fileFamilyId={}, fileOwnerId={}, visibility={}, traceId={}",
+                    metadata.getFileId(), currentUserId, metadata.getFamilyId(),
+                    metadata.getOwnerId(), metadata.getFileVisibility(), traceId);
+            return false;
+
+        } catch (Exception e) {
+            log.error("文件权限验证异常: fileId={}, userId={}, error={}, traceId={}",
+                    metadata.getFileId(), currentUserId, e.getMessage(), traceId, e);
+            return false;
+        }
+    }
+
+    /**
+     * 验证结果封装类
+     * 用于适配器层，提供成功/失败结果而不抛出异常
+     */
+    public record ValidationResult(boolean valid, String errorMessage) {
 
         public static ValidationResult success() {
-                return new ValidationResult(true, null);
-            }
-
-            public static ValidationResult failure(String errorMessage) {
-                return new ValidationResult(false, errorMessage);
-            }
-
-            @NotNull
-            @Override
-            public String toString() {
-                return valid ? "ValidationResult{valid=true}" :
-                        "ValidationResult{valid=false, errorMessage='" + errorMessage + "'}";
-            }
+            return new ValidationResult(true, null);
         }
 
-  }
+        public static ValidationResult failure(String errorMessage) {
+            return new ValidationResult(false, errorMessage);
+        }
+
+        @NotNull
+        @Override
+        public String toString() {
+            return valid ? "ValidationResult{valid=true}" :
+                    "ValidationResult{valid=false, errorMessage='" + errorMessage + "'}";
+        }
+    }
+
+}

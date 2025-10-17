@@ -336,6 +336,38 @@
             <div class="result-section" id="uploadResult"></div>
         </div>
 
+        <!-- 文件下载区域 -->
+        <div class="section">
+            <h2>⬇️ 文件下载</h2>
+
+            <div class="form-group">
+                <label for="downloadFamilyId">家庭ID</label>
+                <input type="text" id="downloadFamilyId" value="test-family-001" placeholder="请输入家庭ID"
+                       onchange="syncDownloadInputs()" oninput="syncDownloadInputs()">
+            </div>
+
+            <div class="form-group">
+                <label for="downloadUserId">用户ID</label>
+                <input type="text" id="downloadUserId" value="test-user-001" placeholder="请输入用户ID"
+                       onchange="syncDownloadInputs()" oninput="syncDownloadInputs()">
+            </div>
+
+            <div class="form-group">
+                <label for="fileId">文件ID <span style="color: red;">*</span></label>
+                <input type="text" id="fileId" placeholder="请输入要下载的文件ID"
+                       onkeypress="if(event.key === 'Enter') downloadFileById()">
+            </div>
+
+            <button class="btn btn-primary" onclick="downloadFileById()">
+                ⬇️ 下载文件
+            </button>
+            <button class="btn btn-secondary" onclick="clearFileId()">
+                🗑️ 清空输入
+            </button>
+
+            <div class="result-section" id="downloadResult"></div>
+        </div>
+
         <!-- 文件列表区域 -->
         <div class="section">
             <h2>📋 文件列表</h2>
@@ -722,6 +754,173 @@
             element.innerHTML = message;
             element.className = `result-section result-${type}`;
             element.style.display = 'block';
+        }
+
+        // 文件下载功能（通过文件ID）- 支持流式传输
+        async function downloadFileById() {
+            const fileId = document.getElementById('fileId').value.trim();
+            const familyId = document.getElementById('downloadFamilyId').value.trim();
+            const userId = document.getElementById('downloadUserId').value.trim();
+
+            if (!fileId) {
+                showResult('downloadResult', '请输入文件ID', 'error');
+                return;
+            }
+
+            if (!familyId || !userId) {
+                showResult('downloadResult', '请填写家庭ID和用户ID', 'error');
+                return;
+            }
+
+            showResult('downloadResult', '<div class="loading"></div>正在下载文件...', 'success');
+
+            try {
+                // 调用StorageController#downloadFile接口
+                const response = await fetch(`${API_BASE}/download/${fileId}?familyId=${familyId}`, {
+                    method: 'GET',
+                    headers: {
+                        'X-User-ID': userId,
+                        'X-Family-ID': familyId,
+                        'X-User-Name': 'TestUser'
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`下载失败 (${response.status}): ${errorText}`);
+                }
+
+                // 检查响应类型
+                const contentType = response.headers.get('content-type');
+
+                if (contentType && contentType.includes('application/json')) {
+                    // JSON响应格式（ResponseWrapper）- 兼容性下载
+                    const result = await response.json();
+                    if (result.code === 0 && result.data) {
+                        // 从ResponseWrapper获取文件数据
+                        const fileData = result.data;
+
+                        // 如果是base64编码的数据
+                        if (typeof fileData === 'string') {
+                            const blob = base64ToBlob(fileData, getContentTypeFromResponse(response));
+                            downloadBlob(blob, getFileNameFromResponse(response, fileId));
+                            showResult('downloadResult', `✅ 文件下载成功! (文件ID: ${fileId})`, 'success');
+                        } else if (fileData instanceof ArrayBuffer || fileData instanceof Uint8Array) {
+                            // 如果是二进制数据
+                            const blob = new Blob([fileData], { type: getContentTypeFromResponse(response) });
+                            downloadBlob(blob, getFileNameFromResponse(response, fileId));
+                            showResult('downloadResult', `✅ 文件下载成功! (文件ID: ${fileId})`, 'success');
+                        }
+                    } else {
+                        throw new Error(result.message || '下载失败');
+                    }
+                } else {
+                    // 流式下载响应 - 直接处理blob
+                    const blob = await response.blob();
+                    downloadBlob(blob, getFileNameFromResponse(response, fileId));
+                    showResult('downloadResult', `✅ 文件下载成功! (文件ID: ${fileId})`, 'success');
+                }
+
+            } catch (error) {
+                console.error('下载失败:', error);
+                showResult('downloadResult', `❌ 下载失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 从响应头获取文件名
+        function getFileNameFromResponse(response, fileId) {
+            const contentDisposition = response.headers.get('content-disposition');
+            if (contentDisposition) {
+                // 解析Content-Disposition头获取文件名
+                const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                if (filenameMatch && filenameMatch[1]) {
+                    return filenameMatch[1].replace(/['"]/g, '');
+                }
+
+                // 尝试解析RFC 5987编码的文件名
+                const filenameStarMatch = contentDisposition.match(/filename\*=UTF-8''([^;=\n]*)/);
+                if (filenameStarMatch && filenameStarMatch[1]) {
+                    return decodeURIComponent(filenameStarMatch[1]);
+                }
+            }
+
+            // 如果无法从响应头获取文件名，使用文件ID
+            return `file_${fileId}`;
+        }
+
+        // 从响应头获取内容类型
+        function getContentTypeFromResponse(response) {
+            const contentType = response.headers.get('content-type');
+            return contentType || 'application/octet-stream';
+        }
+
+        // 将base64数据转换为Blob
+        function base64ToBlob(base64Data, mimeType) {
+            try {
+                // 移除可能的数据URL前缀
+                const base64 = base64Data.replace(/^data:.*?;base64,/, '');
+
+                // 解码base64
+                const byteCharacters = atob(base64);
+                const byteNumbers = new Array(byteCharacters.length);
+
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+
+                const byteArray = new Uint8Array(byteNumbers);
+                return new Blob([byteArray], { type: mimeType });
+            } catch (error) {
+                console.error('base64转换失败:', error);
+                throw new Error('文件数据格式错误');
+            }
+        }
+
+        // 下载Blob文件
+        function downloadBlob(blob, fileName) {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+
+            // 清理
+            setTimeout(() => {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            }, 100);
+        }
+
+        // 下载输入框同步函数
+        function syncDownloadInputs() {
+            const downloadFamilyId = document.getElementById('downloadFamilyId').value;
+            const downloadUserId = document.getElementById('downloadUserId').value;
+
+            // 同步到上传区域
+            const familyId = document.getElementById('familyId');
+            const userId = document.getElementById('userId');
+
+            if (familyId && familyId.value !== downloadFamilyId) {
+                familyId.value = downloadFamilyId;
+            }
+
+            if (userId && userId.value !== downloadUserId) {
+                userId.value = downloadUserId;
+            }
+
+            // 同步到查询区域
+            const queryFamilyId = document.getElementById('queryFamilyId');
+            if (queryFamilyId && queryFamilyId.value !== downloadFamilyId) {
+                queryFamilyId.value = downloadFamilyId;
+            }
+        }
+
+        // 清空文件ID输入
+        function clearFileId() {
+            document.getElementById('fileId').value = '';
+            document.getElementById('downloadResult').style.display = 'none';
         }
 
         // 输入框同步函数

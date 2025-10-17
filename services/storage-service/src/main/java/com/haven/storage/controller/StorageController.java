@@ -1,6 +1,7 @@
 package com.haven.storage.controller;
 
 import com.haven.base.annotation.TraceLog;
+import com.haven.base.common.response.ErrorCode;
 import com.haven.base.common.response.ResponseWrapper;
 import com.haven.storage.api.StorageHealthInfo;
 import com.haven.storage.async.AsyncProcessingTrigger;
@@ -15,10 +16,19 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -75,21 +85,48 @@ public class StorageController {
     }
 
     /**
-     * 下载文件
+     * 下载文件 - 支持流式传输
+     * <p>
+     * 采用流式传输，边读边写，不一次性加载全文件到内存
+     * 通过HTTP响应头告知浏览器文件的名称、类型、大小等信息
+     * 对于无法流式传输的文件，自动降级到字节数组传输
+     * <p>
+     * 注意：此方法不使用@TraceLog注解，因为InputStreamResource无法被序列化用于日志记录
      */
     @GetMapping("/files/download/{fileId}")
-    @TraceLog(value = "文件下载", module = "storage-api", type = "FILE_DOWNLOAD")
-    public ResponseEntity<byte[]> downloadFile(@PathVariable String fileId, @RequestParam String familyId) {
+    public ResponseEntity<InputStreamResource> downloadFile(@PathVariable String fileId,
+                                          @RequestParam(required = false) String familyId) {
+        String traceId = "tr-" + System.currentTimeMillis() + "-" + (int)(Math.random() * 1000000);
+        log.info("开始文件下载: fileId={}, familyId={}, traceId={}", fileId, familyId, traceId);
+        try {
+            // 1. 获取文件下载结果
+            FileDownloadResult result = fileStorageService.downloadFile(fileId, familyId);
 
-        FileDownloadResult result = fileStorageService.downloadFile(fileId, familyId);
+            if (!result.isSuccess()) {
+                log.error("文件下载失败: fileId={}, familyId={}, error={}, traceId={}",
+                    fileId, familyId, result.getErrorMessage(), traceId);
+                return ResponseEntity.notFound().build();
+            }
 
-        if (result.isSuccess()) {
+            // 2. 构建下载响应头
+            HttpHeaders headers = buildDownloadHeaders(result.getFileMetadata());
+
+            // 3. 返回流式响应
+            log.info("文件下载成功: fileId={}, fileName={}, traceId={}",
+                result.getFileMetadata().getFileId(), result.getFileMetadata().getOriginalFileName(), traceId);
+
+            String contentType = headers.getFirst(HttpHeaders.CONTENT_TYPE);
+            MediaType mediaType = contentType != null ? MediaType.parseMediaType(contentType) : MediaType.APPLICATION_OCTET_STREAM;
+
             return ResponseEntity.ok()
-                    .header("Content-Disposition", "attachment; filename=\"" + result.getFileName() + "\"")
-                    .header("Content-Type", result.getContentType())
-                    .body(result.getFileContent());
-        } else {
-            return ResponseEntity.notFound().build();
+                    .headers(headers)
+                    .contentType(mediaType)
+                    .body(new InputStreamResource(result.getInputStream()));
+
+        } catch (Exception e) {
+            log.error("文件下载异常: fileId={}, familyId={}, error={}, traceId={}",
+                fileId, familyId, e.getMessage(), traceId, e);
+            return ResponseEntity.internalServerError().build();
         }
     }
 
@@ -279,7 +316,7 @@ public class StorageController {
 
     // ===== 健康检查和系统信息 API =====
 
-    
+
     /**
      * 获取存储适配器状态
      */
@@ -308,6 +345,42 @@ public class StorageController {
         } else {
             return ResponseWrapper.error(40002, "无法生成文件访问URL", null);
         }
+    }
+
+    /**
+     * 构建下载响应头
+     */
+    private HttpHeaders buildDownloadHeaders(FileMetadata metadata) {
+        HttpHeaders headers = new HttpHeaders();
+
+        // 1. 设置文件名（使用RFC 5987编码）
+        String originalFileName = metadata.getOriginalFileName();
+        if (originalFileName != null) {
+            // URL编码文件名以支持中文和特殊字符
+            String encodedFileName = URLEncoder.encode(originalFileName, StandardCharsets.UTF_8);
+            headers.add(HttpHeaders.CONTENT_DISPOSITION,
+                "attachment; filename=\"" + originalFileName + "\"; filename*=UTF-8''" + encodedFileName);
+        }
+
+        // 2. 设置内容类型
+        String contentType = metadata.getContentType();
+        if (contentType == null || contentType.isEmpty()) {
+            contentType = metadata.getMimeType();
+        }
+        if (contentType == null || contentType.isEmpty()) {
+            contentType = "application/octet-stream";
+        }
+        headers.add(HttpHeaders.CONTENT_TYPE, contentType);
+
+        // 3. 设置文件大小
+        if (metadata.getFileSize() > 0) {
+            headers.add(HttpHeaders.CONTENT_LENGTH, String.valueOf(metadata.getFileSize()));
+        }
+
+        // 4. 添加缓存控制
+        headers.add(HttpHeaders.CACHE_CONTROL, "private, max-age=3600");
+
+        return headers;
     }
 
     /**

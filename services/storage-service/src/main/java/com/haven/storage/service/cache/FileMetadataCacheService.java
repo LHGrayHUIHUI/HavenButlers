@@ -1,8 +1,10 @@
 package com.haven.storage.service.cache;
 
+import com.haven.base.utils.TraceIdUtil;
 import com.haven.common.redis.RedisCache;
 import com.haven.common.redis.RedisUtils;
 import com.haven.storage.domain.model.file.FileMetadata;
+import com.haven.storage.service.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,10 +62,10 @@ public class FileMetadataCacheService {
             String cacheKey = FILE_METADATA_PREFIX + fileMetadata.getFileId();
             redisCache.set(cacheKey, fileMetadata, FILE_METADATA_TTL_DAYS, TimeUnit.DAYS);
             log.debug("文件元数据已缓存: fileId={}, fileName={}",
-                fileMetadata.getFileId(), fileMetadata.getOriginalName());
+                    fileMetadata.getFileId(), fileMetadata.getOriginalName());
         } catch (Exception e) {
             log.warn("缓存文件元数据失败: fileId={}, error={}",
-                fileMetadata.getFileId(), e.getMessage());
+                    fileMetadata.getFileId(), e.getMessage());
         }
     }
 
@@ -80,7 +82,7 @@ public class FileMetadataCacheService {
             FileMetadata cached = redisCache.get(cacheKey, FileMetadata.class);
             if (cached != null) {
                 log.debug("从缓存获取文件元数据: fileId={}, fileName={}",
-                    fileId, cached.getOriginalName());
+                        fileId, cached.getOriginalName());
                 return Optional.of(cached);
             }
         } catch (Exception e) {
@@ -108,7 +110,6 @@ public class FileMetadataCacheService {
     }
 
 
-
     /**
      * 缓存搜索结果
      */
@@ -123,7 +124,7 @@ public class FileMetadataCacheService {
             log.debug("搜索结果已缓存: familyId={}, keyword={}", familyId, keyword);
         } catch (Exception e) {
             log.warn("缓存搜索结果失败: familyId={}, keyword={}, error={}",
-                familyId, keyword, e.getMessage());
+                    familyId, keyword, e.getMessage());
         }
     }
 
@@ -144,7 +145,7 @@ public class FileMetadataCacheService {
             }
         } catch (Exception e) {
             log.warn("获取缓存搜索结果失败: familyId={}, keyword={}, error={}",
-                familyId, keyword, e.getMessage());
+                    familyId, keyword, e.getMessage());
         }
 
         return Optional.empty();
@@ -199,8 +200,8 @@ public class FileMetadataCacheService {
 
         try {
             List<String> cacheKeys = fileIds.stream()
-                .map(fileId -> FILE_METADATA_PREFIX + fileId)
-                .toList();
+                    .map(fileId -> FILE_METADATA_PREFIX + fileId)
+                    .toList();
 
             redisCache.deleteBatch(cacheKeys);
             log.debug("批量文件元数据缓存已删除: count={}", fileIds.size());
@@ -225,4 +226,5 @@ public class FileMetadataCacheService {
             log.warn("清理所有缓存失败: error={}", e.getMessage());
         }
     }
+
 }

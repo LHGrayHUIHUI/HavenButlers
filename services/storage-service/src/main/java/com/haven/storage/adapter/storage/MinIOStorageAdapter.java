@@ -144,13 +144,10 @@ public class MinIOStorageAdapter implements StorageAdapter {
                             .build()
             );
 
-            byte[] fileContent = response.readAllBytes();
             String fileName = extractFileNameFromObject(objectName);
             String contentType = getContentType(fileName);
-
-            log.info("MinIO文件下载成功：familyId={}, fileId={}, size={}",
-                    familyId, fileId, fileContent.length);
-            return FileDownloadResult.success(fileContent, fileName, contentType, TraceIdUtil.getCurrentOrGenerate());
+            log.info("MinIO文件下载成功：response={}", response);
+            return FileDownloadResult.success(response, fileName, contentType, TraceIdUtil.getCurrentOrGenerate());
 
         } catch (Exception e) {
             log.error("MinIO文件下载失败：familyId={}, fileId={}, error={}",

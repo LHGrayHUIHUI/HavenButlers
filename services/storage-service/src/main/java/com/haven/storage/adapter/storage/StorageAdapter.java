@@ -46,7 +46,6 @@ public interface StorageAdapter {
      * @param file 待上传的文件对象，不能为空
      * @return 文件上传结果，包含上传后的文件元数据和操作状态
      * @throws IllegalArgumentException 当参数验证失败时抛出
-     * @throws StorageException 当存储操作失败时抛出
      */
     FileUploadResult uploadFile(FileMetadata fileMetadata, MultipartFile file);
 
@@ -100,29 +99,4 @@ public interface StorageAdapter {
      * @return 访问URL
      */
     String getFileAccessUrl(String fileId, String familyId, int expireMinutes);
-
-    /**
-     * 数据校验方法
-     * <p>
-     * 提供统一的数据校验接口，所有实现类必须使用UnifiedFileValidator进行参数验证。
-     * 这样可以确保所有存储适配器的验证逻辑一致，避免重复代码。
-     * <p>
-     * 🎯 核心要求：
-     * - 必须使用UnifiedFileValidator进行统一的参数验证
-     * - 必须支持文件大小、文件类型、基础参数的验证
-     * 必须返回UnifiedFileValidator.ValidationResult结果
-     * - 验证失败时必须记录详细的日志信息
-     *
-     * @param fileMetadata 包含所有必要文件信息的元数据对象
-     * @param file 待上传的文件对象，不能为空
-     * @param maxFileSize 最大文件大小限制（字节）
-     * @return 校验结果，成功或失败信息
-     */
-    default UnifiedFileValidator.ValidationResult validateUploadData(FileMetadata fileMetadata, MultipartFile file, long maxFileSize) {
-        // 默认实现：使用UnifiedFileValidator进行标准验证
-        // 各个实现类可以根据需要重写此方法添加特定的验证逻辑
-        // 注意：实际使用时应该通过依赖注入
-        UnifiedFileValidator validator = new UnifiedFileValidator(new FileTypeDetector());
-        return validator.validateFileUpload(fileMetadata.getFamilyId(), file, maxFileSize);
-    }
 }

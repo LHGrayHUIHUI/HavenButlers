@@ -15,12 +15,17 @@ import com.haven.storage.service.cache.FileMetadataCacheService;
 import com.haven.storage.validator.UnifiedFileValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import com.haven.storage.security.UserContext;
 
 /**
  * 统一文件存储服务
@@ -62,32 +67,6 @@ public class FileStorageService extends BaseService {
     private final FamilyStorageStatsService statsService;
 
     // ==================== 文件上传下载核心功能 ====================
-
-
-    /**
-     * 构建文件元数据
-     * <p>
-     * 统一的文件元数据构建入口，整合了元数据创建逻辑：
-     * - 根据上传请求构建完整的文件元数据
-     * - 设置存储类型和默认值
-     * - 生成文件ID和时间戳
-     *
-     * @param request 文件上传请求
-     * @return 构建完成的文件元数据
-     */
-    public FileMetadata buildFileMetadata(FileUploadRequest request) {
-        log.debug("开始构建文件元数据: family={}, userId={}, file={}",
-                request.getFamilyId(), request.getUploaderUserId(), request.getOriginalFileName());
-
-        // 委托给元数据构建器进行构建
-        FileMetadata fileMetadata = metadataBuilder.buildFromRequest(request, getCurrentStorageType());
-
-        log.debug("文件元数据构建完成: fileId={}, fileName={}, family={}",
-                fileMetadata.getFileId(), fileMetadata.getOriginalFileName(), fileMetadata.getFamilyId());
-
-        return fileMetadata;
-    }
-
 
     /**
      * 统一文件上传处理
@@ -169,47 +148,56 @@ public class FileStorageService extends BaseService {
 
 
     /**
-     * 下载家庭文件
+     * 下载家庭文件 - 支持流式传输
      * <p>
-     * 基于PostgreSQL+Redis架构的文件下载流程：
-     * - 从Redis缓存获取文件元数据（提升性能）
-     * - 缓存未命中时从PostgreSQL查询并更新缓存
-     * - 使用存储适配器从MinIO下载物理文件
-     * - 更新访问统计到数据库和缓存
+     * 基于UserContext的文件下载流程：
+     * 1. 从报文头获取用户ID和家庭ID
+     * 2. 先从缓存中获取文件的元数据，没有的话在数据库中查询
+     * 3. 通过用户ID或家庭ID去匹配文件，校验当前用户是否有权限读取此文件
+     * 4. 对于元数据进行判断是否存在存储的信息，物理存储的地址的进行判断
+     * 5. 通过storageAdapter适配去寻找和文件，使用存储适配器下载物理文件（支持流式传输）
+     * 6. 返回包含文件资源和元数据的下载结果
      */
     @TraceLog(value = "下载家庭文件", module = "unified-file", type = "DOWNLOAD")
     public FileDownloadResult downloadFile(String fileId, String familyId) {
         String traceId = TraceIdUtil.getCurrentOrGenerate();
 
         try {
-            // 1. 从Redis缓存获取文件元数据
-            Optional<FileMetadata> cachedMetadata = cacheService.getCachedFileMetadata(fileId);
-            FileMetadata metadata = cachedMetadata.orElse(null);
+            // 1. 先通过报文头获取用户ID和家庭ID
+            String currentUserId = UserContext.getCurrentUserId();
+            String currentFamilyId = UserContext.getCurrentFamilyId();
 
-            // 2. 缓存未命中时从PostgreSQL查询
+            log.info("开始文件下载: fileId={}, requestFamilyId={}, currentUserId={}, currentFamilyId={}, traceId={}",
+                    fileId, familyId, currentUserId, currentFamilyId, traceId);
+
+            // 2. 先从缓存中获取文件的元数据，没有的话在数据库中查询
+            FileMetadata metadata = getFileMetadata(fileId);
             if (metadata == null) {
-                metadata = getFileMetadataFromDatabase(fileId, familyId);
-                if (metadata == null) {
-                    return FileDownloadResult.failure("文件不存在或无权限访问");
-                }
-                // 缓存查询结果
-                cacheService.cacheFileMetadata(metadata);
-            } else if (!familyId.equals(metadata.getFamilyId())) {
-                // 权限验证
+                return FileDownloadResult.failure("文件不存在");
+            }
+
+            // 3. 通过用户ID或家庭ID去匹配这个文件，当前用户是否有权限读取这个文件
+            if (!unifiedFileValidator.validateFileReadPermission(metadata, currentUserId, currentFamilyId, familyId)) {
+                log.warn("用户无权限访问文件: fileId={}, currentUserId={}, currentFamilyId={}, fileFamilyId={}, fileOwnerId={}, traceId={}",
+                        fileId, currentUserId, currentFamilyId, metadata.getFamilyId(), metadata.getOwnerId(), traceId);
                 return FileDownloadResult.failure("无权限访问此文件");
             }
 
-            // 3. 使用存储适配器下载物理文件
-            FileDownloadResult result = storageAdapter.downloadFile(fileId, familyId);
-            updateAccessStatsAsync(metadata);
-            log.info("文件下载成功: family={}, fileId={}, size={}bytes, storageType={}, traceId={}",
-                    familyId, fileId, result.getFileContent().length,
-                    storageAdapter.getStorageType(), traceId);
-            return result;
+            // 4. 对于元数据进行判断是否存在存储的信息，物理存储的地址的进行判断
+            if (!unifiedFileValidator.isValidStorageMetadata(metadata)) {
+                return FileDownloadResult.failure("文件存储信息不完整或已损坏");
+            }
 
+            // 5. 通过storageAdapter适配去寻找和文件，使用存储适配器下载物理文件
+            FileDownloadResult storageResult = storageAdapter.downloadFile(fileId, metadata.getFamilyId());
+            storageResult.setFileMetadata(metadata);
+            // 6. 更新访问统计
+            updateAccessStatsAsync(metadata);
+            log.info("文件下载成功: fileId={}", storageResult);
+            return storageResult;
         } catch (Exception e) {
-            log.error("文件下载失败: family={}, fileId={}, storageType={}, error={}, traceId={}",
-                    familyId, fileId, storageAdapter.getStorageType(), e.getMessage(), traceId);
+            log.error("文件下载失败: fileId={}, familyId={}, storageType={}, error={}, traceId={}",
+                    fileId, familyId, storageAdapter.getStorageType(), e.getMessage(), traceId, e);
             return FileDownloadResult.failure("文件下载失败: " + e.getMessage());
         }
     }
@@ -500,16 +488,27 @@ public class FileStorageService extends BaseService {
      */
     public FileMetadata getFileMetadata(String fileId) {
         String traceId = TraceIdUtil.getCurrentOrGenerate();
-
+        FileMetadata fileMetadata = null;
         try {
             // 先从缓存获取
-            Optional<FileMetadata> cached = cacheService.getCachedFileMetadata(fileId);
-            if (cached.isPresent()) {
-                return cached.get();
+            Optional<FileMetadata> metadataOptional = cacheService.getCachedFileMetadata(fileId);
+            if (metadataOptional.isPresent()) {
+                fileMetadata = metadataOptional.get();
+            }
+            if (fileMetadata != null) {
+                return fileMetadata;
             }
 
+            Optional<FileMetadata> metadataRepository = fileMetadataRepository.findById(fileId);
+            if (metadataRepository.isPresent()) {
+                fileMetadata = metadataRepository.get();
+            }
+            if (fileMetadata != null) {
+                cacheService.cacheFileMetadata(fileMetadata);
+                return fileMetadata;
+            }
             // 缓存未命中，从数据库获取
-            return fileMetadataRepository.findById(fileId).orElse(null);
+            return null;
 
         } catch (Exception e) {
             log.error("获取文件元数据失败: fileId={}, error={}, traceId={}",
@@ -518,29 +517,6 @@ public class FileStorageService extends BaseService {
         }
     }
 
-    /**
-     * 根据文件ID和家庭ID获取文件元数据（带权限验证）
-     */
-    public FileMetadata getFileMetadata(String fileId, String familyId) {
-        // 先从缓存获取
-        Optional<FileMetadata> cached = cacheService.getCachedFileMetadata(fileId);
-        if (cached.isPresent()) {
-            FileMetadata metadata = cached.get();
-            return familyId.equals(metadata.getFamilyId()) ? metadata : null;
-        }
-
-        // 缓存未命中，从数据库获取
-        return getFileMetadataFromDatabase(fileId, familyId);
-    }
-
-
-    /**
-     * 删除文件元数据（兼容性方法）
-     */
-    public void deleteFileMetadata(String fileId) {
-        softDeleteFileMetadataInDatabase(fileId);
-        cacheService.evictFileMetadata(fileId);
-    }
 
     // ==================== 存储统计功能 ====================
 
@@ -565,42 +541,6 @@ public class FileStorageService extends BaseService {
 
         } catch (Exception e) {
             log.error("获取家庭存储统计失败: familyId={}, error={}", familyId, e.getMessage());
-            return createDefaultStorageStats(familyId);
-        }
-    }
-
-    /**
-     * 从PostgreSQL计算存储统计
-     */
-    private FamilyStorageStats calculateStorageStatsFromDatabase(String familyId) {
-        try {
-            // 1. 获取基础统计数据
-            long totalFiles = fileMetadataRepository.countActiveFilesByFamily(familyId);
-            long totalSize = fileMetadataRepository.sumFileSizeByFamily(familyId);
-
-            // 2. 按文件类型统计
-            List<Object[]> typeStats = fileMetadataRepository.countFilesByTypeByFamily(familyId);
-            Map<String, Integer> filesByType = new HashMap<>();
-            for (Object[] stat : typeStats) {
-                String fileType = (String) stat[0];
-                Long count = (Long) stat[1];
-                filesByType.put(fileType, count.intValue());
-            }
-
-            // 3. 构建统计结果
-            FamilyStorageStats stats = new FamilyStorageStats();
-            stats.setFamilyId(familyId);
-            stats.setTotalFiles((int) totalFiles);
-            stats.setTotalSize(totalSize);
-            stats.setFilesByType(filesByType);
-            stats.setLastUpdated(LocalDateTime.now());
-            stats.setStorageType(storageAdapter.getStorageType());
-            stats.setStorageHealthy(storageAdapter.isHealthy());
-
-            return stats;
-
-        } catch (Exception e) {
-            log.error("计算存储统计失败: familyId={}, error={}", familyId, e.getMessage());
             return createDefaultStorageStats(familyId);
         }
     }
@@ -643,4 +583,38 @@ public class FileStorageService extends BaseService {
         return storageAdapter.getFileAccessUrl(fileId, familyId, expireMinutes);
     }
 
+    public HttpHeaders buildDownloadHeaders(FileMetadata metadata) {
+        HttpHeaders headers = new HttpHeaders();
+
+        // 设置Content-Type
+        String contentType = metadata.getMimeType();
+        if (contentType == null || contentType.trim().isEmpty()) {
+            contentType = "application/octet-stream";
+        }
+        headers.add(HttpHeaders.CONTENT_TYPE, contentType);
+
+        // 设置Content-Disposition - 包含文件名
+        String originalFileName = metadata.getOriginalFileName();
+        if (originalFileName == null || originalFileName.trim().isEmpty()) {
+            originalFileName = metadata.getFileId();
+        }
+
+        // URL编码文件名以支持中文等特殊字符
+        String encodedFileName = URLEncoder.encode(originalFileName, StandardCharsets.UTF_8);
+        headers.add(HttpHeaders.CONTENT_DISPOSITION,
+                String.format("attachment; filename=\"%s\"; filename*=UTF-8''%s",
+                        originalFileName, encodedFileName));
+
+        // 设置文件大小
+        if (metadata.getFileSize() > 0) {
+            headers.add(HttpHeaders.CONTENT_LENGTH, String.valueOf(metadata.getFileSize()));
+        }
+
+        // 设置缓存控制
+        headers.add(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate");
+        headers.add(HttpHeaders.PRAGMA, "no-cache");
+        headers.add(HttpHeaders.EXPIRES, "0");
+
+        return headers;
+    }
 }

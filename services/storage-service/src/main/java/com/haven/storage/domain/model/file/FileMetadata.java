@@ -3,6 +3,7 @@ package com.haven.storage.domain.model.file;
 import com.haven.base.model.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -11,6 +12,7 @@ import java.util.List;
 /**
  * 文件元数据实体
  */
+@EqualsAndHashCode(callSuper = true)
 @Data
 @Entity
 @Table(name = "file_metadata", indexes = {
@@ -27,6 +29,7 @@ public class FileMetadata extends BaseEntity {
     @Column(name = "file_id", length = 64, nullable = false)
     private String fileId;
 
+    // 基础字段的 getter/setter 方法
     // 基础字段
     @Column(name = "id")
     private Long id;
@@ -360,47 +363,6 @@ public class FileMetadata extends BaseEntity {
     private boolean validateAccessLevelChange(FileVisibility newLevel) {
         // 权限变更的基本验证
         return true;
-    }
-
-    // 基础字段的 getter/setter 方法
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public LocalDateTime getCreateTime() {
-        return createTime;
-    }
-
-    public void setCreateTime(LocalDateTime createTime) {
-        this.createTime = createTime;
-    }
-
-    public LocalDateTime getUpdateTime() {
-        return updateTime;
-    }
-
-    public void setUpdateTime(LocalDateTime updateTime) {
-        this.updateTime = updateTime;
-    }
-
-    public Integer getDeleted() {
-        return deleted;
-    }
-
-    public void setDeleted(Integer deleted) {
-        this.deleted = deleted;
-    }
-
-    public Integer getStatus() {
-        return status;
-    }
-
-    public void setStatus(Integer status) {
-        this.status = status;
     }
 
     // JPA 生命周期回调
