@@ -138,11 +138,9 @@ public class StorageController {
      */
     @GetMapping("/files/list")
     @TraceLog(value = "获取文件列表", module = "storage-api", type = "FILE_LIST")
-    public ResponseEntity<FamilyFileList> getFamilyFiles(@RequestParam String familyId, @RequestParam(required = false, defaultValue = "/") String folderPath) {
-
+    public ResponseWrapper<FamilyFileList> getFamilyFiles(@RequestParam String familyId, @RequestParam(required = false, defaultValue = "/") String folderPath) {
         FamilyFileList fileList = fileStorageService.getFamilyFiles(familyId, folderPath);
-
-        return ResponseEntity.ok(fileList);
+        return ResponseWrapper.success("获取文件列表", fileList);
     }
 
     /**
@@ -174,11 +172,9 @@ public class StorageController {
      */
     @GetMapping("/files/stats")
     @TraceLog(value = "获取存储统计", module = "storage-api", type = "STORAGE_STATS")
-    public ResponseEntity<FamilyStorageStats> getStorageStats(@RequestParam String familyId) {
-
+    public ResponseWrapper<FamilyStorageStats> getStorageStats(@RequestParam String familyId) {
         FamilyStorageStats stats = fileStorageService.getFamilyStorageStats(familyId);
-
-        return ResponseEntity.ok(stats);
+        return ResponseWrapper.success(stats);
     }
 
     // ===== 个人知识库 API =====

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据库查询测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; }
+        .btn { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; cursor: pointer; }
+        .btn:hover { background: #0056b3; }
+        .response { margin: 10px 0; padding: 10px; background: #f8f9fa; border-left: 4px solid #007bff; }
+        .error { border-left-color: #dc3545; background: #f8d7da; }
+        pre { background: #2d3748; color: #e2e8f0; padding: 15px; border-radius: 4px; overflow-x: auto; }
+        .file-item { padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>🔍 数据库查询测试</h1>
+
+    <div class="section">
+        <h3>配置</h3>
+        <input type="text" id="baseUrl" value="http://localhost:8086" style="width: 300px; padding: 5px;">
+        <button class="btn" onclick="testHealth()">测试健康检查</button>
+        <div id="healthStatus"></div>
+    </div>
+
+    <div class="section">
+        <h3>🔍 直接查询数据库中的文件</h3>
+        <div>
+            <label>家庭ID:</label>
+            <input type="text" id="familyId" value="test-family-001" style="width: 200px; padding: 5px;">
+        </div>
+
+        <button class="btn" onclick="queryDbFiles()">查询所有文件</button>
+        <button class="btn" onclick="queryDbDocuments()">查询 /documents 路径文件</button>
+        <button class="btn" onclick="testApiQueryRoot()">API查询根路径</button>
+        <button class="btn" onclick="testApiQueryDocuments()">API查询 /documents 路径</button>
+
+        <div id="response"></div>
+    </div>
+
+    <script>
+        function getBaseUrl() {
+            return document.getElementById('baseUrl').value.trim();
+        }
+
+        function showResponse(content, isError = false) {
+            const element = document.getElementById('response');
+            const className = isError ? 'response error' : 'response';
+            element.innerHTML = `<div class="${className}">${content}</div>`;
+        }
+
+        async function testHealth() {
+            try {
+                const response = await fetch(`${getBaseUrl()}/api/v1/storage/health`);
+                const data = await response.json();
+                showResponse(`✅ 服务正常: ${data.serviceName} v${data.version}`);
+            } catch (error) {
+                showResponse(`❌ 连接失败: ${error.message}`, true);
+            }
+        }
+
+        async function queryDbFiles() {
+            const familyId = document.getElementById('familyId').value.trim();
+            if (!familyId) {
+                alert('请输入家庭ID');
+                return;
+            }
+
+            showResponse('🔄 正在查询数据库中的所有文件...');
+
+            try {
+                const url = `${getBaseUrl()}/api/v1/storage/files/list?familyId=${encodeURIComponent(familyId)}&folderPath=/`;
+                const response = await fetch(url);
+                const data = await response.json();
+
+                let html = '<h4>📋 API查询根路径 / 结果:</h4>';
+                if (response.ok && data.success) {
+                    const result = data.data;
+                    html += `<p><strong>家庭ID:</strong> ${result.familyId}</p>`;
+                    html += `<p><strong>当前路径:</strong> ${result.currentPath}</p>`;
+                    html += `<p><strong>文件数量:</strong> ${result.totalFiles}</p>`;
+                    html += `<p><strong>总大小:</strong> ${formatFileSize(result.totalSize)}</p>`;
+                    html += `<p><strong>子文件夹:</strong> ${JSON.stringify(result.subFolders)}</p>`;
+                    html += `<p><strong>文件详情:</strong></p>`;
+
+                    if (result.files && result.files.length > 0) {
+                        html += '<div style="max-height: 300px; overflow-y: auto;">';
+                        result.files.forEach(file => {
+                            html += `<div class="file-item">`;
+                            html += `<strong>文件ID:</strong> ${file.fileId}<br>`;
+                            html += `<strong>文件名:</strong> ${file.originalName || file.fileName}<br>`;
+                            html += `<strong>大小:</strong> ${formatFileSize(file.fileSize)}<br>`;
+                            html += `<strong>类型:</strong> ${file.contentType || file.mimeType}<br>`;
+                            html += `<strong>路径:</strong> ${file.folderPath}<br>`;
+                            html += `<strong>上传时间:</strong> ${new Date(file.uploadTime).toLocaleString()}`;
+                            html += `</div>`;
+                        });
+                        html += '</div>';
+                    } else {
+                        html += '<p><em>无文件</em></p>';
+                    }
+
+                    html += `<details><summary>完整JSON响应</summary><pre>${JSON.stringify(data, null, 2)}</pre></details>`;
+                } else {
+                    html += `<p><strong>❌ 查询失败:</strong> ${data.message || '未知错误'}</p>`;
+                }
+
+                showResponse(html);
+            } catch (error) {
+                showResponse(`❌ 网络错误: ${error.message}`, true);
+            }
+        }
+
+        async function queryDbDocuments() {
+            const familyId = document.getElementById('familyId').value.trim();
+            if (!familyId) {
+                alert('请输入家庭ID');
+                return;
+            }
+
+            showResponse('🔄 正在查询数据库中 /documents 路径的文件...');
+
+            try {
+                const url = `${getBaseUrl()}/api/v1/storage/files/list?familyId=${encodeURIComponent(familyId)}&folderPath=/documents`;
+                const response = await fetch(url);
+                const data = await response.json();
+
+                let html = '<h4>📂 API查询 /documents 路径结果:</h4>';
+                if (response.ok && data.success) {
+                    const result = data.data;
+                    html += `<p><strong>家庭ID:</strong> ${result.familyId}</p>`;
+                    html += `<p><strong>当前路径:</strong> ${result.currentPath}</p>`;
+                    html += `<p><strong>文件数量:</strong> ${result.totalFiles}</p>`;
+                    html += `<p><strong>总大小:</strong> ${formatFileSize(result.totalSize)}</p>`;
+                    html += `<p><strong>子文件夹:</strong> ${JSON.stringify(result.subFolders)}</p>`;
+                    html += `<p><strong>文件详情:</strong></p>`;
+
+                    if (result.files && result.files.length > 0) {
+                        html += '<div style="max-height: 300px; overflow-y: auto;">';
+                        result.files.forEach(file => {
+                            html += `<div class="file-item">`;
+                            html += `<strong>文件ID:</strong> ${file.fileId}<br>`;
+                            html += `<strong>文件名:</strong> ${file.originalName || file.fileName}<br>`;
+                            html += `<strong>大小:</strong> ${formatFileSize(file.fileSize)}<br>`;
+                            html += `<strong>类型:</strong> ${file.contentType || file.mimeType}<br>`;
+                            html += `<strong>路径:</strong> ${file.folderPath}<br>`;
+                            html += `<strong>上传时间:</strong> ${new Date(file.uploadTime).toLocaleString()}`;
+                            html += `</div>`;
+                        });
+                        html += '</div>';
+                    } else {
+                        html += '<p><em>无文件</em></p>';
+                    }
+
+                    html += `<details><summary>完整JSON响应</summary><pre>${JSON.stringify(data, null, 2)}</pre></details>`;
+                } else {
+                    html += `<p><strong>❌ 查询失败:</strong> ${data.message || '未知错误'}</p>`;
+                }
+
+                showResponse(html);
+            } catch (error) {
+                showResponse(`❌ 网络错误: ${error.message}`, true);
+            }
+        }
+
+        async function testApiQueryRoot() {
+            await queryDbFiles(); // 复用根路径查询
+        }
+
+        async function testApiQueryDocuments() {
+            await queryDbDocuments(); // 复用documents路径查询
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // 页面加载时自动测试健康检查
+        window.onload = function() {
+            testHealth();
+        };
+    </script>
+</body>
+</html>

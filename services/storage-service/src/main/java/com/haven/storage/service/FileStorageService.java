@@ -269,10 +269,31 @@ public class FileStorageService extends BaseService {
         try {
             // 从PostgreSQL获取所有未删除的家庭文件
             List<FileMetadata> allFiles = fileMetadataRepository.findActiveFilesByFamily(familyId);
+            log.info("获取到家庭文件总数: familyId={}, allFiles.size={}, folderPath={}, traceId={}",
+                    familyId, allFiles.size(), folderPath, traceId);
 
-            // 按文件夹过滤
+            // 调试：打印所有文件的路径信息
+            if (log.isDebugEnabled()) {
+                allFiles.forEach(file -> log.debug("文件路径信息: fileId={}, folderPath={}, originalName={}, traceId={}",
+                        file.getFileId(), file.getFolderPath(), file.getOriginalFileName(), traceId));
+            }
+
+            // 标准化路径格式，确保路径匹配的一致性
+            String normalizedFolderPath = normalizeFolderPath(folderPath);
+            log.info("标准化后的路径: originalPath={}, normalizedPath={}, traceId={}",
+                    folderPath, normalizedFolderPath, traceId);
+
+            // 按文件夹过滤（使用标准化路径进行匹配）
             List<FileMetadata> folderFiles = allFiles.stream()
-                    .filter(file -> folderPath.equals(file.getFolderPath()))
+                    .filter(file -> {
+                        String normalizedFilePath = normalizeFolderPath(file.getFolderPath());
+                        boolean matches = normalizedFolderPath.equals(normalizedFilePath);
+                        if (log.isDebugEnabled() && matches) {
+                            log.debug("文件路径匹配成功: fileId={}, fileFolderPath={}, normalizedFilePath={}, traceId={}",
+                                    file.getFileId(), file.getFolderPath(), normalizedFilePath, traceId);
+                        }
+                        return matches;
+                    })
                     .sorted(Comparator.comparing(FileMetadata::getUploadTime).reversed())
                     .collect(Collectors.toList());
 
@@ -530,7 +551,7 @@ public class FileStorageService extends BaseService {
      */
     public FamilyStorageStats getFamilyStorageStats(String familyId) {
         try {
-            // 使用专门的统计服务获取准确的数据
+            // 使用专门地统计服务获取准确的数据
             FamilyStorageStats stats = statsService.getFamilyStats(familyId);
 
             // 设置存储适配器相关信息
@@ -581,6 +602,39 @@ public class FileStorageService extends BaseService {
      */
     public String getFileAccessUrl(String fileId, String familyId, int expireMinutes) {
         return storageAdapter.getFileAccessUrl(fileId, familyId, expireMinutes);
+    }
+
+    /**
+     * 标准化文件夹路径格式
+     * <p>
+     * 确保路径格式的一致性，处理以下情况：
+     * - 统一使用 "/" 作为路径分隔符
+     * - 确保路径以 "/" 开头
+     * - 移除末尾的 "/"（根路径除外）
+     * - 处理 null 值
+     *
+     * @param path 原始路径
+     * @return 标准化后的路径
+     */
+    private String normalizeFolderPath(String path) {
+        if (path == null) {
+            return "/";
+        }
+
+        // 统一使用 "/" 作为分隔符
+        String normalized = path.replace("\\", "/");
+
+        // 确保以 "/" 开头
+        if (!normalized.startsWith("/")) {
+            normalized = "/" + normalized;
+        }
+
+        // 移除末尾的 "/"（根路径除外）
+        if (normalized.length() > 1 && normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+
+        return normalized;
     }
 
     public HttpHeaders buildDownloadHeaders(FileMetadata metadata) {

@@ -32,11 +32,6 @@ import java.util.Optional;
 public interface FileMetadataRepository extends JpaRepository<FileMetadata, String> {
 
     /**
-     * 根据家庭ID和删除状态查找文件列表
-     */
-    List<FileMetadata> findByFamilyIdAndDeletedOrderByCreateTimeDesc(String familyId, Integer deleted);
-
-    /**
      * 根据家庭ID查找未删除的文件列表
      */
     @Query("SELECT f FROM FileMetadata f WHERE f.familyId = :familyId AND f.deleted != 1 ORDER BY f.createTime DESC")
