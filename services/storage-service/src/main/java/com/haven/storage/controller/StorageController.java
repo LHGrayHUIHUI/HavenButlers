@@ -3,6 +3,7 @@ package com.haven.storage.controller;
 import com.haven.base.annotation.TraceLog;
 import com.haven.base.common.response.ErrorCode;
 import com.haven.base.common.response.ResponseWrapper;
+import com.haven.base.utils.TraceIdUtil;
 import com.haven.storage.api.StorageHealthInfo;
 import com.haven.storage.async.AsyncProcessingTrigger;
 import com.haven.storage.domain.model.file.*;
@@ -14,8 +15,10 @@ import com.haven.storage.service.VectorTagService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jboss.logging.MDC;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -26,6 +29,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -94,9 +98,10 @@ public class StorageController {
      * 注意：此方法不使用@TraceLog注解，因为InputStreamResource无法被序列化用于日志记录
      */
     @GetMapping("/files/download/{fileId}")
-    public ResponseEntity<InputStreamResource> downloadFile(@PathVariable String fileId,
-                                          @RequestParam(required = false) String familyId) {
-        String traceId = "tr-" + System.currentTimeMillis() + "-" + (int)(Math.random() * 1000000);
+    public ResponseEntity<InputStreamResource> downloadFile(@PathVariable @NotBlank(message = "fileId不能为空") String fileId,
+                                                            @RequestParam(required = false) String familyId) {
+        String traceId = TraceIdUtil.getCurrentOrGenerate();
+        MDC.put("traceId", traceId); // 放入MDC
         log.info("开始文件下载: fileId={}, familyId={}, traceId={}", fileId, familyId, traceId);
         try {
             // 1. 获取文件下载结果
@@ -104,29 +109,27 @@ public class StorageController {
 
             if (!result.isSuccess()) {
                 log.error("文件下载失败: fileId={}, familyId={}, error={}, traceId={}",
-                    fileId, familyId, result.getErrorMessage(), traceId);
+                        fileId, familyId, result.getErrorMessage(), traceId);
                 return ResponseEntity.notFound().build();
             }
-
             // 2. 构建下载响应头
             HttpHeaders headers = buildDownloadHeaders(result.getFileMetadata());
-
             // 3. 返回流式响应
-            log.info("文件下载成功: fileId={}, fileName={}, traceId={}",
-                result.getFileMetadata().getFileId(), result.getFileMetadata().getOriginalFileName(), traceId);
-
             String contentType = headers.getFirst(HttpHeaders.CONTENT_TYPE);
             MediaType mediaType = contentType != null ? MediaType.parseMediaType(contentType) : MediaType.APPLICATION_OCTET_STREAM;
-
+            log.info("文件下载成功: fileId={}, fileName={}, traceId={}",
+                    result.getFileMetadata().getFileId(), result.getFileMetadata().getOriginalFileName(), traceId);
             return ResponseEntity.ok()
                     .headers(headers)
                     .contentType(mediaType)
-                    .body(new InputStreamResource(result.getInputStream()));
+                    .body(new InputStreamResource(new BufferedInputStream(result.getInputStream())));
 
         } catch (Exception e) {
             log.error("文件下载异常: fileId={}, familyId={}, error={}, traceId={}",
-                fileId, familyId, e.getMessage(), traceId, e);
+                    fileId, familyId, e.getMessage(), traceId, e);
             return ResponseEntity.internalServerError().build();
+        } finally {
+            MDC.clear();
         }
     }
 
@@ -359,7 +362,7 @@ public class StorageController {
             // URL编码文件名以支持中文和特殊字符
             String encodedFileName = URLEncoder.encode(originalFileName, StandardCharsets.UTF_8);
             headers.add(HttpHeaders.CONTENT_DISPOSITION,
-                "attachment; filename=\"" + originalFileName + "\"; filename*=UTF-8''" + encodedFileName);
+                    "attachment; filename=\"" + originalFileName + "\"; filename*=UTF-8''" + encodedFileName);
         }
 
         // 2. 设置内容类型
