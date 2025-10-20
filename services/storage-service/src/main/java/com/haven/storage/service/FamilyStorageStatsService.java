@@ -107,7 +107,10 @@ public class FamilyStorageStatsService {
      * 更新详细分类统计
      */
     private void updateDetailedStats(FamilyStorageStats stats, FileMetadata fileMetadata, boolean isIncrement) {
-        String category = fileTypeDetector.getCategoryByMimeType(fileMetadata.getFileType());
+        // 使用完整的MIME类型而不是简化的文件类型
+        String mimeType = fileMetadata.getContentType() != null ?
+                         fileMetadata.getContentType() : fileMetadata.getFileType();
+        String category = fileTypeDetector.getCategoryByMimeType(mimeType);
         int delta = isIncrement ? 1 : -1;
 
         switch (category) {
