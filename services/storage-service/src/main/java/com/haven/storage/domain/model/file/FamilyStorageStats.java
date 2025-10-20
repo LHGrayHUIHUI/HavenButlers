@@ -52,6 +52,9 @@ public class FamilyStorageStats {
     @Column(name = "total_videos")
     private Integer totalVideos;
 
+    @Column(name = "total_audio")
+    private Integer totalAudio;
+
     @Column(name = "total_others")
     private Integer totalOthers;
 

@@ -368,6 +368,7 @@
         }
 
         function formatFileSize(bytes) {
+            if (bytes === null || bytes === undefined || isNaN(bytes)) return '未知';
             if (bytes === 0) return '0 B';
             const k = 1024;
             const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -376,11 +377,13 @@
         }
 
         function formatDate(dateString) {
-            if (!dateString) return '未知';
+            if (dateString === null || dateString === undefined || dateString === '') return '未知';
             try {
-                return new Date(dateString).toLocaleString('zh-CN');
+                const date = new Date(dateString);
+                if (isNaN(date.getTime())) return '未知';
+                return date.toLocaleString('zh-CN');
             } catch (e) {
-                return dateString;
+                return '未知';
             }
         }
 
@@ -412,10 +415,35 @@
                 const response = await fetch(`${baseUrl}/api/v1/storage/health`);
                 const data = await response.json();
 
-                document.getElementById('connectionStatus').innerHTML = `
-                    <div class="status success">✅ 连接成功</div>
-                    <small>服务: ${data.serviceName} | 状态: ${data.status} | 版本: ${data.version}</small>
-                `;
+                // 兼容新旧两种健康检查响应格式
+                if (response.ok) {
+                    // 新格式 (有success字段)
+                    if (data.success && data.data) {
+                        document.getElementById('connectionStatus').innerHTML = `
+                            <div class="status success">✅ 连接成功</div>
+                            <small>服务: ${data.data.serviceName || 'Storage Service'} | 状态: ${data.data.status || 'UP'} | 版本: ${data.data.version || '1.0.0'}</small>
+                        `;
+                    }
+                    // 旧格式 (直接返回健康数据)
+                    else if (data.status) {
+                        document.getElementById('connectionStatus').innerHTML = `
+                            <div class="status success">✅ 连接成功</div>
+                            <small>服务: ${data.serviceName || 'Storage Service'} | 状态: ${data.status || 'UP'} | 版本: ${data.version || '1.0.0'}</small>
+                        `;
+                    }
+                    // 其他情况视为异常
+                    else {
+                        document.getElementById('connectionStatus').innerHTML = `
+                            <div class="status error">❌ 服务异常</div>
+                            <small>错误: ${data.message || '未知错误'}</small>
+                        `;
+                    }
+                } else {
+                    document.getElementById('connectionStatus').innerHTML = `
+                        <div class="status error">❌ 服务异常</div>
+                        <small>错误: ${data.message || '未知错误'}</small>
+                    `;
+                }
             } catch (error) {
                 document.getElementById('connectionStatus').innerHTML = `
                     <div class="status error">❌ 连接失败</div>
@@ -547,8 +575,8 @@
                 const response = await fetch(url);
                 const data = await response.json();
 
-                if (response.ok) {
-                    displayStorageStats(data);
+                if (response.ok && data.success) {
+                    displayStorageStats(data.data);
                 } else {
                     showResponse('storageStatsResponse', `
                         <strong>错误信息:</strong> ${data.message || '未知错误'}<br>
@@ -617,6 +645,15 @@
                     <div class="stat-card">
                         <div class="stat-number">${data.totalVideos}</div>
                         <div class="stat-label">视频文件</div>
+                    </div>
+                `;
+            }
+
+            if (data.totalAudio !== null) {
+                html += `
+                    <div class="stat-card">
+                        <div class="stat-number">${data.totalAudio}</div>
+                        <div class="stat-label">音频文件</div>
                     </div>
                 `;
             }

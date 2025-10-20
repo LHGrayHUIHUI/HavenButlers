@@ -12,15 +12,13 @@ import com.haven.storage.exception.FileUploadException;
 import com.haven.storage.repository.FileMetadataRepository;
 import com.haven.storage.service.base.BaseService;
 import com.haven.storage.service.cache.FileMetadataCacheService;
+import com.haven.storage.utils.FileUtils;
 import com.haven.storage.validator.UnifiedFileValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -64,7 +62,7 @@ public class FileStorageService extends BaseService {
     private final FileMetadataCacheService cacheService;// Redis缓存服务
 
     // 家庭存储统计服务
-    private final FamilyStorageStatsService statsService;
+    private final FamilyStorageStatsService familyStorageStatsService;
 
     // ==================== 文件上传下载核心功能 ====================
 
@@ -117,7 +115,7 @@ public class FileStorageService extends BaseService {
             // 6. 缓存文件元数据到Redis（提升后续查询性能）
             cacheService.cacheFileMetadata(fileMetadata);
             // 7. 更新家庭存储统计信息（文件上传成功）
-            statsService.onFileUploaded(fileMetadata);
+            familyStorageStatsService.onFileUploaded(fileMetadata);
 
             // 8. 清理家庭相关缓存（因为文件列表发生变化）
             // 清理所有缓存以确保数据一致性
@@ -236,7 +234,7 @@ public class FileStorageService extends BaseService {
                 softDeleteFileMetadataInDatabase(fileId);
 
                 // 5. 更新家庭存储统计信息（文件删除）
-                statsService.onFileDeleted(metadata);
+                familyStorageStatsService.onFileDeleted(metadata);
 
                 // 6. 清理Redis相关缓存
                 cacheService.evictFileMetadata(fileId);
@@ -275,13 +273,13 @@ public class FileStorageService extends BaseService {
                     file.getFileId(), file.getFolderPath(), file.getOriginalFileName(), traceId));
 
             // 标准化路径格式，确保路径匹配的一致性
-            String formatFolderPath = formatFolderPath(folderPath);
+            String formatFolderPath = FileUtils.formatFolderPath(folderPath);
             log.info("标准化后的路径: originalPath={}, normalizedPath={}, traceId={}",
                     folderPath, folderPath, traceId);
 
             // 按文件夹过滤（使用标准化路径进行匹配）
             List<FileMetadata> folderFiles = allFiles.stream()
-                    .filter(file -> "/".equals(formatFolderPath) || formatFolderPath.equals(formatFolderPath(file.getFolderPath())))
+                    .filter(file -> "/".equals(formatFolderPath) || formatFolderPath.equals(FileUtils.formatFolderPath(file.getFolderPath())))
                     .sorted(Comparator.comparing(FileMetadata::getUploadTime).reversed())
                     .collect(Collectors.toList());
 
@@ -540,12 +538,10 @@ public class FileStorageService extends BaseService {
     public FamilyStorageStats getFamilyStorageStats(String familyId) {
         try {
             // 使用专门地统计服务获取准确的数据
-            FamilyStorageStats stats = statsService.getFamilyStats(familyId);
-
+            FamilyStorageStats stats = familyStorageStatsService.getFamilyStats(familyId);
             // 设置存储适配器相关信息
             stats.setStorageType(storageAdapter.getStorageType());
             stats.setStorageHealthy(storageAdapter.isHealthy());
-
             return stats;
 
         } catch (Exception e) {
@@ -592,71 +588,4 @@ public class FileStorageService extends BaseService {
         return storageAdapter.getFileAccessUrl(fileId, familyId, expireMinutes);
     }
 
-    /**
-     * 标准化文件夹路径格式
-     * <p>
-     * 确保路径格式的一致性，处理以下情况：
-     * - 统一使用 "/" 作为路径分隔符
-     * - 确保路径以 "/" 开头
-     * - 移除末尾的 "/"（根路径除外）
-     * - 处理 null 值
-     *
-     * @param path 原始路径
-     * @return 标准化后的路径
-     */
-    private String formatFolderPath(String path) {
-        if (path == null) {
-            return "/";
-        }
-
-        // 统一使用 "/" 作为分隔符
-        String normalized = path.replace("\\", "/");
-
-        // 确保以 "/" 开头
-        if (!normalized.startsWith("/")) {
-            normalized = "/" + normalized;
-        }
-
-        // 移除末尾的 "/"（根路径除外）
-        if (normalized.length() > 1 && normalized.endsWith("/")) {
-            normalized = normalized.substring(0, normalized.length() - 1);
-        }
-
-        return normalized;
-    }
-
-    public HttpHeaders buildDownloadHeaders(FileMetadata metadata) {
-        HttpHeaders headers = new HttpHeaders();
-
-        // 设置Content-Type
-        String contentType = metadata.getMimeType();
-        if (contentType == null || contentType.trim().isEmpty()) {
-            contentType = "application/octet-stream";
-        }
-        headers.add(HttpHeaders.CONTENT_TYPE, contentType);
-
-        // 设置Content-Disposition - 包含文件名
-        String originalFileName = metadata.getOriginalFileName();
-        if (originalFileName == null || originalFileName.trim().isEmpty()) {
-            originalFileName = metadata.getFileId();
-        }
-
-        // URL编码文件名以支持中文等特殊字符
-        String encodedFileName = URLEncoder.encode(originalFileName, StandardCharsets.UTF_8);
-        headers.add(HttpHeaders.CONTENT_DISPOSITION,
-                String.format("attachment; filename=\"%s\"; filename*=UTF-8''%s",
-                        originalFileName, encodedFileName));
-
-        // 设置文件大小
-        if (metadata.getFileSize() > 0) {
-            headers.add(HttpHeaders.CONTENT_LENGTH, String.valueOf(metadata.getFileSize()));
-        }
-
-        // 设置缓存控制
-        headers.add(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate");
-        headers.add(HttpHeaders.PRAGMA, "no-cache");
-        headers.add(HttpHeaders.EXPIRES, "0");
-
-        return headers;
-    }
 }

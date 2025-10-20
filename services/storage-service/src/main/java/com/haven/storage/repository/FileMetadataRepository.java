@@ -170,4 +170,72 @@ public interface FileMetadataRepository extends JpaRepository<FileMetadata, Stri
     @Query("SELECT DISTINCT f.folderPath FROM FileMetadata f WHERE f.familyId = :familyId AND f.deleted != 1 " +
            "AND f.folderPath IS NOT NULL ORDER BY f.folderPath")
     List<String> findFolderPathsByFamily(@Param("familyId") String familyId);
+
+    // ==================== 聚合统计查询方法 ====================
+
+    /**
+     * 聚合统计家庭文件基础信息
+     * <p>
+     * 单次查询获取总文件数、总大小、最大文件信息等基础统计数据
+     * 避免多次数据库查询，提升性能
+     *
+     * @param familyId 家庭ID
+     * @return 聚合统计结果
+     */
+    @Query(value = """
+        SELECT
+            COUNT(f.file_id) as totalFiles,
+            COALESCE(SUM(f.file_size), 0) as totalSize,
+            COALESCE(MAX(f.file_size), 0) as largestFileSize,
+            (SELECT f2.original_name FROM file_metadata f2
+             WHERE f2.family_id = :familyId AND f2.deleted != 1
+             ORDER BY f2.file_size DESC LIMIT 1) as largestFileName,
+            MAX(f.create_time) as mostRecentFileTime
+        FROM file_metadata f
+        WHERE f.family_id = :familyId AND f.deleted != 1
+        """, nativeQuery = true)
+    Object[] aggregateBasicStatsByFamily(@Param("familyId") String familyId);
+
+    
+    /**
+     * 按文件分类聚合统计文件数量
+     * <p>
+     * 基于文件MIME类型进行分类统计（图片、文档、视频、音频、其他）
+     * 使用数据库级分类，减少Java代码处理负担
+     *
+     * @param familyId 家庭ID
+     * @return 分类统计数组 [category, count]
+     */
+    @Query(value = """
+        SELECT
+            CASE
+                WHEN f.content_type LIKE 'image%' THEN 'image'
+                WHEN f.content_type LIKE 'video%' THEN 'video'
+                WHEN f.content_type LIKE 'audio%' THEN 'audio'
+                WHEN f.content_type LIKE 'application/pdf' OR
+                     f.content_type LIKE 'text%' OR
+                     f.content_type LIKE 'application/msword' OR
+                     f.content_type LIKE 'application/vnd.openxmlformats-officedocument%' THEN 'document'
+                ELSE 'others'
+            END as category,
+            COUNT(f.file_id) as count
+        FROM file_metadata f
+        WHERE f.family_id = :familyId AND f.deleted != 1
+        GROUP BY category
+        ORDER BY count DESC
+        """, nativeQuery = true)
+    List<Object[]> aggregateFilesByCategory(@Param("familyId") String familyId);
+
+    /**
+     * 批量获取多个家庭的统计概要
+     * <p>
+     * 用于管理员视图或批量统计分析
+     *
+     * @param familyIds 家庭ID列表
+     * @return 统计概要数组 [familyId, totalFiles, totalSize]
+     */
+    @Query("SELECT f.familyId, COUNT(f) as fileCount, COALESCE(SUM(f.fileSize), 0) as totalSize " +
+           "FROM FileMetadata f WHERE f.familyId IN :familyIds AND f.deleted != 1 " +
+           "GROUP BY f.familyId")
+    List<Object[]> batchAggregateStatsByFamilies(@Param("familyIds") List<String> familyIds);
 }

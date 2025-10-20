@@ -189,4 +189,37 @@ public class FileUtils {
 
         return true;
     }
+
+    /**
+     * 标准化文件夹路径格式
+     * <p>
+     * 确保路径格式的一致性，处理以下情况：
+     * - 统一使用 "/" 作为路径分隔符
+     * - 确保路径以 "/" 开头
+     * - 移除末尾的 "/"（根路径除外）
+     * - 处理 null 值
+     *
+     * @param path 原始路径
+     * @return 标准化后的路径
+     */
+    public static String formatFolderPath(String path) {
+        if (path == null) {
+            return "/";
+        }
+
+        // 统一使用 "/" 作为分隔符
+        String normalized = path.replace("\\", "/");
+
+        // 确保以 "/" 开头
+        if (!normalized.startsWith("/")) {
+            normalized = "/" + normalized;
+        }
+
+        // 移除末尾的 "/"（根路径除外）
+        if (normalized.length() > 1 && normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+
+        return normalized;
+    }
 }

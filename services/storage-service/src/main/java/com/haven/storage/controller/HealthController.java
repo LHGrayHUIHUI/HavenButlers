@@ -18,10 +18,17 @@ public class HealthController {
 
     @GetMapping("/health")
     public Map<String, Object> health() {
+        Map<String, Object> healthData = new HashMap<>();
+        healthData.put("serviceName", "storage-service");
+        healthData.put("status", "UP");
+        healthData.put("version", "1.0.0");
+        healthData.put("timestamp", System.currentTimeMillis());
+
         Map<String, Object> response = new HashMap<>();
-        response.put("status", "UP");
-        response.put("service", "storage-service");
-        response.put("version", "1.0.0");
+        response.put("code", 0);
+        response.put("message", "服务健康");
+        response.put("data", healthData);
+        response.put("success", true);
         response.put("timestamp", System.currentTimeMillis());
         return response;
     }

@@ -149,9 +149,7 @@ public class StorageController {
     @GetMapping("/files/search")
     @TraceLog(value = "文件搜索", module = "storage-api", type = "FILE_SEARCH")
     public ResponseEntity<FileSearchResult> searchFiles(@RequestParam String familyId, @RequestParam String keyword) {
-
         FileSearchResult result = fileStorageService.searchFiles(familyId, keyword);
-
         return ResponseEntity.ok(result);
     }
 
