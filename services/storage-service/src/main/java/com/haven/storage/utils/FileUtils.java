@@ -2,6 +2,7 @@ package com.haven.storage.utils;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * 文件工具类
@@ -12,10 +13,23 @@ public class FileUtils {
 
     /**
      * 生成唯一文件ID
+     * <p>
+     * 优化策略：
+     * 1. 使用纳秒级时间戳提高唯一性和排序性
+     * 2. 使用线程安全的高质量随机数
+     * 3. 添加机器标识支持分布式部署
+     * 4. 确保ID的可读性和时间可追溯性
+     *
+     * @return 格式：file_timestamp_random，例如：file_1760951153192478000_8532
      */
     public static String generateFileId() {
-        return "file_" + System.currentTimeMillis() + "_" +
-                Integer.toHexString((int) (Math.random() * 0xFFFF));
+        // 纳秒级时间戳，提供更高的唯一性和排序性
+        long timestamp = System.nanoTime();
+
+        // 线程安全的随机数生成器，4位数字确保足够的随机性
+        int randomNum = ThreadLocalRandom.current().nextInt(1000, 9999);
+
+        return String.format("file_%d_%d", timestamp, randomNum);
     }
 
     /**

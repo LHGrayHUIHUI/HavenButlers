@@ -152,65 +152,6 @@ public class FileMetadataCacheService {
     }
 
     /**
-     * 缓存存储统计数据
-     */
-    public void cacheStorageStats(String familyId, Object stats) {
-        if (familyId == null || stats == null) {
-            return;
-        }
-
-        try {
-            String cacheKey = STORAGE_STATS_PREFIX + familyId;
-            redisCache.set(cacheKey, stats, STORAGE_STATS_TTL_MINUTES, TimeUnit.MINUTES);
-            log.debug("存储统计数据已缓存: familyId={}", familyId);
-        } catch (Exception e) {
-            log.warn("缓存存储统计数据失败: familyId={}, error={}", familyId, e.getMessage());
-        }
-    }
-
-    /**
-     * 获取缓存的存储统计数据
-     */
-    public Optional<Object> getCachedStorageStats(String familyId) {
-        if (familyId == null) {
-            return Optional.empty();
-        }
-
-        try {
-            String cacheKey = STORAGE_STATS_PREFIX + familyId;
-            Object cached = redisCache.get(cacheKey, Object.class);
-            if (cached != null) {
-                log.debug("从缓存获取存储统计数据: familyId={}", familyId);
-                return Optional.of(cached);
-            }
-        } catch (Exception e) {
-            log.warn("获取缓存存储统计数据失败: familyId={}, error={}", familyId, e.getMessage());
-        }
-
-        return Optional.empty();
-    }
-
-    /**
-     * 批量删除文件元数据缓存
-     */
-    public void evictFileMetadataBatch(List<String> fileIds) {
-        if (fileIds == null || fileIds.isEmpty()) {
-            return;
-        }
-
-        try {
-            List<String> cacheKeys = fileIds.stream()
-                    .map(fileId -> FILE_METADATA_PREFIX + fileId)
-                    .toList();
-
-            redisCache.deleteBatch(cacheKeys);
-            log.debug("批量文件元数据缓存已删除: count={}", fileIds.size());
-        } catch (Exception e) {
-            log.warn("批量删除文件元数据缓存失败: count={}, error={}", fileIds.size(), e.getMessage());
-        }
-    }
-
-    /**
      * 清理所有缓存（系统维护时使用）
      */
     public void evictAllCache() {

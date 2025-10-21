@@ -81,7 +81,7 @@ public interface FileMetadataRepository extends JpaRepository<FileMetadata, Stri
      * 统计家庭文件总大小
      */
     @Query("SELECT COALESCE(SUM(f.fileSize), 0) FROM FileMetadata f WHERE f.familyId = :familyId AND f.deleted != 1")
-    long sumFileSizeByFamily(@Param("familyId") String familyId);
+    void sumFileSizeByFamily(@Param("familyId") String familyId);
 
     /**
      * 按文件类型统计家庭文件数量
@@ -238,4 +238,69 @@ public interface FileMetadataRepository extends JpaRepository<FileMetadata, Stri
            "FROM FileMetadata f WHERE f.familyId IN :familyIds AND f.deleted != 1 " +
            "GROUP BY f.familyId")
     List<Object[]> batchAggregateStatsByFamilies(@Param("familyIds") List<String> familyIds);
+
+    // ==================== 数字辅助ID查询方法 ====================
+
+    /**
+     * 根据数字辅助ID查找文件
+     * <p>
+     * 用于高性能的文件查找操作
+     *
+     * @param numericId 数字辅助ID
+     * @return 文件元数据
+     */
+    @Query("SELECT f FROM FileMetadata f WHERE f.numericId = :numericId AND f.deleted != 1")
+    Optional<FileMetadata> findByNumericId(@Param("numericId") Long numericId);
+
+    /**
+     * 根据数字辅助ID和用户ID查找文件
+     * <p>
+     * 用于用户权限验证的高性能查询
+     *
+     * @param numericId 数字辅助ID
+     * @param userId 用户ID
+     * @return 文件元数据
+     */
+    @Query("SELECT f FROM FileMetadata f WHERE f.numericId = :numericId AND f.ownerId = :userId AND f.deleted != 1")
+    Optional<FileMetadata> findByNumericIdAndOwner(@Param("numericId") Long numericId, @Param("userId") String userId);
+
+    /**
+     * 根据数字辅助ID列表批量查找文件
+     * <p>
+     * 用于批量操作的高性能查询
+     *
+     * @param numericIds 数字辅助ID列表
+     * @return 文件元数据列表
+     */
+    @Query("SELECT f FROM FileMetadata f WHERE f.numericId IN :numericIds AND f.deleted != 1 ORDER BY f.numericId")
+    List<FileMetadata> findByNumericIdIn(@Param("numericIds") List<Long> numericIds);
+
+    /**
+     * 获取家庭的最新文件（按数字辅助ID排序）
+     * <p>
+     * 利用数字辅助ID的高性能排序特性
+     *
+     * @param familyId 家庭ID
+     * @param limit 限制数量
+     * @return 最新文件列表
+     */
+    @Query("SELECT f FROM FileMetadata f WHERE f.familyId = :familyId AND f.deleted != 1 " +
+           "ORDER BY f.numericId DESC")
+    List<FileMetadata> findLatestFilesByFamily(@Param("familyId") String familyId, Pageable pageable);
+
+    /**
+     * 根据数字辅助ID范围查询文件
+     * <p>
+     * 支持分页和范围查询的高性能操作
+     *
+     * @param familyId 家庭ID
+     * @param startNumericId 起始数字ID
+     * @param endNumericId 结束数字ID
+     * @return 文件元数据列表
+     */
+    @Query("SELECT f FROM FileMetadata f WHERE f.familyId = :familyId AND f.numericId BETWEEN :startNumericId AND :endNumericId AND f.deleted != 1 " +
+           "ORDER BY f.numericId")
+    List<FileMetadata> findByFamilyAndNumericIdRange(@Param("familyId") String familyId,
+                                                         @Param("startNumericId") Long startNumericId,
+                                                         @Param("endNumericId") Long endNumericId);
 }

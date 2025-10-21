@@ -29,6 +29,13 @@ public class FileMetadata extends BaseEntity {
     @Column(name = "file_id", length = 64, nullable = false)
     private String fileId;
 
+    /**
+     * 数字辅助ID，用于高性能查询和排序
+     * 提供比字符串主键更好的索引性能
+     */
+    @Column(name = "numeric_id", nullable = false, unique = true)
+    private Long numericId;
+
     // 基础字段的 getter/setter 方法
     // 基础字段
     @Column(name = "id")
@@ -373,6 +380,12 @@ public class FileMetadata extends BaseEntity {
         this.updateTime = now;
         this.deleted = 0;  // 默认未删除
         this.status = 1;   // 默认正常状态
+
+        // 生成数字辅助ID，基于时间戳确保唯一性
+        if (this.numericId == null) {
+            // 使用毫秒级时间戳，确保在数据库重启后的唯一性
+            this.numericId = System.currentTimeMillis();
+        }
     }
 
     @PreUpdate

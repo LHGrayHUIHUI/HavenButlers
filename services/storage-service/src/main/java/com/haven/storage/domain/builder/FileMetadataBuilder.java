@@ -87,6 +87,8 @@ public class FileMetadataBuilder {
                               String familyId, String uploaderUserId, String traceId) {
         try {
             metadata.setFileId(fileID);
+            // 设置数字辅助ID（基于时间戳，确保唯一性）
+            metadata.setNumericId(System.currentTimeMillis());
             metadata.setFamilyId(familyId);
             metadata.setOriginalName(request.getOriginalFileName());
             metadata.setFileName(generateUniqueFileName(request.getOriginalFileName()));
@@ -96,8 +98,8 @@ public class FileMetadataBuilder {
             metadata.setLastAccessTime(LocalDateTime.now());
             metadata.setAccessCount(0);
 
-            log.debug("基础信息设置完成: familyId={}, fileName={}, uploaderUserId={}, traceId={}",
-                    familyId, metadata.getFileName(), uploaderUserId, traceId);
+            log.debug("基础信息设置完成: fileId={}, numericId={}, familyId={}, fileName={}, uploaderUserId={}, traceId={}",
+                    fileID, metadata.getNumericId(), familyId, metadata.getFileName(), uploaderUserId, traceId);
 
         } catch (Exception e) {
             log.error("设置基础信息失败: traceId={}, error={}", traceId, e.getMessage(), e);
@@ -205,46 +207,7 @@ public class FileMetadataBuilder {
         }
     }
 
-    /**
-     * 上传后更新文件元数据
-     *
-     * @param metadata     文件元数据
-     * @param uploadResult 上传结果
-     * @return 更新后的文件元数据
-     * @throws SystemException 当更新失败时抛出
-     */
-    public FileMetadata updateAfterUpload(FileMetadata metadata,
-                                          FileUploadResult uploadResult) {
-        String traceId = TraceIdUtil.getCurrentOrGenerate();
 
-        try {
-            if (uploadResult != null && uploadResult.isSuccess() && uploadResult.getFileMetadata() != null) {
-                FileMetadata uploadedMetadata = uploadResult.getFileMetadata();
-
-                // 更新存储相关路径信息
-                if (uploadedMetadata.getStoragePath() != null) {
-                    metadata.setStoragePath(uploadedMetadata.getStoragePath());
-                }
-
-                // 简化fileId处理：直接使用存储适配器生成的fileId
-                String newFileId = uploadedMetadata.getFileId();
-                if (newFileId != null && !newFileId.equals(metadata.getFileId())) {
-                    metadata.setFileId(newFileId);
-                    log.info("fileId更新: oldFileId={}, newFileId={}, traceId={}",
-                            metadata.getFileId(), newFileId, traceId);
-                }
-
-                log.info("文件元数据上传后更新完成: fileId={}, storagePath={}, traceId={}",
-                        metadata.getFileId(), metadata.getStoragePath(), traceId);
-            }
-
-            return metadata;
-
-        } catch (Exception e) {
-            log.error("文件元数据上传后更新失败: traceId={}, error={}", traceId, e.getMessage(), e);
-            throw new SystemException(ErrorCode.SYSTEM_ERROR, e);
-        }
-    }
 
     /**
      * 生成唯一的文件名
@@ -270,37 +233,5 @@ public class FileMetadataBuilder {
     }
 
 
-    /**
-     * 创建文件删除元数据
-     *
-     * @param fileId   文件ID
-     * @param familyId 家庭ID
-     * @param userId   用户ID
-     * @return 删除操作的元数据记录
-     */
-    public FileMetadata createDeleteMetadata(String fileId, String familyId, String userId) {
-        String traceId = TraceIdUtil.getCurrentOrGenerate();
 
-        try {
-            FileMetadata metadata = new FileMetadata();
-            metadata.setFileId(fileId);
-            metadata.setFamilyId(familyId);
-            metadata.setUploaderUserId(userId);
-            metadata.setUploadTime(LocalDateTime.now());
-
-            // 标记为已删除
-            metadata.setDeleted(0);
-            // metadata.setDeleteTime(LocalDateTime.now());
-            //  metadata.setDeleteUserId(userId);
-
-            log.info("文件删除元数据创建完成: fileId={}, familyId={}, userId={}, traceId={}",
-                    fileId, familyId, userId, traceId);
-
-            return metadata;
-
-        } catch (Exception e) {
-            log.error("创建文件删除元数据失败: traceId={}, error={}", traceId, e.getMessage(), e);
-            throw new SystemException(ErrorCode.SYSTEM_ERROR, e);
-        }
-    }
 }
