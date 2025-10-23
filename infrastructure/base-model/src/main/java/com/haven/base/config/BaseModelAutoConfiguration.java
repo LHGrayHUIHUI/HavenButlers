@@ -121,6 +121,7 @@ public class BaseModelAutoConfiguration implements WebMvcConfigurer {
             // 设置连接池参数
             connectionManager.setMaxTotal(poolConfig.getMaxTotal());
             connectionManager.setDefaultMaxPerRoute(poolConfig.getMaxPerRoute());
+            // 使用新的方法设置连接验证
             connectionManager.setValidateAfterInactivity(
                     org.apache.hc.core5.util.TimeValue.ofMilliseconds(poolConfig.getValidateAfterInactivity()));
 
@@ -157,7 +158,7 @@ public class BaseModelAutoConfiguration implements WebMvcConfigurer {
             org.springframework.http.client.HttpComponentsClientHttpRequestFactory factory =
                     new org.springframework.http.client.HttpComponentsClientHttpRequestFactory();
             factory.setConnectTimeout(serviceClientProperties.getConnectTimeout());
-            factory.setReadTimeout(serviceClientProperties.getReadTimeout());
+            factory.setConnectionRequestTimeout(serviceClientProperties.getReadTimeout());
             restTemplate.setRequestFactory(factory);
             return restTemplate;
         }

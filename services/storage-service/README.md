@@ -271,12 +271,147 @@ public boolean canChangeAccessLevel(String userId, AccessLevel newLevel) {
 - **基础组件**: Haven Base-Model, Haven Common
 - **配置中心**: Nacos 2.3.0
 - **缓存**: Redis (分享链接、缩略图缓存)
+- **API文档**: SpringDoc OpenAPI 3 (Swagger)
+- **链路追踪**: 自定义TraceLog注解和MDC
+- **文件ID生成**: 纳秒级时间戳 + ThreadLocalRandom
 
 ### 部署信息
 - **Docker镜像**: `haven/family-storage-service:v1.0.0`
-- **内部端口**: 8086
+- **服务端口**: 8081
 - **健康检查**: `/actuator/health`
 - **服务路径**: `/api/v1/storage/*` (统一入口)
+
+### 🏗️ 核心组件架构
+
+#### 控制器层 (Controller)
+```java
+@RestController
+@RequestMapping("/api/v1/storage")
+@RequiredArgsConstructor
+@Validated
+@Tag(name = "存储服务", description = "文件存储、知识库和向量标签服务")
+public class StorageController {
+
+    private final FileStorageService fileStorageService;
+    private final PersonalKnowledgeBaseService knowledgeBaseService;
+    private final VectorTagService vectorTagService;
+    private final AsyncProcessingTrigger asyncProcessingTrigger;
+
+    // 统一使用 @TraceLog 注解进行链路追踪
+    @PostMapping("/files/upload")
+    @TraceLog(value = "文件上传", module = "storage-api", type = "FILE_UPLOAD")
+    public ResponseWrapper<FileMetadata> uploadFile(@Valid @ModelAttribute FileUploadRequest request) {
+        // 业务逻辑
+    }
+}
+```
+
+#### 服务层 (Service)
+```java
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class FileStorageService {
+
+    private final FileMetadataRepository fileMetadataRepository;
+    private final StorageAdapter storageAdapter;
+    private final FileTypeDetector fileTypeDetector;
+    private final FileUtils fileUtils;
+
+    // 使用 ResponseWrapper 统一返回格式
+    public FamilyFileList getFamilyFiles(String familyId, String folderPath) {
+        // 业务逻辑实现
+    }
+
+    // 文件上传核心方法
+    public FileMetadata completeFileUpload(FileUploadRequest request) {
+        // 1. 参数验证
+        // 2. 构建文件元数据
+        // 3. 物理存储
+        // 4. 保存元数据到数据库
+    }
+}
+```
+
+#### 工具类层 (Utils)
+```java
+public class FileUtils {
+
+    // 高性能文件ID生成
+    public static String generateFileId() {
+        long timestamp = System.nanoTime();  // 纳秒级时间戳
+        int randomNum = ThreadLocalRandom.current().nextInt(1000, 9999);  // 线程安全随机数
+        return String.format("file_%d_%d", timestamp, randomNum);
+    }
+
+    // 路径构建
+    public static String buildFamilyPath(String familyId, String category) {
+        String datePrefix = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
+        return String.format("family/%s/%s/%s", familyId, category, datePrefix);
+    }
+
+    // 文件类型判断
+    public static boolean isImageFile(String fileName) {
+        String extension = getFileExtension(fileName);
+        String[] imageExtensions = {"jpg", "jpeg", "png", "gif", "bmp", "webp", "svg", "ico"};
+        return Arrays.stream(imageExtensions).anyMatch(ext -> ext.equalsIgnoreCase(extension));
+    }
+}
+```
+
+#### 链路追踪和日志
+```java
+// 自定义 @TraceLog 注解
+@TraceLog(value = "操作描述", module = "模块名", type = "操作类型")
+
+// MDC 上下文管理
+String traceId = TraceIdUtil.getCurrentOrGenerate();
+MDC.put("traceId", traceId);
+
+// 统一日志格式
+log.info("操作日志: param1={}, param2={}, traceId={}", param1, param2, traceId);
+```
+
+## 📖 API文档访问
+
+### Swagger UI 界面（推荐）
+```
+http://localhost:8081/swagger-ui.html
+```
+或者
+```
+http://localhost:8081/swagger-ui/index.html
+```
+
+### OpenAPI JSON 文档
+```
+http://localhost:8081/v3/api-docs
+```
+
+### 🚀 快速访问步骤
+
+1. **启动存储服务**：
+   ```bash
+   cd services/storage-service
+   mvn spring-boot:run
+   ```
+
+2. **确认服务运行**：
+   ```bash
+   curl http://localhost:8081/actuator/health
+   ```
+
+3. **打开API文档**：
+   在浏览器中访问 `http://localhost:8081/swagger-ui.html`
+
+### 📝 接口测试功能
+
+Swagger UI 提供了以下功能：
+- 📖 **接口文档查看**：详细的参数说明和示例
+- 🧪 **在线测试**：直接在浏览器中测试API
+- 📥 **请求/响应示例**：JSON格式的示例数据
+- 🔍 **搜索功能**：快速查找特定接口
+- 📱 **响应式设计**：支持移动设备访问
 
 ## 📋 核心API接口
 
@@ -291,9 +426,97 @@ GET  /api/v1/storage/files/search                   # 搜索文件
 GET  /api/v1/storage/files/stats                    # 获取存储统计
 
 # 存储管理
-POST /api/v1/storage/files/switch-storage           # 切换存储方式
 GET  /api/v1/storage/files/storage-status           # 存储状态检查
 GET  /api/v1/storage/files/access-url/{fileId}      # 生成文件访问URL
+GET  /api/v1/storage/health                         # 服务健康检查
+```
+
+### 🔧 实际代码调用示例
+
+#### 文件上传调用
+```java
+// 实际控制器方法
+@PostMapping("/files/upload")
+@Operation(summary = "文件上传", description = "上传文件并设置权限和元数据")
+@TraceLog(value = "文件上传", module = "storage-api", type = "FILE_UPLOAD")
+public ResponseWrapper<FileMetadata> uploadFile(@Valid @ModelAttribute FileUploadRequest request) {
+    // 1. 执行统一文件上传处理
+    FileMetadata fileMetadata = fileStorageService.completeFileUpload(request);
+
+    // 2. 触发异步后处理任务
+    asyncProcessingTrigger.triggerAsyncProcessing(request, fileMetadata);
+
+    return ResponseWrapper.success("文件上传成功", fileMetadata);
+}
+```
+
+#### 文件列表查询调用
+```java
+// 实际控制器方法
+@GetMapping("/files/list")
+@TraceLog(value = "获取文件列表", module = "storage-api", type = "FILE_LIST")
+public ResponseWrapper<FamilyFileList> getFamilyFiles(
+    @RequestParam String familyId,
+    @RequestParam(required = false, defaultValue = "/") String folderPath) {
+
+    FamilyFileList fileList = fileStorageService.getFamilyFiles(familyId, folderPath);
+    return ResponseWrapper.success("获取文件列表", fileList);
+}
+```
+
+#### 存储统计查询调用
+```java
+// 实际控制器方法
+@GetMapping("/files/stats")
+@TraceLog(value = "获取存储统计", module = "storage-api", type = "STORAGE_STATS")
+public ResponseWrapper<FamilyStorageStats> getStorageStats(@RequestParam String familyId) {
+    FamilyStorageStats stats = fileStorageService.getFamilyStorageStats(familyId);
+    return ResponseWrapper.success(stats);
+}
+```
+
+### 🛠️ 公共工具类调用
+
+#### FileUtils 文件工具类
+```java
+// 生成唯一文件ID（纳秒级时间戳 + 随机数）
+String fileId = FileUtils.generateFileId();
+// 返回格式：file_1760951153192478000_8532
+
+// 构建家庭存储路径
+String familyPath = FileUtils.buildFamilyPath("family123", "images");
+// 返回：family/family123/images/2025/01/21
+
+// 构建完整文件路径
+String filePath = FileUtils.buildFilePath("family123", "documents", "report.pdf");
+// 返回：family/family123/documents/2025/01/21/file_1760951153192478000_8532.pdf
+
+// 获取文件扩展名
+String extension = FileUtils.getFileExtension("document.pdf");
+// 返回：pdf
+
+// 判断文件类型
+boolean isImage = FileUtils.isImageFile("photo.jpg");     // true
+boolean isVideo = FileUtils.isVideoFile("movie.mp4");     // true
+boolean isDoc = FileUtils.isDocumentFile("report.docx");  // true
+
+// 格式化文件大小
+String size = FileUtils.formatFileSize(1048576);
+// 返回：1.0 MB
+
+// 标准化文件夹路径
+String normalizedPath = FileUtils.formatFolderPath("documents\\reports");
+// 返回：/documents/reports
+```
+
+#### 控制器统一响应格式
+```java
+// 所有API接口统一使用 ResponseWrapper 包装返回
+return ResponseWrapper.success("操作成功", data);
+return ResponseWrapper.error(40001, "错误信息", null);
+
+// 或者直接返回 ResponseEntity（适用于流式下载等场景）
+return ResponseEntity.ok().headers(headers).contentType(mediaType).body(resource);
 ```
 
 ### 图片画廊接口
@@ -368,11 +591,14 @@ X-Password: <password>         # 密码保护(可选)
 
 ### 1. 添加依赖
 ```xml
+<!-- SpringDoc OpenAPI 3 (Swagger) -->
 <dependency>
-    <groupId>com.haven</groupId>
-    <artifactId>file-storage-client</artifactId>
-    <version>2.1.0</version>
+    <groupId>org.springdoc</groupId>
+    <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+    <version>2.2.0</version>
 </dependency>
+
+<!-- Haven 基础组件 -->
 <dependency>
     <groupId>com.haven</groupId>
     <artifactId>base-model</artifactId>
@@ -383,62 +609,203 @@ X-Password: <password>         # 密码保护(可选)
     <artifactId>common</artifactId>
     <version>1.0.0</version>
 </dependency>
+
+<!-- Spring Boot Starter -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-web</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-data-jpa</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-validation</artifactId>
+</dependency>
 ```
 
-### 2. 配置存储客户端
+### 2. 项目配置
 ```yaml
 # application.yml
-file-storage:
-  service:
-    url: http://file-storage-service:8086
-  default-storage: minio
-  timeout: 30s
-  gallery:
-    enabled: true
-    thumbnail-sizes: "200,400,800"
-    auto-extract-exif: true
-  share:
-    enabled: true
-    default-expire-hours: 168  # 7天
-    max-expire-hours: 720      # 30天
+server:
+  port: 8081
+
+spring:
+  application:
+    name: storage-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/storage_db
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:password}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+# SpringDoc OpenAPI 配置
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+  info:
+    title: 存储服务 API
+    description: HavenButler 智能家庭存储服务接口文档
+    version: v1.0.0
 ```
 
-### 3. 使用示例
+### 3. 核心代码模板
+
+#### Controller 层模板
 ```java
-// 文件上传并自动生成缩略图
-@Autowired
-private FileStorageClient fileStorageClient;
+@RestController
+@RequestMapping("/api/v1/storage")
+@RequiredArgsConstructor
+@Validated
+@Tag(name = "存储服务", description = "文件存储服务")
+@Slf4j
+public class StorageController {
 
-public String uploadImage(MultipartFile file, String familyId) {
-    UploadRequest request = UploadRequest.builder()
-        .file(file)
-        .familyId(familyId)
-        .category("images")
-        .autoGenerateThumbnail(true)
-        .extractExif(true)
-        .build();
+    private final FileStorageService fileStorageService;
 
-    return fileStorageClient.upload(request);
+    @PostMapping("/files/upload")
+    @Operation(summary = "文件上传")
+    @TraceLog(value = "文件上传", module = "storage-api", type = "FILE_UPLOAD")
+    public ResponseWrapper<FileMetadata> uploadFile(@Valid @ModelAttribute FileUploadRequest request) {
+        FileMetadata fileMetadata = fileStorageService.completeFileUpload(request);
+        return ResponseWrapper.success("文件上传成功", fileMetadata);
+    }
+
+    @GetMapping("/files/list")
+    @Operation(summary = "获取文件列表")
+    @TraceLog(value = "获取文件列表", module = "storage-api", type = "FILE_LIST")
+    public ResponseWrapper<FamilyFileList> getFamilyFiles(@RequestParam String familyId,
+                                                        @RequestParam(required = false, defaultValue = "/") String folderPath) {
+        FamilyFileList fileList = fileStorageService.getFamilyFiles(familyId, folderPath);
+        return ResponseWrapper.success("获取文件列表", fileList);
+    }
 }
+```
 
-// 创建分享链接
-public String createShare(String fileId, ShareConfig config) {
-    ShareRequest request = ShareRequest.builder()
-        .fileId(fileId)
-        .shareType(ShareType.PUBLIC_LINK)
-        .permissions(Permission.READ_ONLY)
-        .expireHours(config.getExpireHours())
-        .passwordProtected(config.hasPassword())
-        .build();
+#### Service 层模板
+```java
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class FileStorageService {
 
-    ShareResult result = fileStorageClient.createShare(request);
-    return result.getShareUrl();
+    private final FileMetadataRepository fileMetadataRepository;
+    private final FileUtils fileUtils;
+    private final FileTypeDetector fileTypeDetector;
+
+    public FileMetadata completeFileUpload(FileUploadRequest request) {
+        try {
+            // 1. 验证请求参数
+            validateUploadRequest(request);
+
+            // 2. 构建文件元数据
+            FileMetadata metadata = buildFileMetadata(request);
+
+            // 3. 保存到数据库
+            return fileMetadataRepository.save(metadata);
+
+        } catch (Exception e) {
+            log.error("文件上传失败: {}", e.getMessage(), e);
+            throw new FileStorageException("文件上传失败", e);
+        }
+    }
+
+    public FamilyFileList getFamilyFiles(String familyId, String folderPath) {
+        // 参数标准化
+        String normalizedPath = FileUtils.formatFolderPath(folderPath);
+
+        // 查询文件列表
+        List<FileMetadata> files = fileMetadataRepository.findFilesByFamilyAndPath(familyId, normalizedPath);
+
+        // 构建返回结果
+        return FamilyFileList.builder()
+            .familyId(familyId)
+            .folderPath(normalizedPath)
+            .files(files)
+            .totalFiles(files.size())
+            .build();
+    }
 }
+```
 
-// 获取图片缩略图
-public String getThumbnailUrl(String fileId, ThumbnailSize size) {
-    return fileStorageClient.getThumbnailUrl(fileId, size);
+#### 实体类模板
+```java
+@Entity
+@Table(name = "file_metadata")
+@Data
+@EqualsAndHashCode(callSuper = true)
+public class FileMetadata extends BaseEntity {
+
+    @Id
+    @Column(name = "file_id", length = 64, nullable = false)
+    private String fileId;
+
+    @Column(name = "numeric_id", nullable = false, unique = true)
+    private Long numericId;
+
+    @Column(name = "family_id", length = 50, nullable = false)
+    private String familyId;
+
+    @Column(name = "original_name", length = 255)
+    private String originalName;
+
+    @Column(name = "file_size", nullable = false)
+    private long fileSize;
+
+    @Column(name = "file_type", length = 100)
+    private String fileType;
+
+    @Column(name = "content_type", length = 200)
+    private String contentType;
+
+    // JPA 生命周期回调
+    @PrePersist
+    protected void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        this.createTime = now;
+        this.updateTime = now;
+        this.deleted = 0;
+
+        // 生成数字辅助ID
+        if (this.numericId == null) {
+            this.numericId = System.currentTimeMillis();
+        }
+    }
 }
+```
+
+### 4. 工具类使用
+```java
+// 文件ID生成
+String fileId = FileUtils.generateFileId();
+
+// 路径构建
+String storagePath = FileUtils.buildFamilyPath("family123", "images");
+String fullPath = FileUtils.buildFilePath("family123", "documents", "report.pdf");
+
+// 文件类型判断
+boolean isImage = FileUtils.isImageFile("photo.jpg");
+String extension = FileUtils.getFileExtension("document.pdf");
+
+// 文件大小格式化
+String size = FileUtils.formatFileSize(1048576); // 1.0 MB
+
+// 路径标准化
+String normalizedPath = FileUtils.formatFolderPath("documents\\reports"); // /documents/reports
 ```
 
 ## 🔧 存储适配器配置

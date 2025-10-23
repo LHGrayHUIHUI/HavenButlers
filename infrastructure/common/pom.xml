@@ -6,15 +6,13 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.1.0</version>
-        <relativePath/>
+        <groupId>com.haven</groupId>
+        <artifactId>havenbutler</artifactId>
+        <version>1.0.0</version>
+        <relativePath>../../pom.xml</relativePath>
     </parent>
 
-    <groupId>com.haven</groupId>
     <artifactId>common</artifactId>
-    <version>1.0.0</version>
     <packaging>jar</packaging>
 
     <name>common</name>
@@ -75,11 +73,11 @@
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
 
-        <!-- RabbitMQ支持 -->
-        <dependency>
+        <!-- RabbitMQ支持 - 暂时注释掉，避免连接错误 -->
+        <!-- <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-amqp</artifactId>
-        </dependency>
+        </dependency> -->
 
         <!-- Actuator支持（健康检查、指标等） -->
         <dependency>

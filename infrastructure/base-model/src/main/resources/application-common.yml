@@ -1,5 +1,5 @@
 # HavenButler 微服务公共配置文件
-# 包含所有服务共享的配置项，各服务只需覆盖特定配置
+# 只包含基础设施配置，base-model业务配置由各服务独立设置
 
 # ============================================================================
 # 通用服务配置
@@ -67,85 +67,7 @@ spring:
     show-sql: false
 
 # ============================================================================
-# BaseModel 完整配置
-# ============================================================================
-base-model:
-  # 版本信息
-  version: 1.0.0
-
-  # 链路追踪配置
-  trace:
-    enabled: true                    # 启用TraceID追踪
-    prefix: "tr"                     # TraceID前缀
-    header-name: "X-Trace-Id"        # HTTP头名称
-    exclude-paths:                   # 排除路径
-      - "/actuator/**"               # 健康检查
-      - "/swagger-ui/**"             # API文档
-      - "/v3/api-docs/**"           # OpenAPI文档
-      - "/health"                    # 简单健康检查
-
-  # 全局异常处理配置
-  exception:
-    enabled: true                    # 启用全局异常处理
-    include-stack-trace: false      # 是否包含堆栈信息（生产环境false）
-    include-error-detail: true      # 是否包含错误详情
-
-  # 日志配置
-  log:
-    enabled: true                    # 启用日志追踪
-    level: INFO                      # 日志级别
-    format: JSON                     # 日志格式: JSON/SIMPLE
-
-  # 响应配置
-  response:
-    include-timestamp: true          # 响应包含时间戳
-    include-trace-id: true          # 响应包含TraceID
-    success-message: "操作成功"       # 默认成功消息
-
-  # 加密配置
-  encrypt:
-    enabled: true                    # 启用加密功能
-    algorithm: "AES"                 # 默认加密算法
-
-  # 服务客户端配置
-  service-client:
-    enabled: true                    # 启用统一服务调用
-    timeout: 5000                    # 调用超时时间（毫秒）
-    retry-count: 3                   # 重试次数
-    connect-timeout: 3000            # 连接超时（毫秒）
-    read-timeout: 5000               # 读取超时（毫秒）
-    connection-pool:
-      max-total: 200                 # 最大连接数
-      max-per-route: 50              # 每路由最大连接数
-      validate-after-inactivity: 2000  # 连接验证时间（毫秒）
-      idle-timeout: 30               # 空闲超时（秒）
-
-  # 缓存配置
-  cache:
-    enabled: true                    # 启用缓存服务
-    default-ttl: 3600                # 默认缓存时间（秒）
-    max-size: 10000                  # 最大缓存数量
-    key-prefix: "haven:${spring.profiles.active:dev}:"  # 缓存键前缀
-
-  # 分布式锁配置
-  distributed-lock:
-    enabled: true                    # 启用分布式锁
-    default-timeout: 30              # 默认锁超时时间（秒）
-    auto-renew: true                 # 自动续期
-
-  # 指标收集配置
-  metrics:
-    enabled: true                    # 启用指标收集
-    export-interval: 60              # 导出间隔（秒）
-
-  # 消息队列配置
-  messaging:
-    enabled: false                   # 暂时禁用消息队列
-    default-timeout: 5000            # 默认发送超时（毫秒）
-    max-retry: 3                     # 最大重试次数
-
-# ============================================================================
-# JWT 配置
+# JWT 基础配置
 # ============================================================================
 security:
   jwt-secret: ${JWT_SECRET:haven-butler-jwt-secret-key-2025}
@@ -158,6 +80,51 @@ jwt:
   access-token-validity: 7200000     # Access Token 2小时 (毫秒)
   refresh-token-validity: 604800000  # Refresh Token 7天 (毫秒)
   clock-skew: 30                     # 时钟偏差容忍（秒）
+
+# ============================================================================
+# BaseModel 基础设施配置
+# ============================================================================
+base-model:
+  # 版本信息
+  version: 1.0.0
+  security:
+    jwt-secret: fJmSbo7pBY8teyzVDyv7YxW1aXPKHSx0uFWxsomMJ4I=
+  # 服务客户端配置 - 跨服务调用基础设施
+  service-client:
+    enabled: true                    # 启用统一服务调用
+    timeout: 5000                    # 调用超时时间（毫秒）
+    retry-count: 3                   # 重试次数
+    connect-timeout: 3000            # 连接超时（毫秒）
+    read-timeout: 5000               # 读取超时（毫秒）
+    connection-pool:
+      max-total: 200                 # 最大连接数
+      max-per-route: 50              # 每路由最大连接数
+      validate-after-inactivity: 2000  # 连接验证时间（毫秒）
+      idle-timeout: 30               # 空闲超时（秒）
+
+  # 缓存基础设施配置
+  cache:
+    enabled: true                    # 启用缓存服务
+    default-ttl: 3600                # 默认缓存时间（秒）
+    max-size: 10000                  # 最大缓存数量
+    key-prefix: "haven:${spring.profiles.active:dev}:"  # 缓存键前缀
+
+  # 分布式锁基础设施配置
+  distributed-lock:
+    enabled: true                    # 启用分布式锁
+    default-timeout: 30              # 默认锁超时时间（秒）
+    auto-renew: true                 # 自动续期
+
+  # 指标收集基础设施配置
+  metrics:
+    enabled: true                    # 启用指标收集
+    export-interval: 60              # 导出间隔（秒）
+
+  # 消息队列基础设施配置
+  messaging:
+    enabled: false                   # 暂时禁用消息队列
+    default-timeout: 5000            # 默认发送超时（毫秒）
+    max-retry: 3                     # 最大重试次数
 
 # ============================================================================
 # 监控配置
@@ -176,16 +143,8 @@ management:
         enabled: true
 
 # ============================================================================
-# 统一日志系统配置
+# 基础日志配置
 # ============================================================================
-haven:
-  logging:
-    enabled: true
-    async: true
-    aspect:
-      enabled: true
-
-# 日志配置
 logging:
   level:
     com.haven: DEBUG
@@ -206,12 +165,6 @@ spring:
       on-profile: dev
 
 # 开发环境特定配置
-base-model:
-  log:
-    level: DEBUG
-  exception:
-    include-stack-trace: true
-
 logging:
   level:
     com.haven: DEBUG
@@ -225,12 +178,6 @@ spring:
       on-profile: test
 
 # 测试环境特定配置
-base-model:
-  log:
-    level: INFO
-  exception:
-    include-stack-trace: false
-
 logging:
   level:
     com.haven: INFO
@@ -243,12 +190,6 @@ spring:
       on-profile: prod
 
 # 生产环境特定配置
-base-model:
-  log:
-    level: WARN
-  exception:
-    include-stack-trace: false
-
 logging:
   level:
     com.haven: WARN

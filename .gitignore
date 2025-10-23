@@ -62,7 +62,7 @@ hs_err_pid*
 spring.log
 application-*.properties
 !application.properties
-!application.yml
+!src/main/resources/application-base.yml
 application-local.yml
 application-dev.yml
 

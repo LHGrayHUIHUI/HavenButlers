@@ -49,19 +49,20 @@ spring:
       password: ${MONGODB_PASSWORD:password}
       authentication-database: admin
 
-  # Redis配置 - 本地使用密码认证
-  redis:
-    host: ${REDIS_HOST:localhost}
-    port: ${REDIS_PORT:6379}
-    password: ${REDIS_PASSWORD:redis123}
-    timeout: 5000ms
-    database: 0
-    lettuce:
-      pool:
-        max-active: 8
-        max-idle: 8
-        min-idle: 0
-        max-wait: -1ms
+      # Redis配置 - 本地使用密码认证
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:redis123}
+      timeout: 5000ms
+      database: 0
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+
 
   # JPA配置
   jpa:

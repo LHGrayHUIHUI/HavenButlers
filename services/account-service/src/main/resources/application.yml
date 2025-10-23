@@ -1,0 +1,177 @@
+# Account Service 配置
+# 继承根目录公共配置 application.yml
+spring:
+  application:
+    name: account-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  # Nacos 配置中心
+  cloud:
+    nacos:
+      discovery:
+        enabled: ${NACOS_DISCOVERY_ENABLED:false}
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_DISCOVERY_NAMESPACE:}
+        group: ${NACOS_DISCOVERY_GROUP:DEFAULT_GROUP}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+        # 心跳配置
+        heart-beat-interval: ${NACOS_HEART_BEAT_INTERVAL:5000}
+        heart-beat-timeout: ${NACOS_HEART_BEAT_TIMEOUT:15000}
+        # 实例IP配置
+        ip: ${NACOS_INSTANCE_IP:}
+        port: ${NACOS_INSTANCE_PORT:8082}
+        # 元数据
+        metadata:
+          version: ${APP_VERSION:1.0.0}
+          region: ${APP_REGION:local}
+          environment: ${SPRING_PROFILES_ACTIVE:dev}
+      config:
+        enabled: ${NACOS_CONFIG_ENABLED:false}
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_CONFIG_NAMESPACE:}
+        group: ${NACOS_CONFIG_GROUP:DEFAULT_GROUP}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+        file-extension: yaml
+        shared-configs:
+          - data-id: application-common.yml
+            group: ${NACOS_CONFIG_GROUP:DEFAULT_GROUP}
+            refresh: true
+          - data-id: ${spring.application.name}-common.yml
+            group: ${NACOS_CONFIG_GROUP:DEFAULT_GROUP}
+            refresh: true
+
+  # 数据源配置 - 本地默认配置，支持环境变量覆盖
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://${POSTGRESQL_HOST:localhost}:${POSTGRESQL_PORT:5432}/${POSTGRESQL_DB:account_db}
+    username: ${POSTGRESQL_USER:postgres}
+    password: ${POSTGRESQL_PASSWORD:password}
+    hikari:
+      maximum-pool-size: ${DATASOURCE_POOL_MAX_SIZE:20}
+      minimum-idle: ${DATASOURCE_POOL_MIN_IDLE:5}
+      connection-timeout: ${DATASOURCE_CONNECTION_TIMEOUT:30000}
+      idle-timeout: ${DATASOURCE_IDLE_TIMEOUT:600000}
+      max-lifetime: ${DATASOURCE_MAX_LIFETIME:1800000}
+      leak-detection-threshold: ${DATASOURCE_LEAK_DETECTION_THRESHOLD:60000}
+
+  # Redis 配置
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:redis123}
+      database: ${REDIS_DATABASE:1}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: ${REDIS_POOL_MAX_ACTIVE:20}
+          max-idle: ${REDIS_POOL_MAX_IDLE:8}
+          min-idle: ${REDIS_POOL_MIN_IDLE:2}
+          max-wait: ${REDIS_POOL_MAX_WAIT:2000ms}
+        # 连接超时配置
+        shutdown-timeout: 100ms
+
+  # JPA 配置
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    show-sql: ${JPA_SHOW_SQL:true}
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+        batch_versioned_data: true
+    open-in-view: false
+
+  # Spring Security 用户配置
+  security:
+    user:
+      name: admin
+      password: admin123
+      roles: ADMIN
+
+server:
+  port: ${SERVER_PORT:8082}
+  servlet:
+    context-path: /
+  shutdown: graceful
+  # Tomcat 配置
+  tomcat:
+    max-threads: ${TOMCAT_MAX_THREADS:200}
+    min-spare-threads: ${TOMCAT_MIN_SPARE_THREADS:10}
+    max-connections: ${TOMCAT_MAX_CONNECTIONS:8192}
+    accept-count: ${TOMCAT_ACCEPT_COUNT:100}
+    connection-timeout: ${TOMCAT_CONNECTION_TIMEOUT:20000}
+
+# ============================================================================
+# BaseModel 业务配置 - 账户服务特定配置
+# ============================================================================
+base-model:
+  # 覆盖缓存键前缀 - 业务相关
+  cache:
+    key-prefix: "account:${spring.profiles.active:dev}:"
+    # Redis 缓存配置
+    redis:
+      ttl: ${CACHE_TTL:300}      # 默认5分钟
+      max-idle: ${CACHE_MAX_IDLE:10}
+      min-idle: ${CACHE_MIN_IDLE:2}
+
+  security:
+    jwt-secret: ${JWT_SECRET:fJmSbo7pBY8teyzVDyv7YxW1aXPKHSx0uFWxsomMJ4I=}
+    jwt-access-exp: ${JWT_ACCESS_EXP:7200}     # 2小时
+    jwt-refresh-exp: ${JWT_REFRESH_EXP:604800} # 7天
+
+  # 覆盖业务特定配置
+  response:
+    success-message: "账户操作成功"     # 账户服务特定成功消息
+
+  # 覆盖AuthFilter白名单配置 - 添加认证API
+  trace:
+    exclude-paths: "/**"  # 通配符表示所有路径都无需认证
+# ============================================================================
+# 健康检查配置
+# ============================================================================
+management:
+  endpoint:
+    health:
+      show-details: always
+  health:
+    # 禁用RabbitMQ健康检查
+    rabbit:
+      enabled: false
+    # 默认健康检查
+    defaults:
+      enabled: true
+
+# ============================================================================
+# 服务描述
+# ============================================================================
+info:
+  app:
+    name: Account Service
+    description: HavenButler账户服务 - 用户认证、家庭管理、权限控制
+    version: ${APP_VERSION:1.0.0}
+    author: HavenButler Team
+    encoding: UTF-8
+    java:
+      version: ${java.version}
+    spring:
+      boot:
+        version: ${spring-boot.version}
+    profiles:
+      active: ${spring.profiles.active}
+  service:
+    # 服务实例信息
+    instance-id: ${spring.application.name}:${spring.cloud.client.ip-address}:${server.port}
+    # 服务健康状态
+    status: ${SERVICE_STATUS:UP}
+    # 启动时间
+    start-time: ${management.info.startup.time}

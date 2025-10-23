@@ -19,6 +19,13 @@
 - **环境变量**：
   ```
   NACOS_ADDR=nacos:8848
+  DB_HOST=postgres
+  DB_PORT=5432
+  DB_NAME=account_db
+  DB_USERNAME=${DB_USERNAME}
+  DB_PASSWORD=${DB_PASSWORD}
+  REDIS_HOST=redis
+  REDIS_PORT=6379
   STORAGE_SERVICE_URL=http://storage-service:8080
   GATEWAY_SERVICE_URL=http://gateway:8080
   JWT_SECRET=${JWT_SECRET}
@@ -138,7 +145,9 @@ POST /api/v1/account/room/{id}/permissions    - 设置房间权限
 
 ## 依赖关系
 - **直接依赖**：
-  - `storage-service:v1.0.0` (必需) - 数据存储
+  - `PostgreSQL:15+` (必需) - 用户账户、权限数据存储
+  - `Redis:7.0` (必需) - 会话缓存、Token黑名单
+  - `storage-service:v1.0.0` (可选) - 文件存储（头像、图片等）
   - `nacos:2.3.0` (必需) - 配置中心
   - `base-model:1.0.0` (必需) - 基础组件
 - **被依赖方**：
@@ -147,26 +156,124 @@ POST /api/v1/account/room/{id}/permissions    - 设置房间权限
   - `ai-service` - 用户信息查询
   - `file-manager-service` - 权限校验
 
-## 数据访问规范
-⚠️ **严禁直接连接数据库** - 所有数据操作必须通过 `storage-service` 接口
-
-### 支持的数据操作
+### 架构层次关系
 ```
-用户数据:
-  - POST /storage/api/v1/user          - 用户CRUD
-  - GET  /storage/api/v1/user/{id}     - 查询用户
-  
-家庭数据:
-  - POST /storage/api/v1/family        - 家庭CRUD
-  - GET  /storage/api/v1/family/{id}   - 查询家庭
-  
-权限数据:
-  - POST /storage/api/v1/permissions   - 权限设置
-  - GET  /storage/api/v1/permissions   - 权限查询
-  
-会话数据:
-  - POST /storage/api/v1/sessions      - 会话管理
-  - GET  /storage/api/v1/sessions/{id} - 会话查询
+┌─────────────────────────────────────────────────────────────┐
+│                    Gateway Service                          │
+│                  (路由、鉴权、限流)                           │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+┌─────────────────────▼───────────────────────────────────────┐
+│                Account Service                              │
+│              (用户认证、权限管理)                              │
+├─────────────────────┬───────────────────────────────────────┤
+│   数据访问层         │   文件服务层                              │
+│   ├─ PostgreSQL     │   └─ storage-service                  │
+│   └─ Redis          │       (文件存储)                        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## 数据存储架构
+
+### 数据库配置
+- **PostgreSQL数据库**：存储用户账户、家庭信息、权限数据
+- **Redis缓存**：会话管理、Token黑名单、权限缓存
+- **storage-service**：仅用于文件存储（用户头像、家庭图片等）
+
+### 数据访问方式
+```yaml
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/account_db
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  redis:
+    host: redis
+    port: 6379
+    database: 0
+```
+
+### storage-service集成范围
+```
+文件操作类型:
+├── 用户头像上传/下载
+├── 家庭相册管理
+├── 设备图片存储
+└── 临时文件处理
+
+API接口:
+├── POST /storage/api/v1/files/upload    - 文件上传
+├── GET  /storage/api/v1/files/{id}     - 文件下载
+├── DELETE /storage/api/v1/files/{id}   - 文件删除
+└── POST /storage/api/v1/files/batch    - 批量操作
+```
+
+### 数据库设计
+```sql
+-- 用户表
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    phone VARCHAR(20),
+    avatar_url VARCHAR(500),
+    status VARCHAR(20) DEFAULT 'ACTIVE',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 创建更新时间触发器
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_users_updated_at
+    BEFORE UPDATE ON users
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- 家庭表
+CREATE TABLE families (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100) NOT NULL,
+    owner_id UUID NOT NULL,
+    description TEXT,
+    status VARCHAR(20) DEFAULT 'ACTIVE',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (owner_id) REFERENCES users(id)
+);
+
+CREATE TRIGGER update_families_updated_at
+    BEFORE UPDATE ON families
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- 家庭成员表
+CREATE TABLE family_members (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    family_id UUID NOT NULL,
+    user_id UUID NOT NULL,
+    role VARCHAR(20) NOT NULL DEFAULT 'MEMBER' CHECK (role IN ('ADMIN', 'MEMBER', 'GUEST')),
+    joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(20) DEFAULT 'ACTIVE',
+    FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE (family_id, user_id)
+);
+
+-- 索引优化
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_username ON users(username);
+CREATE INDEX idx_users_status ON users(status);
+CREATE INDEX idx_families_owner_id ON families(owner_id);
+CREATE INDEX idx_family_members_family_id ON family_members(family_id);
+CREATE INDEX idx_family_members_user_id ON family_members(user_id);
+CREATE INDEX idx_family_members_role ON family_members(role);
 ```
 
 ## JWT Token规范
@@ -229,9 +336,10 @@ docker-compose -f docker/integration-test.yml up --abort-on-container-exit
 
 ## 故障排查
 1. **服务启动失败**：检查 Nacos 连接和环境变量
-2. **权限验证异常**：查看 storage-service 连接状态
-3. **Token验证失败**：检查JWT密钥配置
-4. **性能问题**：监控 JVM 内存和 GC 情况
+2. **数据库连接异常**：验证 PostgreSQL 连接配置和权限
+3. **权限验证异常**：查看 storage-service 连接状态
+4. **Token验证失败**：检查JWT密钥配置
+5. **性能问题**：监控 JVM 内存和 GC 情况
 
 ## Infrastructure集成
 

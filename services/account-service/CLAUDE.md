@@ -11,32 +11,74 @@ account-service是HavenButler平台的用户账户核心服务，负责用户注
 - **多租户隔离**：基于家庭ID进行数据隔离
 - **细粒度权限**：支持家庭、房间、设备三级权限控制
 
-### 2. 与storage-service的集成
+### 2. 数据存储架构
 
+#### 2.1 数据库直连访问
 ```java
 /**
- * 用户数据操作必须通过storage-service
- * 不直接连接数据库
+ * 用户数据直接访问MySQL数据库
+ * storage-service仅用于文件存储操作
  */
 @Service
 public class UserService {
     @Autowired
-    private StorageServiceClient storageClient;
+    private UserRepository userRepository;
+
+    @Autowired
+    private FileServiceClient fileServiceClient; // 仅用于文件操作
 
     public User createUser(UserDTO userDTO) {
         // 1. 密码加密
         userDTO.setPassword(BCrypt.hashpw(userDTO.getPassword()));
 
-        // 2. 通过storage-service保存
-        StorageRequest request = StorageRequest.builder()
-            .storageType("mysql")
-            .operation("insert")
-            .collection("users")
-            .data(userDTO.toMap())
-            .familyId(userDTO.getFamilyId())
+        // 2. 用户数据直接保存到数据库
+        User user = userRepository.save(userDTO.toEntity());
+
+        // 3. 如果涉及文件操作，调用storage-service
+        if (userDTO.getAvatarFile() != null) {
+            String avatarUrl = fileServiceClient.uploadFile(userDTO.getAvatarFile());
+            user.setAvatarUrl(avatarUrl);
+            userRepository.save(user);
+        }
+
+        return user;
+    }
+}
+```
+
+#### 2.2 storage-service集成范围
+```java
+/**
+ * storage-service仅处理文件相关操作
+ */
+@Component
+public class FileServiceClient {
+
+    /**
+     * 上传用户头像
+     */
+    public String uploadUserAvatar(MultipartFile file, String userId) {
+        // 调用storage-service上传文件
+        FileUploadRequest request = FileUploadRequest.builder()
+            .bucket("user-avatars")
+            .objectName(userId + "/avatar.jpg")
+            .file(file)
             .build();
 
-        return storageClient.execute(request);
+        return storageClient.uploadFile(request).getFileUrl();
+    }
+
+    /**
+     * 上传家庭图片
+     */
+    public String uploadFamilyImage(MultipartFile file, String familyId) {
+        FileUploadRequest request = FileUploadRequest.builder()
+            .bucket("family-images")
+            .objectName(familyId + "/" + UUID.randomUUID() + ".jpg")
+            .file(file)
+            .build();
+
+        return storageClient.uploadFile(request).getFileUrl();
     }
 }
 ```
@@ -137,7 +179,7 @@ public class JwtTokenProvider {
             .signWith(SignatureAlgorithm.HS512, jwtSecret)
             .compact();
 
-        // 保存到Redis（通过storage-service）
+        // 保存到Redis（直接访问Redis）
         saveTokenToRedis(user.getId(), accessToken, refreshToken);
 
         return new TokenPair(accessToken, refreshToken);
@@ -159,16 +201,8 @@ public class TokenBlacklistService {
         long ttl = expiration.getTime() - System.currentTimeMillis();
 
         if (ttl > 0) {
-            // 通过storage-service保存到Redis
-            StorageRequest request = StorageRequest.builder()
-                .storageType("redis")
-                .operation("set")
-                .key("blacklist:" + token)
-                .value("1")
-                .ttl(ttl)
-                .build();
-
-            storageClient.execute(request);
+            // 直接保存到Redis
+            redisTemplate.opsForValue().set("blacklist:" + token, "1", ttl, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -176,14 +210,8 @@ public class TokenBlacklistService {
      * 检查Token是否在黑名单中
      */
     public boolean isBlacklisted(String token) {
-        StorageRequest request = StorageRequest.builder()
-            .storageType("redis")
-            .operation("get")
-            .key("blacklist:" + token)
-            .build();
-
-        StorageResponse response = storageClient.execute(request);
-        return response.getData() != null;
+        String value = redisTemplate.opsForValue().get("blacklist:" + token);
+        return value != null;
     }
 }
 ```

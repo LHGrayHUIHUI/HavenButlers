@@ -1,7 +1,6 @@
 package com.haven.storage.controller;
 
 import com.haven.base.annotation.TraceLog;
-import com.haven.base.common.response.ErrorCode;
 import com.haven.base.common.response.ResponseWrapper;
 import com.haven.base.utils.TraceIdUtil;
 import com.haven.storage.api.StorageHealthInfo;
@@ -20,17 +19,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jboss.logging.MDC;
 import org.springframework.core.io.InputStreamResource;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.BufferedInputStream;
-import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
