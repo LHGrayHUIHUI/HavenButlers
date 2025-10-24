@@ -63,28 +63,32 @@ public class UserService {
     }
 
     /**
-     * 用户登录
+     * 用户登录 - 支持手机号优先登录
      */
     @Transactional
     public LoginResponse login(LoginRequest request) {
-        log.info("开始用户登录: {}", request.getUsername());
+        String loginIdentifier = request.getPhone() != null && !request.getPhone().isEmpty()
+                ? request.getPhone()
+                : request.getUsername();
+
+        log.info("开始用户登录: {}", loginIdentifier);
 
         // 1. 验证登录请求
         validateLoginRequest(request);
 
-        // 2. 查找用户
-        User user = findUserByUsernameOrEmail(request.getUsername())
+        // 2. 查找用户 - 优先手机号，再用户名，最后邮箱
+        User user = findUserByPhoneOrUsernameOrEmail(loginIdentifier)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PARAM_ERROR, "用户不存在"));
 
         // 3. 验证密码
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-            log.warn("用户登录密码错误: {}", request.getUsername());
-            throw new BusinessException(ErrorCode.PASSWORD_ERROR, "用户名或密码错误");
+            log.warn("用户登录密码错误: {}", loginIdentifier);
+            throw new BusinessException(ErrorCode.PASSWORD_ERROR, "手机号或密码错误");
         }
 
         // 4. 检查用户状态
         if (!User.Status.ACTIVE.equals(user.getUserStatus())) {
-            log.warn("用户状态异常: {}, 状态: {}", user.getUsername(), user.getStatus());
+            log.warn("用户状态异常: {}, 状态: {}", loginIdentifier, user.getStatus());
             throw new BusinessException(ErrorCode.BUSINESS_ERROR, "用户账户已被禁用");
         }
 
@@ -95,12 +99,12 @@ public class UserService {
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
 
-        log.info("用户登录成功: {}", user.getUsername());
+        log.info("用户登录成功: {}", loginIdentifier);
 
         // 7. 构建响应
         UserDTO userDTO = convertToDTO(user);
         LoginResponse response = new LoginResponse(tokenPair.getAccessToken(), tokenPair.getRefreshToken(), userDTO);
-        response.setExpiresInHours(2); // 2小时过期
+        response.setExpiresInHours(8); // 2小时过期
 
         return response;
     }
@@ -115,7 +119,29 @@ public class UserService {
     }
 
     /**
-     * 根据用户名或邮箱获取用户
+     * 根据手机号或用户名或邮箱获取用户 - 手机号优先
+     */
+    public Optional<User> findUserByPhoneOrUsernameOrEmail(String identifier) {
+        // 1. 先尝试按手机号查找
+        if (ValidationUtil.isValidPhone(identifier)) {
+            Optional<User> user = userRepository.findByPhone(identifier);
+            if (user.isPresent()) {
+                return user;
+            }
+        }
+
+        // 2. 再按用户名查找
+        Optional<User> user = userRepository.findByUsername(identifier);
+        if (user.isPresent()) {
+            return user;
+        }
+
+        // 3. 最后按邮箱查找
+        return userRepository.findByEmail(identifier);
+    }
+
+    /**
+     * 根据用户名或邮箱获取用户（兼容旧版本）
      */
     public Optional<User> findUserByUsernameOrEmail(String usernameOrEmail) {
         // 先按用户名查找
@@ -137,15 +163,25 @@ public class UserService {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "两次输入的密码不一致");
         }
 
-        // 验证邮箱格式
-        if (!ValidationUtil.isValidEmail(request.getEmail())) {
+        // 验证手机号格式（必须提供）
+        if (request.getPhone() == null || request.getPhone().isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAM_MISSING, "手机号不能为空");
+        }
+
+        if (!ValidationUtil.isValidPhone(request.getPhone())) {
+            throw new BusinessException(ErrorCode.PARAM_FORMAT_ERROR, "手机号格式不正确");
+        }
+
+        // 验证邮箱格式（如果提供）
+        if (request.getEmail() != null && !request.getEmail().isEmpty()
+                && !ValidationUtil.isValidEmail(request.getEmail())) {
             throw new BusinessException(ErrorCode.PARAM_FORMAT_ERROR, "邮箱格式不正确");
         }
 
-        // 验证手机号格式（如果提供）
-        if (request.getPhone() != null && !request.getPhone().isEmpty()
-                && !ValidationUtil.isValidPhone(request.getPhone())) {
-            throw new BusinessException(ErrorCode.PARAM_FORMAT_ERROR, "手机号格式不正确");
+        // 验证用户名格式（如果提供）
+        if (request.getUsername() != null && !request.getUsername().isEmpty()
+                && !ValidationUtil.isValidUsername(request.getUsername())) {
+            throw new BusinessException(ErrorCode.PARAM_FORMAT_ERROR, "用户名格式不正确");
         }
     }
 
