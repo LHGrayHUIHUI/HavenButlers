@@ -1,6 +1,8 @@
 package com.haven.account.controller;
 
 import com.haven.base.common.response.ResponseWrapper;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,12 +19,14 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequestMapping("/actuator")
+@Tag(name = "健康检查", description = "服务健康状态、系统信息、依赖检查等")
 public class HealthController {
 
     /**
      * 健康检查
      */
     @GetMapping("/health")
+    @Operation(summary = "服务健康检查", description = "检查服务及其依赖组件的健康状态")
     public ResponseWrapper<Map<String, Object>> health() {
         Map<String, Object> health = new HashMap<>();
         health.put("status", "UP");
@@ -39,6 +43,7 @@ public class HealthController {
      * 服务信息
      */
     @GetMapping("/info")
+    @Operation(summary = "服务信息", description = "获取服务的基本信息和元数据")
     public ResponseWrapper<Map<String, Object>> info() {
         Map<String, Object> info = new HashMap<>();
         info.put("service", "account-service");
@@ -54,6 +59,7 @@ public class HealthController {
      * 系统状态
      */
     @GetMapping("/status")
+    @Operation(summary = "系统状态", description = "获取所有依赖组件的详细状态信息")
     public ResponseWrapper<Map<String, Object>> status() {
         Map<String, Object> status = new HashMap<>();
         status.put("database", "healthy");

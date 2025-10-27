@@ -9,6 +9,11 @@ import com.haven.base.annotation.RateLimit;
 import com.haven.base.common.response.ResponseWrapper;
 import com.haven.base.common.response.ErrorCode;
 import com.haven.base.common.exception.BusinessException;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +31,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/family")
 @RequiredArgsConstructor
+@Tag(name = "家庭管理", description = "家庭创建、管理、成员权限等功能")
 public class FamilyController {
 
     private final FamilyService familyService;
@@ -35,6 +41,7 @@ public class FamilyController {
      * 创建家庭
      */
     @PostMapping
+    @Operation(summary = "创建家庭", description = "创建新的家庭，用户成为家庭管理员")
     @TraceLog(value = "创建家庭", module = "家庭管理")
     @RateLimit(limit = 3, window = 300) // 5分钟内最多创建3个家庭
     public ResponseWrapper<FamilyDTO> createFamily(@RequestHeader("Authorization") String token,
