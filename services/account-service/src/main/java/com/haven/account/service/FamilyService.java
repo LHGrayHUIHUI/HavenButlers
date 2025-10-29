@@ -216,9 +216,8 @@ public class FamilyService {
         AccountFamilyMember dto = new AccountFamilyMember();
         dto.setId(member.getId());
         dto.setFamilyId(member.getFamilyId());
-        dto.setUserId(member.getUserId());
+        dto.setUserId(String.valueOf(member.getUserId()));
         dto.setRole(member.getRole());
-        dto.setStatus(member.getStatus());
         dto.setJoinedAt(member.getJoinedAt());
 
         if (user.isPresent()) {

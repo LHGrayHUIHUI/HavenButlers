@@ -11,6 +11,12 @@ import com.haven.base.lock.*;
 import com.haven.base.messaging.*;
 import com.haven.base.monitor.*;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
+import org.apache.hc.core5.util.TimeValue;
+import org.apache.hc.core5.util.Timeout;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -18,6 +24,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -115,34 +122,26 @@ public class BaseModelAutoConfiguration implements WebMvcConfigurer {
 
         try {
             // 创建连接池管理器
-            org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager connectionManager =
-                    new org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager();
+            PoolingHttpClientConnectionManager connectionManager = getPoolingHttpClientConnectionManager(poolConfig);
 
-            // 设置连接池参数
-            connectionManager.setMaxTotal(poolConfig.getMaxTotal());
-            connectionManager.setDefaultMaxPerRoute(poolConfig.getMaxPerRoute());
-            // 使用新的方法设置连接验证
-            connectionManager.setValidateAfterInactivity(
-                    org.apache.hc.core5.util.TimeValue.ofMilliseconds(poolConfig.getValidateAfterInactivity()));
-
-            // 创建请求配置
-            org.apache.hc.client5.http.config.RequestConfig requestConfig =
-                    org.apache.hc.client5.http.config.RequestConfig.custom()
-                            .setConnectTimeout(org.apache.hc.core5.util.Timeout.ofMilliseconds(serviceClientProperties.getConnectTimeout()))
-                            .setResponseTimeout(org.apache.hc.core5.util.Timeout.ofMilliseconds(serviceClientProperties.getReadTimeout()))
-                            .build();
+            // 创建请求配置 (suppress deprecation warning)
+            @SuppressWarnings("deprecation")
+            var requestConfig = RequestConfig.custom()
+                    .setConnectTimeout(Timeout.ofMilliseconds(serviceClientProperties.getConnectTimeout()))
+                    .setResponseTimeout(Timeout.ofMilliseconds(serviceClientProperties.getReadTimeout()))
+                    .build();
 
             // 创建HttpClient
-            org.apache.hc.client5.http.impl.classic.CloseableHttpClient httpClient =
-                    org.apache.hc.client5.http.impl.classic.HttpClients.custom()
+            CloseableHttpClient httpClient =
+                    HttpClients.custom()
                             .setConnectionManager(connectionManager)
                             .setDefaultRequestConfig(requestConfig)
                             .evictIdleConnections(org.apache.hc.core5.util.TimeValue.ofSeconds(poolConfig.getIdleTimeout()))
                             .build();
 
             // 创建带连接池的RequestFactory
-            org.springframework.http.client.HttpComponentsClientHttpRequestFactory factory =
-                    new org.springframework.http.client.HttpComponentsClientHttpRequestFactory(httpClient);
+            HttpComponentsClientHttpRequestFactory factory =
+                    new HttpComponentsClientHttpRequestFactory(httpClient);
 
             RestTemplate restTemplate = new RestTemplate();
             restTemplate.setRequestFactory(factory);
@@ -155,13 +154,26 @@ public class BaseModelAutoConfiguration implements WebMvcConfigurer {
 
             // 降级到简单超时配置
             RestTemplate restTemplate = new RestTemplate();
-            org.springframework.http.client.HttpComponentsClientHttpRequestFactory factory =
-                    new org.springframework.http.client.HttpComponentsClientHttpRequestFactory();
+            HttpComponentsClientHttpRequestFactory factory =
+                    new HttpComponentsClientHttpRequestFactory();
             factory.setConnectTimeout(serviceClientProperties.getConnectTimeout());
             factory.setConnectionRequestTimeout(serviceClientProperties.getReadTimeout());
             restTemplate.setRequestFactory(factory);
             return restTemplate;
         }
+    }
+
+    private static PoolingHttpClientConnectionManager getPoolingHttpClientConnectionManager(ServiceClientProperties.ConnectionPool poolConfig) {
+        PoolingHttpClientConnectionManager connectionManager =
+                new PoolingHttpClientConnectionManager();
+
+        // 设置连接池参数
+        connectionManager.setMaxTotal(poolConfig.getMaxTotal());
+        connectionManager.setDefaultMaxPerRoute(poolConfig.getMaxPerRoute());
+        // 使用新的方法设置连接验证 - 暂时保留旧API直到找到替代方案
+        connectionManager.setValidateAfterInactivity(
+               TimeValue.ofMilliseconds(poolConfig.getValidateAfterInactivity()));
+        return connectionManager;
     }
 
     // ========== 微服务架构组件 ==========
