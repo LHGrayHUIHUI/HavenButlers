@@ -1,10 +1,9 @@
 package com.haven.base.model.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.haven.base.model.entity.BaseEntity;
+import jakarta.persistence.MappedSuperclass;
+import lombok.*;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -16,11 +15,10 @@ import java.util.Map;
  *
  * @author HavenButler
  */
+@EqualsAndHashCode(callSuper = true)
 @Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class DeviceDTO implements Serializable {
+@MappedSuperclass
+public abstract class BaseDeviceDTO extends BaseEntity implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -222,7 +220,7 @@ public class DeviceDTO implements Serializable {
      */
     public boolean isLowBattery() {
         return batteryPowered != null && batteryPowered &&
-               batteryLevel != null && batteryLevel < 20;
+                batteryLevel != null && batteryLevel < 20;
     }
 
     /**

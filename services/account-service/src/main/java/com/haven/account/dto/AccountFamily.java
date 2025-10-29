@@ -15,7 +15,7 @@ import java.util.UUID;
  * @since 2025-01-16
  */
 @Data
-public class FamilyDTO {
+public class AccountFamily {
 
     private Long id;
     private UUID uuid;
@@ -31,26 +31,12 @@ public class FamilyDTO {
 
     private String status;
 
-    private List<FamilyMemberDTO> members;
+    private List<AccountFamilyMember> members;
 
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
 
-    /**
-     * 默认构造函数
-     */
-    public FamilyDTO() {
-    }
-
-    /**
-     * 构造函数
-     */
-    public FamilyDTO(String name, Long ownerId) {
-        this.name = name;
-        this.ownerId = ownerId;
-        this.status = "ACTIVE";
-    }
 
     /**
      * 检查是否为家庭所有者

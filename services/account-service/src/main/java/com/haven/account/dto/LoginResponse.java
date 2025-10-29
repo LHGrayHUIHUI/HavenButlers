@@ -37,7 +37,7 @@ public class LoginResponse {
     /**
      * 用户信息
      */
-    private UserDTO userInfo;
+    private UserInfoDTO userInfo;
 
     /**
      * 权限列表
@@ -67,7 +67,7 @@ public class LoginResponse {
     /**
      * 构造函数
      */
-    public LoginResponse(String accessToken, String refreshToken, UserDTO userInfo) {
+    public LoginResponse(String accessToken, String refreshToken, UserInfoDTO userInfo) {
         this.accessToken = accessToken;
         this.refreshToken = refreshToken;
         this.userInfo = userInfo;

@@ -1,10 +1,9 @@
 package com.haven.base.model.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.haven.base.model.entity.BaseEntity;
+import jakarta.persistence.MappedSuperclass;
+import lombok.*;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -16,11 +15,10 @@ import java.util.List;
  *
  * @author HavenButler
  */
+@EqualsAndHashCode(callSuper = true)
 @Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class UserDTO implements Serializable {
+@MappedSuperclass
+public abstract class BaseUserDTO extends BaseEntity implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -127,7 +125,7 @@ public class UserDTO implements Serializable {
      */
     public boolean isAdmin() {
         return "ADMIN".equals(userType) ||
-               (roles != null && roles.contains("ADMIN"));
+                (roles != null && roles.contains("ADMIN"));
     }
 
     /**

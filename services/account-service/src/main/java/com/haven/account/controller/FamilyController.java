@@ -1,7 +1,7 @@
 package com.haven.account.controller;
 
-import com.haven.account.dto.FamilyDTO;
-import com.haven.account.dto.FamilyMemberDTO;
+import com.haven.account.dto.AccountFamily;
+import com.haven.account.dto.AccountFamilyMember;
 import com.haven.account.security.JwtTokenService;
 import com.haven.account.service.FamilyService;
 import com.haven.base.annotation.TraceLog;
@@ -10,9 +10,6 @@ import com.haven.base.common.response.ResponseWrapper;
 import com.haven.base.common.response.ErrorCode;
 import com.haven.base.common.exception.BusinessException;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -44,11 +41,11 @@ public class FamilyController {
     @Operation(summary = "创建家庭", description = "创建新的家庭，用户成为家庭管理员")
     @TraceLog(value = "创建家庭", module = "家庭管理")
     @RateLimit(limit = 3, window = 300) // 5分钟内最多创建3个家庭
-    public ResponseWrapper<FamilyDTO> createFamily(@RequestHeader("Authorization") String token,
-                                                   @Valid @RequestBody FamilyDTO familyDTO) {
+    public ResponseWrapper<AccountFamily> createFamily(@RequestHeader("Authorization") String token,
+                                                       @Valid @RequestBody AccountFamily accountFamily) {
         try {
             Long userId = getUserIdFromToken(token);
-            FamilyDTO createdFamily = familyService.createFamily(userId, familyDTO);
+            AccountFamily createdFamily = familyService.createFamily(userId, accountFamily);
             return ResponseWrapper.success("家庭创建成功", createdFamily);
         } catch (BusinessException e) {
             log.warn("创建家庭失败: {}", e.getMessage());
@@ -64,11 +61,11 @@ public class FamilyController {
      */
     @GetMapping("/{familyId}")
     @TraceLog(value = "获取家庭信息", module = "家庭管理")
-    public ResponseWrapper<FamilyDTO> getFamily(@RequestHeader("Authorization") String token,
-                                               @PathVariable Long familyId) {
+    public ResponseWrapper<AccountFamily> getFamily(@RequestHeader("Authorization") String token,
+                                                    @PathVariable Long familyId) {
         try {
             Long userId = getUserIdFromToken(token);
-            FamilyDTO family = familyService.getFamily(userId, familyId);
+            AccountFamily family = familyService.getFamily(userId, familyId);
             return ResponseWrapper.success(family);
         } catch (BusinessException e) {
             log.warn("获取家庭信息失败: {}", e.getMessage());
@@ -85,12 +82,12 @@ public class FamilyController {
     @PutMapping("/{familyId}")
     @TraceLog(value = "更新家庭信息", module = "家庭管理")
     @RateLimit(limit = 10, window = 60) // 1分钟内最多10次更新
-    public ResponseWrapper<FamilyDTO> updateFamily(@RequestHeader("Authorization") String token,
-                                                   @PathVariable Long familyId,
-                                                   @Valid @RequestBody FamilyDTO familyDTO) {
+    public ResponseWrapper<AccountFamily> updateFamily(@RequestHeader("Authorization") String token,
+                                                       @PathVariable Long familyId,
+                                                       @Valid @RequestBody AccountFamily accountFamily) {
         try {
             Long userId = getUserIdFromToken(token);
-            FamilyDTO updatedFamily = familyService.updateFamily(userId, familyId, familyDTO);
+            AccountFamily updatedFamily = familyService.updateFamily(userId, familyId, accountFamily);
             return ResponseWrapper.success("家庭信息更新成功", updatedFamily);
         } catch (BusinessException e) {
             log.warn("更新家庭信息失败: {}", e.getMessage());
@@ -106,10 +103,10 @@ public class FamilyController {
      */
     @GetMapping
     @TraceLog(value = "获取用户家庭列表", module = "家庭管理")
-    public ResponseWrapper<List<FamilyDTO>> getUserFamilies(@RequestHeader("Authorization") String token) {
+    public ResponseWrapper<List<AccountFamily>> getUserFamilies(@RequestHeader("Authorization") String token) {
         try {
             Long userId = getUserIdFromToken(token);
-            List<FamilyDTO> families = familyService.getUserFamilies(userId);
+            List<AccountFamily> families = familyService.getUserFamilies(userId);
             return ResponseWrapper.success(families);
         } catch (Exception e) {
             log.error("获取用户家庭列表异常", e);
@@ -143,11 +140,11 @@ public class FamilyController {
      */
     @GetMapping("/{familyId}/members")
     @TraceLog(value = "获取家庭成员列表", module = "家庭管理")
-    public ResponseWrapper<List<FamilyMemberDTO>> getFamilyMembers(@RequestHeader("Authorization") String token,
-                                                                    @PathVariable Long familyId) {
+    public ResponseWrapper<List<AccountFamilyMember>> getFamilyMembers(@RequestHeader("Authorization") String token,
+                                                                       @PathVariable Long familyId) {
         try {
             Long userId = getUserIdFromToken(token);
-            List<FamilyMemberDTO> members = familyService.getFamilyMembers(userId, familyId);
+            List<AccountFamilyMember> members = familyService.getFamilyMembers(userId, familyId);
             return ResponseWrapper.success(members);
         } catch (BusinessException e) {
             log.warn("获取家庭成员列表失败: {}", e.getMessage());

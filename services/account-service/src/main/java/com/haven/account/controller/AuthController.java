@@ -3,7 +3,7 @@ package com.haven.account.controller;
 import com.haven.account.dto.LoginRequest;
 import com.haven.account.dto.LoginResponse;
 import com.haven.account.dto.RegisterRequest;
-import com.haven.account.dto.UserDTO;
+import com.haven.account.dto.UserInfoDTO;
 import com.haven.account.service.UserService;
 import com.haven.account.security.JwtTokenService;
 import com.haven.base.annotation.TraceLog;
@@ -39,9 +39,9 @@ public class AuthController {
     @PostMapping("/register")
     @TraceLog(value = "用户注册", module = "认证")
     @RateLimit(limit = 5, window = 300) // 5分钟内最多5次注册请求
-    public ResponseWrapper<UserDTO> register(@Valid @RequestBody RegisterRequest request) {
+    public ResponseWrapper<UserInfoDTO> register(@Valid @RequestBody RegisterRequest request) {
         try {
-            UserDTO userDTO = userService.register(request);
+            UserInfoDTO userDTO = userService.register(request);
             return ResponseWrapper.success("注册成功", userDTO);
         } catch (BusinessException e) {
             log.warn("用户注册失败: {}", e.getMessage());
@@ -92,14 +92,14 @@ public class AuthController {
      */
     @GetMapping("/profile")
     @TraceLog(value = "获取用户信息", module = "认证")
-    public ResponseWrapper<UserDTO> getProfile(@RequestHeader("Authorization") String token) {
+    public ResponseWrapper<UserInfoDTO> getProfile(@RequestHeader("Authorization") String token) {
         try {
             // 移除Bearer前缀
             String actualToken = token.replace("Bearer ", "");
 
             // 从Token中解析用户ID
             Long userId = jwtTokenService.getUserIdFromToken(actualToken);
-            UserDTO userDTO = userService.getUserById(userId);
+            UserInfoDTO userDTO = userService.getUserById(userId);
 
             return ResponseWrapper.success(userDTO);
         } catch (Exception e) {
@@ -128,7 +128,7 @@ public class AuthController {
 
             // 获取用户信息
             Long userId = jwtTokenService.getUserIdFromToken(actualToken);
-            UserDTO userDTO = userService.getUserById(userId);
+            UserInfoDTO userDTO = userService.getUserById(userId);
 
             // 创建响应
             LoginResponse response = new LoginResponse(newAccessToken, actualToken, userDTO);

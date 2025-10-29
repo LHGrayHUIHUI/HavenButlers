@@ -1,9 +1,8 @@
 package com.haven.account.service;
 
-import com.haven.account.dto.FamilyDTO;
-import com.haven.account.dto.FamilyMemberDTO;
+import com.haven.account.dto.AccountFamily;
+import com.haven.account.dto.AccountFamilyMember;
 import com.haven.account.entity.Family;
-import com.haven.account.entity.FamilyMember;
 import com.haven.account.entity.User;
 import com.haven.account.enums.FamilyRole;
 import com.haven.account.repository.FamilyRepository;
@@ -42,8 +41,8 @@ public class FamilyService {
      * 创建新家庭
      */
     @Transactional
-    public FamilyDTO createFamily(Long userId, FamilyDTO familyDTO) {
-        log.info("开始创建家庭，用户ID: {}, 家庭名称: {}", userId, familyDTO.getName());
+    public AccountFamily createFamily(Long userId, AccountFamily accountFamily) {
+        log.info("开始创建家庭，用户ID: {}, 家庭名称: {}", userId, accountFamily.getName());
 
         // 1. 验证用户存在
         User user = userRepository.findById(userId)
@@ -58,8 +57,8 @@ public class FamilyService {
         // 3. 创建家庭实体
         Family family = new Family();
         family.setUuid(UUID.randomUUID());
-        family.setName(familyDTO.getName());
-        family.setDescription(familyDTO.getDescription());
+        family.setName(accountFamily.getName());
+        family.setDescription(accountFamily.getDescription());
         family.setOwnerId(userId);
         family.setStatus("ACTIVE");
         family.setCreatedAt(LocalDateTime.now());
@@ -69,7 +68,7 @@ public class FamilyService {
         family = familyRepository.save(family);
 
         // 5. 添加用户为家庭管理员
-        FamilyMember member = new FamilyMember();
+        com.haven.account.entity.FamilyMember member = new com.haven.account.entity.FamilyMember();
         member.setFamilyId(family.getId());
         member.setUserId(userId);
         member.setRole(FamilyRole.ADMIN.getCode());
@@ -91,7 +90,7 @@ public class FamilyService {
     /**
      * 获取家庭信息
      */
-    public FamilyDTO getFamily(Long userId, Long familyId) {
+    public AccountFamily getFamily(Long userId, Long familyId) {
         // 1. 检查访问权限
         if (!permissionService.canAccessFamilyData(userId, familyId)) {
             throw new BusinessException(ErrorCode.PERMISSION_DENIED, "无权限访问该家庭");
@@ -107,7 +106,7 @@ public class FamilyService {
     /**
      * 获取用户的家庭列表
      */
-    public List<FamilyDTO> getUserFamilies(Long userId) {
+    public List<AccountFamily> getUserFamilies(Long userId) {
         List<Long> familyIds = permissionService.getUserAccessibleFamilies(userId);
 
         if (familyIds.isEmpty()) {
@@ -124,7 +123,7 @@ public class FamilyService {
      * 更新家庭信息
      */
     @Transactional
-    public FamilyDTO updateFamily(Long userId, Long familyId, FamilyDTO familyDTO) {
+    public AccountFamily updateFamily(Long userId, Long familyId, AccountFamily accountFamily) {
         // 1. 检查修改权限
         if (!permissionService.canModifyFamily(userId, familyId)) {
             throw new BusinessException(ErrorCode.PERMISSION_DENIED, "无权限修改家庭信息");
@@ -135,11 +134,11 @@ public class FamilyService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.PARAM_ERROR, "家庭不存在"));
 
         // 3. 更新信息
-        if (familyDTO.getName() != null && !familyDTO.getName().trim().isEmpty()) {
-            family.setName(familyDTO.getName());
+        if (accountFamily.getName() != null && !accountFamily.getName().trim().isEmpty()) {
+            family.setName(accountFamily.getName());
         }
-        if (familyDTO.getDescription() != null) {
-            family.setDescription(familyDTO.getDescription());
+        if (accountFamily.getDescription() != null) {
+            family.setDescription(accountFamily.getDescription());
         }
         family.setUpdatedAt(LocalDateTime.now());
 
@@ -167,7 +166,7 @@ public class FamilyService {
 
         // 3. 更新当前家庭
         user.setCurrentFamilyId(familyId);
-        user.setUpdatedAt(LocalDateTime.now());
+        user.setUpdateTime(LocalDateTime.now());  // 使用 BaseEntity 的时间字段
         userRepository.save(user);
 
         log.info("用户切换当前家庭成功，用户ID: {}, 家庭ID: {}", userId, familyId);
@@ -176,17 +175,17 @@ public class FamilyService {
     /**
      * 获取家庭成员列表
      */
-    public List<FamilyMemberDTO> getFamilyMembers(Long userId, Long familyId) {
+    public List<AccountFamilyMember> getFamilyMembers(Long userId, Long familyId) {
         // 1. 检查访问权限
         if (!permissionService.canAccessFamilyData(userId, familyId)) {
             throw new BusinessException(ErrorCode.PERMISSION_DENIED, "无权限访问该家庭");
         }
 
         // 2. 获取家庭成员
-        List<FamilyMember> members = familyMemberRepository.findByFamilyId(familyId);
+        List<com.haven.account.entity.FamilyMember> members = familyMemberRepository.findByFamilyId(familyId);
 
         return members.stream()
-                .filter(member -> FamilyMember.Status.ACTIVE.getValue().equals(member.getStatus()))
+                .filter(member -> com.haven.account.entity.FamilyMember.Status.ACTIVE.getValue().equals(member.getStatus()))
                 .map(this::convertMemberToDTO)
                 .collect(Collectors.toList());
     }
@@ -194,8 +193,8 @@ public class FamilyService {
     /**
      * 转换为家庭DTO
      */
-    private FamilyDTO convertToDTO(Family family) {
-        FamilyDTO dto = new FamilyDTO();
+    private AccountFamily convertToDTO(Family family) {
+        AccountFamily dto = new AccountFamily();
         dto.setId(family.getId());
         dto.setUuid(family.getUuid());
         dto.setName(family.getName());
@@ -210,11 +209,11 @@ public class FamilyService {
     /**
      * 转换为家庭成员DTO
      */
-    private FamilyMemberDTO convertMemberToDTO(FamilyMember member) {
+    private AccountFamilyMember convertMemberToDTO(com.haven.account.entity.FamilyMember member) {
         // 获取用户信息
         Optional<User> user = userRepository.findById(member.getUserId());
 
-        FamilyMemberDTO dto = new FamilyMemberDTO();
+        AccountFamilyMember dto = new AccountFamilyMember();
         dto.setId(member.getId());
         dto.setFamilyId(member.getFamilyId());
         dto.setUserId(member.getUserId());

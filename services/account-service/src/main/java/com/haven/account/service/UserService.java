@@ -35,7 +35,7 @@ public class UserService {
      * 用户注册
      */
     @Transactional
-    public UserDTO register(RegisterRequest request) {
+    public UserInfoDTO register(RegisterRequest request) {
         log.info("开始用户注册: {}", request.getUsername());
 
         // 1. 验证注册请求
@@ -96,13 +96,13 @@ public class UserService {
         JwtTokenService.TokenPair tokenPair = jwtTokenService.generateTokenPair(user);
 
         // 6. 更新最后登录时间
-        user.setUpdatedAt(LocalDateTime.now());
+        user.setUpdateTime(LocalDateTime.now());
         userRepository.save(user);
 
         log.info("用户登录成功: {}", loginIdentifier);
 
         // 7. 构建响应
-        UserDTO userDTO = convertToDTO(user);
+        UserInfoDTO userDTO = convertToDTO(user);
         LoginResponse response = new LoginResponse(tokenPair.getAccessToken(), tokenPair.getRefreshToken(), userDTO);
         response.setExpiresInHours(8); // 2小时过期
 
@@ -112,7 +112,7 @@ public class UserService {
     /**
      * 根据ID获取用户信息
      */
-    public UserDTO getUserById(Long id) {
+    public UserInfoDTO getUserById(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PARAM_ERROR, "用户不存在"));
         return convertToDTO(user);
@@ -218,8 +218,8 @@ public class UserService {
     /**
      * 转换为DTO
      */
-    private UserDTO convertToDTO(User user) {
-        UserDTO dto = new UserDTO();
+    private UserInfoDTO convertToDTO(User user) {
+        UserInfoDTO dto = new UserInfoDTO();
         dto.setId(user.getId());
         dto.setUuid(user.getUuid());
         dto.setUsername(user.getUsername());
@@ -229,8 +229,8 @@ public class UserService {
         dto.setStatus(user.getStatus());
         dto.setCurrentFamilyId(user.getCurrentFamilyId());
         dto.setRoles(user.getRoles());
-        dto.setCreatedAt(user.getCreatedAt());
-        dto.setUpdatedAt(user.getUpdatedAt());
+        dto.setCreatedAt(user.getCreateTime());  // 使用 BaseEntity 的时间字段
+        dto.setUpdatedAt(user.getUpdateTime());  // 使用 BaseEntity 的时间字段
         return dto;
     }
 

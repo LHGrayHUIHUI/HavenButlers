@@ -1,7 +1,10 @@
 package com.haven.account.dto;
 
+import com.haven.base.model.dto.BaseFamilyMember;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -11,8 +14,9 @@ import java.util.UUID;
  * @author HavenButler
  * @since 2025-01-16
  */
+@EqualsAndHashCode(callSuper = true)
 @Data
-public class FamilyMemberDTO {
+public class AccountFamilyMember extends BaseFamilyMember implements Serializable {
 
     private Long id;
     private UUID uuid;
@@ -38,13 +42,13 @@ public class FamilyMemberDTO {
     /**
      * 默认构造函数
      */
-    public FamilyMemberDTO() {
+    public AccountFamilyMember() {
     }
 
     /**
      * 构造函数
      */
-    public FamilyMemberDTO(Long familyId, Long userId, String role) {
+    public AccountFamilyMember(Long familyId, Long userId, String role) {
         this.familyId = familyId;
         this.userId = userId;
         this.role = role;

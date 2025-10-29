@@ -10,13 +10,13 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * 用户数据传输对象
+ * 用户信息数据传输对象
  *
  * @author HavenButler
  * @since 2025-01-16
  */
 @Data
-public class UserDTO {
+public class UserInfoDTO {
 
     private Long id;
     private UUID uuid;
@@ -53,13 +53,13 @@ public class UserDTO {
     /**
      * 默认构造函数
      */
-    public UserDTO() {
+    public UserInfoDTO() {
     }
 
     /**
      * 构造函数（用于注册）
      */
-    public UserDTO(String username, String email, String password, String phone) {
+    public UserInfoDTO(String username, String email, String password, String phone) {
         this.username = username;
         this.email = email;
         this.password = password;

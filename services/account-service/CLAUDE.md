@@ -27,7 +27,7 @@ public class UserService {
     @Autowired
     private FileServiceClient fileServiceClient; // 仅用于文件操作
 
-    public User createUser(UserDTO userDTO) {
+    public User createUser(UserInfoDTO userDTO) {
         // 1. 密码加密
         userDTO.setPassword(BCrypt.hashpw(userDTO.getPassword()));
 
@@ -227,10 +227,10 @@ public class FamilyService {
      * 创建新家庭
      */
     @Transactional
-    public Family createFamily(String userId, FamilyDTO familyDTO) {
+    public Family createFamily(String userId, FamilyDTO accountFamily) {
         // 1. 创建家庭
         Family family = new Family();
-        family.setName(familyDTO.getName());
+        family.setName(accountFamily.getName());
         family.setOwnerId(userId);
         family.setCreatedAt(new Date());
 

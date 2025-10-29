@@ -1,6 +1,7 @@
 package com.haven.base.model.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import jakarta.persistence.MappedSuperclass;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,10 +19,8 @@ import java.util.Map;
  * @author HavenButler
  */
 @Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class FamilyDTO implements Serializable {
+@MappedSuperclass
+public abstract class BaseFamilyDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -108,12 +107,12 @@ public class FamilyDTO implements Serializable {
     /**
      * 家庭成员列表
      */
-    private List<FamilyMemberDTO> members;
+    private List<BaseFamilyMember> members;
 
     /**
      * 房间列表
      */
-    private List<RoomDTO> rooms;
+    private List<BaseRoomDTO> rooms;
 
     /**
      * 家庭设置（JSON）
@@ -131,110 +130,6 @@ public class FamilyDTO implements Serializable {
      */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime updateTime;
-
-    /**
-     * 家庭成员DTO
-     */
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class FamilyMemberDTO implements Serializable {
-
-        private static final long serialVersionUID = 1L;
-
-        /**
-         * 成员用户ID
-         */
-        private String userId;
-
-        /**
-         * 成员昵称
-         */
-        private String nickname;
-
-        /**
-         * 成员头像
-         */
-        private String avatarUrl;
-
-        /**
-         * 成员角色（OWNER/ADMIN/MEMBER/GUEST）
-         */
-        private String role;
-
-        /**
-         * 加入时间
-         */
-        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-        private LocalDateTime joinTime;
-
-        /**
-         * 权限列表
-         */
-        private List<String> permissions;
-
-        /**
-         * 是否为管理员
-         */
-        public boolean isAdmin() {
-            return "OWNER".equals(role) || "ADMIN".equals(role);
-        }
-
-        /**
-         * 是否为拥有者
-         */
-        public boolean isOwner() {
-            return "OWNER".equals(role);
-        }
-    }
-
-    /**
-     * 房间DTO
-     */
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class RoomDTO implements Serializable {
-
-        private static final long serialVersionUID = 1L;
-
-        /**
-         * 房间ID
-         */
-        private String roomId;
-
-        /**
-         * 房间名称
-         */
-        private String roomName;
-
-        /**
-         * 房间类型（BEDROOM/LIVING_ROOM/KITCHEN/BATHROOM/BALCONY/OTHER）
-         */
-        private String roomType;
-
-        /**
-         * 楼层
-         */
-        private Integer floor;
-
-        /**
-         * 设备数量
-         */
-        private Integer deviceCount;
-
-        /**
-         * 房间图标
-         */
-        private String icon;
-
-        /**
-         * 排序号
-         */
-        private Integer sortOrder;
-    }
 
     /**
      * 是否激活
@@ -269,7 +164,7 @@ public class FamilyDTO implements Serializable {
     /**
      * 获取某个成员
      */
-    public FamilyMemberDTO getMember(String userId) {
+    public BaseFamilyMember getMember(String userId) {
         if (members == null) {
             return null;
         }
@@ -290,7 +185,7 @@ public class FamilyDTO implements Serializable {
      * 检查用户是否为管理员
      */
     public boolean isAdmin(String userId) {
-        FamilyMemberDTO member = getMember(userId);
+        BaseFamilyMember member = getMember(userId);
         return member != null && member.isAdmin();
     }
 }

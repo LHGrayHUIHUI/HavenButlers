@@ -1,6 +1,7 @@
 package com.haven.base.model.entity;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import jakarta.persistence.MappedSuperclass;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -13,12 +14,12 @@ import java.time.LocalDateTime;
  * @author HavenButler
  */
 @Data
-public abstract class BaseEntity implements Serializable {
+@MappedSuperclass
+public abstract class BaseEntity implements BaseModel {
 
     private static final long serialVersionUID = 1L;
-
     /**
-     * 主键ID
+     * id
      */
     private Long id;
 
