@@ -38,7 +38,12 @@ public class PagedResponseWrapper<T> extends ResponseWrapper<List<T>> {
     public PagedResponseWrapper(int code, String message, List<T> data,
                                String traceId, java.time.LocalDateTime timestamp,
                                PageInfo pageInfo) {
-        super(code, message, data, traceId, timestamp);
+        super();
+        this.setCode(code);
+        this.setMessage(message);
+        this.setData(data);
+        this.setTraceId(traceId);
+        this.setTimestamp(timestamp);
         this.pageInfo = pageInfo;
     }
 

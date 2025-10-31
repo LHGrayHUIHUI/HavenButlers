@@ -20,7 +20,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
  */
 @Slf4j
 // 移除@Component注解，改由BaseModelAutoConfiguration中@Bean方式注册
-
 public class DefaultDynamicConfigManager implements DynamicConfigManager {
 
     private final Environment environment;

@@ -3,8 +3,6 @@ package com.haven.storage.controller;
 import com.haven.base.annotation.TraceLog;
 import com.haven.base.common.response.ResponseWrapper;
 import com.haven.base.utils.TraceIdUtil;
-import com.haven.storage.api.StorageHealthInfo;
-import com.haven.storage.async.AsyncProcessingTrigger;
 import com.haven.storage.domain.model.file.*;
 import com.haven.storage.domain.model.knowledge.*;
 import com.haven.storage.domain.model.vectortag.*;
@@ -60,8 +58,7 @@ public class StorageController {
     private final FileStorageService fileStorageService;
     private final PersonalKnowledgeBaseService knowledgeBaseService;
     private final VectorTagService vectorTagService;
-    private final AsyncProcessingTrigger asyncProcessingTrigger;
-
+  
     // ===== 家庭文件存储 API =====
 
     /**
@@ -76,8 +73,7 @@ public class StorageController {
         // 1. 执行统一文件上传处理（包含验证、元数据构建、物理存储）
         FileMetadata fileMetadata = fileStorageService.completeFileUpload(request);
 
-        // 2. 上传成功，触发异步后处理任务（缩略图生成、OCR识别等）
-        asyncProcessingTrigger.triggerAsyncProcessing(request, fileMetadata);
+        // 2. 文件上传成功完成
 
         // 3. 返回成功响应（异常处理由GlobalExceptionHandler统一处理）
         return ResponseWrapper.success("文件上传成功", fileMetadata);
@@ -375,19 +371,6 @@ public class StorageController {
         return headers;
     }
 
-    /**
-     * 健康检查
-     */
-    @GetMapping("/health")
-    public ResponseEntity<StorageHealthInfo> healthCheck() {
-        StorageHealthInfo health = new StorageHealthInfo();
-        health.setStatus("UP");
-        health.setServiceName("storage-service");
-        health.setVersion("v1.0.0");
-        health.setTimestamp(System.currentTimeMillis());
-
-        return ResponseEntity.ok(health);
-    }
-
+  
 
 }

@@ -1,7 +1,8 @@
 package com.haven.base.cache;
 
 import com.haven.base.utils.JsonUtil;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 // 移除@Component注解，改由BaseModelAutoConfiguration中@Bean方式注册
 
 import java.time.Duration;
@@ -16,9 +17,10 @@ import java.util.stream.Collectors;
  *
  * @author HavenButler
  */
-@Slf4j
 // 移除@Component注解，改由BaseModelAutoConfiguration中@Bean方式注册
 public class DefaultCacheService implements CacheService {
+
+    private static final Logger log = LoggerFactory.getLogger(DefaultCacheService.class);
 
     /**
      * 缓存存储

@@ -22,6 +22,57 @@ base-model:
   encrypt:
     enabled: true
     algorithm: AES
+  service-discovery:
+    services:
+      account-service:
+        - "http://localhost:8082"
+        - "http://account-service:8080"
+      storage-service:
+        - "http://localhost:8081"
+        - "http://storage-service:8080"
+      message-service:
+        - "http://localhost:8083"
+        - "http://message-service:8080"
+
+  # 安全配置
+  security:
+    enabled: true
+    jwt:
+      secret: "havenbutler-jwt-secret-key-please-change-in-production"
+      expiration: 24h
+      refresh-expiration: 7d
+      issuer: "HavenButler"
+      audience: "havenbutler-users"
+      token-prefix: "Bearer "
+      validate-issuer: true
+      validate-audience: false
+      validate-expiration: true
+      refresh-window: 1h
+      enable-refresh-token: true
+      max-concurrent-tokens: 5
+      blacklist-cache-time: 7d
+
+    authentication:
+      enabled: true
+      type: "jwt"
+      max-failed-attempts: 5
+      lockout-duration: 30m
+      min-password-length: 8
+      max-password-length: 128
+      enable-password-strength: true
+      session-timeout: 8h
+      enable-remember-me: true
+      remember-me-duration: 30d
+
+    encryption:
+      enabled: true
+      algorithm: "AES"
+      key-size: 256
+      mode: "GCM"
+      padding: "NoPadding"
+      key-iterations: 10000
+      enable-key-rotation: false
+      key-rotation-period: 90d
 
 # 日志配置
 logging:

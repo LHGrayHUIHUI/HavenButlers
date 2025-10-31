@@ -87,8 +87,6 @@ public class FileMetadataBuilder {
                               String familyId, String uploaderUserId, String traceId) {
         try {
             metadata.setFileId(fileID);
-            // 设置数字辅助ID（基于时间戳，确保唯一性）
-            metadata.setNumericId(System.currentTimeMillis());
             metadata.setFamilyId(familyId);
             metadata.setOriginalName(request.getOriginalFileName());
             metadata.setFileName(generateUniqueFileName(request.getOriginalFileName()));
@@ -98,8 +96,8 @@ public class FileMetadataBuilder {
             metadata.setLastAccessTime(LocalDateTime.now());
             metadata.setAccessCount(0);
 
-            log.debug("基础信息设置完成: fileId={}, numericId={}, familyId={}, fileName={}, uploaderUserId={}, traceId={}",
-                    fileID, metadata.getNumericId(), familyId, metadata.getFileName(), uploaderUserId, traceId);
+            log.debug("基础信息设置完成: fileId={}, familyId={}, fileName={}, uploaderUserId={}, traceId={}",
+                    fileID, familyId, metadata.getFileName(), uploaderUserId, traceId);
 
         } catch (Exception e) {
             log.error("设置基础信息失败: traceId={}, error={}", traceId, e.getMessage(), e);

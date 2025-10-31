@@ -200,6 +200,75 @@ cat services/*/dev-panel.md
 cat dev-dashboard/project-overview.md
 ```
 
+## 🏷️ 枚举设计
+
+### 用户权限枚举系统
+
+#### 1. 系统级枚举 (UserRole)
+用户在系统中的权限等级，与家庭无关：
+
+```java
+USER (level 1)      // 普通用户 - 基础系统功能
+POWER_USER (level 5) // 高级用户 - 增强功能权限
+ADMIN (level 9)     // 系统管理员 - 系统管理权限
+SUPER_ADMIN (level 10) // 超级管理员 - 最高权限
+```
+
+#### 2. 用户状态枚举 (UserStatus)
+用户账户的状态管理：
+
+```java
+ACTIVE   // 激活状态 - 正常使用
+INACTIVE // 未激活状态 - 待验证或暂停
+LOCKED   // 锁定状态 - 安全限制
+```
+
+#### 3. 家庭角色枚举 (FamilyRole)
+用户在特定家庭中的权限层级：
+
+```java
+GUEST (level 10)    // 访客 - 临时访问权限
+MEMBER (level 50)   // 家庭成员 - 标准家庭权限
+ADMIN (level 100)   // 家庭管理员 - 家庭管理权限
+OWNER (level 150)   // 家庭所有者 - 最高家庭权限
+```
+
+#### 4. 家庭成员状态枚举 (FamilyMemberStatus)
+用户在家庭中的参与状态：
+
+```java
+ACTIVE   // 活跃状态 - 正常参与家庭活动，可访问家庭数据
+AWAY     // 暂离状态 - 暂时离开但保留成员身份，仍可访问数据
+DISABLED // 禁用状态 - 被管理员禁用，无法访问家庭数据
+LEFT     // 已离开状态 - 主动离开家庭，失去所有权限
+```
+
+### 权限设计原则
+
+1. **层级分离**：系统权限与家庭权限完全独立，避免混淆
+2. **权限继承**：高级别权限包含低级别权限
+3. **状态控制**：用户状态和成员状态独立管理，精细化控制
+4. **安全边界**：家庭权限仅在家庭范围内有效，系统权限影响全局
+
+### 使用示例
+
+```java
+// 用户注册时设置系统角色和状态
+user.setRoles(UserRole.USER.getCode());           // 默认普通用户
+user.setUserStatus(UserStatus.ACTIVE);           // 默认激活状态
+
+// 加入家庭时设置家庭角色和成员状态
+familyMember.setFamilyRole(FamilyRole.MEMBER);    // 默认家庭成员
+familyMember.setMemberStatus(FamilyMemberStatus.ACTIVE); // 默认活跃状态
+
+// 权限检查逻辑
+public boolean canAccessFamilyData(Long userId, Long familyId) {
+    FamilyMember member = getFamilyMember(userId, familyId);
+    // 检查成员状态是否允许访问
+    return member != null && member.getMemberStatus().canAccessFamilyData();
+}
+```
+
 ## 🎯 核心业务场景
 
 ### 场景1：语音控制智能设备

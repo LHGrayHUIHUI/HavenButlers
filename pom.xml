@@ -45,7 +45,6 @@
     <modules>
         <!-- 基础设施层 -->
         <module>infrastructure/base-model</module>
-        <module>infrastructure/common</module>
         <module>infrastructure/admin</module>
 
         <!-- 网关层 -->
@@ -89,12 +88,6 @@
             <dependency>
                 <groupId>com.haven</groupId>
                 <artifactId>base-model</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>com.haven</groupId>
-                <artifactId>common</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

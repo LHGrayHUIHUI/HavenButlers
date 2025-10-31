@@ -1,8 +1,8 @@
 package com.haven.account.service;
 
-import com.haven.account.entity.FamilyMember;
-import com.haven.account.entity.User;
-import com.haven.account.enums.FamilyRole;
+import com.haven.account.model.entity.FamilyMember;
+import com.haven.account.model.enums.FamilyRole;
+import com.haven.account.model.enums.MemberStatus;
 import com.haven.account.repository.FamilyMemberRepository;
 import com.haven.account.repository.UserRepository;
 import com.haven.base.common.exception.BusinessException;
@@ -45,7 +45,8 @@ public class PermissionService {
     public boolean isFamilyMember(Long userId, Long familyId) {
         try {
             Optional<FamilyMember> member = familyMemberRepository.findByFamilyIdAndUserId(familyId, userId);
-            return member.isPresent() && FamilyMember.Status.ACTIVE.equals(member.get().getStatus());
+            // 使用家庭成员状态枚举检查是否为活跃状态
+            return member.isPresent() && MemberStatus.ACTIVE.equals(member.get().getMemberStatus());
         } catch (Exception e) {
             log.error("检查家庭成员权限失败，用户ID: {}, 家庭ID: {}", userId, familyId, e);
             return false;
@@ -58,8 +59,9 @@ public class PermissionService {
     public FamilyRole getUserFamilyRole(Long userId, Long familyId) {
         try {
             Optional<FamilyMember> member = familyMemberRepository.findByFamilyIdAndUserId(familyId, userId);
-            if (member.isPresent() && FamilyMember.Status.ACTIVE.equals(member.get().getStatus())) {
-                return FamilyRole.fromCode(member.get().getRole());
+            if (member.isPresent() && MemberStatus.ACTIVE.equals(member.get().getMemberStatus())) {
+                // 修复逻辑：直接返回家庭成员的家庭角色，而不是错误地转换用户角色
+                return member.get().getFamilyRole();
             }
             return FamilyRole.GUEST;
         } catch (Exception e) {

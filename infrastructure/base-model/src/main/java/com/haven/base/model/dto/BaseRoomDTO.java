@@ -1,7 +1,6 @@
 package com.haven.base.model.dto;
 
 import com.haven.base.model.entity.BaseEntity;
-import jakarta.persistence.MappedSuperclass;
 import lombok.*;
 
 import java.io.Serializable;
@@ -11,43 +10,43 @@ import java.io.Serializable;
  */
 @EqualsAndHashCode(callSuper = true)
 @Data
-@MappedSuperclass
+
 public abstract class BaseRoomDTO extends BaseEntity implements Serializable {
 
-    private static final long serialVersionUID = 1L;
+    protected static final long serialVersionUID = 1L;
 
     /**
      * 房间ID
      */
-    private String roomId;
+    protected String roomId;
 
     /**
      * 房间名称
      */
-    private String roomName;
+    protected String roomName;
 
     /**
      * 房间类型（BEDROOM/LIVING_ROOM/KITCHEN/BATHROOM/BALCONY/OTHER）
      */
-    private String roomType;
+    protected String roomType;
 
     /**
      * 楼层
      */
-    private Integer floor;
+    protected Integer floor;
 
     /**
      * 设备数量
      */
-    private Integer deviceCount;
+    protected Integer deviceCount;
 
     /**
      * 房间图标
      */
-    private String icon;
+    protected String icon;
 
     /**
      * 排序号
      */
-    private Integer sortOrder;
+    protected Integer sortOrder;
 }

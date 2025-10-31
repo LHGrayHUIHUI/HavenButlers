@@ -1,10 +1,12 @@
 package com.haven.account.service;
 
-import com.haven.account.dto.AccountFamily;
-import com.haven.account.dto.AccountFamilyMember;
-import com.haven.account.entity.Family;
-import com.haven.account.entity.User;
-import com.haven.account.enums.FamilyRole;
+import com.haven.account.model.dto.AccountFamily;
+import com.haven.account.model.dto.AccountFamilyMember;
+import com.haven.account.model.entity.Family;
+import com.haven.account.model.entity.FamilyMember;
+import com.haven.account.model.entity.User;
+import com.haven.account.model.enums.MemberStatus;
+import com.haven.account.model.enums.FamilyRole;
 import com.haven.account.repository.FamilyRepository;
 import com.haven.account.repository.FamilyMemberRepository;
 import com.haven.account.repository.UserRepository;
@@ -42,7 +44,7 @@ public class FamilyService {
      */
     @Transactional
     public AccountFamily createFamily(Long userId, AccountFamily accountFamily) {
-        log.info("开始创建家庭，用户ID: {}, 家庭名称: {}", userId, accountFamily.getName());
+        log.info("开始创建家庭，用户ID: {}, 家庭名称: {}", userId, accountFamily.getFamilyName());
 
         // 1. 验证用户存在
         User user = userRepository.findById(userId)
@@ -57,7 +59,7 @@ public class FamilyService {
         // 3. 创建家庭实体
         Family family = new Family();
         family.setUuid(UUID.randomUUID());
-        family.setName(accountFamily.getName());
+        family.setName(accountFamily.getFamilyName());
         family.setDescription(accountFamily.getDescription());
         family.setOwnerId(userId);
         family.setStatus("ACTIVE");
@@ -68,11 +70,12 @@ public class FamilyService {
         family = familyRepository.save(family);
 
         // 5. 添加用户为家庭管理员
-        com.haven.account.entity.FamilyMember member = new com.haven.account.entity.FamilyMember();
+        FamilyMember member = new FamilyMember();
         member.setFamilyId(family.getId());
         member.setUserId(userId);
-        member.setRole(FamilyRole.ADMIN.getCode());
-        member.setStatus("ACTIVE");
+        // 修复：使用正确的家庭角色枚举
+        member.setFamilyRole(FamilyRole.ADMIN);
+        member.setStatus(MemberStatus.ACTIVE.getCode());
         member.setJoinedAt(LocalDateTime.now());
 
         familyMemberRepository.save(member);
@@ -134,8 +137,8 @@ public class FamilyService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.PARAM_ERROR, "家庭不存在"));
 
         // 3. 更新信息
-        if (accountFamily.getName() != null && !accountFamily.getName().trim().isEmpty()) {
-            family.setName(accountFamily.getName());
+        if (accountFamily.getFamilyName() != null && !accountFamily.getFamilyName().trim().isEmpty()) {
+            family.setName(accountFamily.getFamilyName());
         }
         if (accountFamily.getDescription() != null) {
             family.setDescription(accountFamily.getDescription());
@@ -182,10 +185,10 @@ public class FamilyService {
         }
 
         // 2. 获取家庭成员
-        List<com.haven.account.entity.FamilyMember> members = familyMemberRepository.findByFamilyId(familyId);
+        List<FamilyMember> members = familyMemberRepository.findByFamilyId(familyId);
 
         return members.stream()
-                .filter(member -> com.haven.account.entity.FamilyMember.Status.ACTIVE.getValue().equals(member.getStatus()))
+                .filter(member -> MemberStatus.ACTIVE.getCode().equals(member.getStatus()))
                 .map(this::convertMemberToDTO)
                 .collect(Collectors.toList());
     }
@@ -197,19 +200,20 @@ public class FamilyService {
         AccountFamily dto = new AccountFamily();
         dto.setId(family.getId());
         dto.setUuid(family.getUuid());
-        dto.setName(family.getName());
+        dto.setFamilyName(family.getName());
         dto.setDescription(family.getDescription());
-        dto.setOwnerId(family.getOwnerId());
+        dto.setOwnerId(String.valueOf(family.getOwnerId()));
         dto.setStatus(family.getStatus());
-        dto.setCreatedAt(family.getCreatedAt());
-        dto.setUpdatedAt(family.getUpdatedAt());
+        dto.setBackgroundImageUrl(family.getBackgroundImageUrl());
+        dto.setCreateTime(family.getCreatedAt());
+        dto.setUpdateTime(family.getUpdatedAt());
         return dto;
     }
 
     /**
      * 转换为家庭成员DTO
      */
-    private AccountFamilyMember convertMemberToDTO(com.haven.account.entity.FamilyMember member) {
+    private AccountFamilyMember convertMemberToDTO(FamilyMember member) {
         // 获取用户信息
         Optional<User> user = userRepository.findById(member.getUserId());
 
@@ -217,8 +221,9 @@ public class FamilyService {
         dto.setId(member.getId());
         dto.setFamilyId(member.getFamilyId());
         dto.setUserId(String.valueOf(member.getUserId()));
-        dto.setRole(member.getRole());
-        dto.setJoinedAt(member.getJoinedAt());
+        // 修复：使用正确的家庭角色方法
+        dto.setRole(member.getFamilyRole() != null ? member.getFamilyRole().getCode() : "family_member");
+        // dto.setJoinedAt(member.getJoinedAt()); // 使用父类joinTime
 
         if (user.isPresent()) {
             dto.setUsername(user.get().getUsername());

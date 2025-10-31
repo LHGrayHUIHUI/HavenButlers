@@ -1,7 +1,11 @@
 package com.haven.account.service;
 
-import com.haven.account.dto.*;
-import com.haven.account.entity.User;
+import com.haven.account.model.entity.User;
+import com.haven.account.model.dto.LoginRequest;
+import com.haven.account.model.dto.LoginResponse;
+import com.haven.account.model.dto.RegisterRequest;
+import com.haven.account.model.dto.UserInfoDTO;
+import com.haven.account.model.enums.UserRole;
 import com.haven.account.repository.UserRepository;
 import com.haven.account.security.JwtTokenService;
 import com.haven.base.common.exception.BusinessException;
@@ -50,8 +54,10 @@ public class UserService {
         user.setEmail(request.getEmail());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setPhone(request.getPhone());
+        // 使用枚举类设置用户状态为激活，避免硬编码
         user.setUserStatus(User.Status.ACTIVE);
-        user.setRoles("USER");
+        // 使用枚举类设置用户角色为普通用户，避免硬编码
+        user.setRoles(UserRole.USER.getCode());
 
         // 4. 保存用户
         User savedUser = userRepository.save(user);
@@ -186,11 +192,28 @@ public class UserService {
     }
 
     /**
-     * 验证登录请求
+     * 验证登录请求 - 支持手机号或用户名登录
      */
     private void validateLoginRequest(LoginRequest request) {
-        if (request.getUsername() == null || request.getUsername().trim().isEmpty()) {
-            throw new BusinessException(ErrorCode.PARAM_MISSING, "用户名不能为空");
+        // 验证登录标识：手机号或用户名至少有一个不为空
+        String phone = request.getPhone();
+        String username = request.getUsername();
+
+        boolean hasPhone = phone != null && !phone.trim().isEmpty();
+        boolean hasUsername = username != null && !username.trim().isEmpty();
+
+        if (!hasPhone && !hasUsername) {
+            throw new BusinessException(ErrorCode.PARAM_MISSING, "手机号或用户名不能为空");
+        }
+
+        // 如果提供了手机号，验证格式
+        if (hasPhone && !ValidationUtil.isValidPhone(phone)) {
+            throw new BusinessException(ErrorCode.PARAM_FORMAT_ERROR, "手机号格式不正确");
+        }
+
+        // 如果提供了用户名，验证格式
+        if (hasUsername && !ValidationUtil.isValidUsername(username)) {
+            throw new BusinessException(ErrorCode.PARAM_FORMAT_ERROR, "用户名格式不正确");
         }
 
         if (request.getPassword() == null || request.getPassword().trim().isEmpty()) {
@@ -226,11 +249,12 @@ public class UserService {
         dto.setEmail(user.getEmail());
         dto.setPhone(user.getPhone());
         dto.setAvatarUrl(user.getAvatarUrl());
+        dto.setBackgroundImageUrl(user.getBackgroundImageUrl());
         dto.setStatus(user.getStatus());
         dto.setCurrentFamilyId(user.getCurrentFamilyId());
         dto.setRoles(user.getRoles());
-        dto.setCreatedAt(user.getCreateTime());  // 使用 BaseEntity 的时间字段
-        dto.setUpdatedAt(user.getUpdateTime());  // 使用 BaseEntity 的时间字段
+        dto.setCreateTime(user.getCreateTime());  // 使用 BaseEntity 的时间字段
+        dto.setUpdateTime(user.getUpdateTime());  // 使用 BaseEntity 的时间字段
         return dto;
     }
 

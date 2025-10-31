@@ -1,9 +1,9 @@
 package com.haven.account.controller;
 
-import com.haven.account.dto.LoginRequest;
-import com.haven.account.dto.LoginResponse;
-import com.haven.account.dto.RegisterRequest;
-import com.haven.account.dto.UserInfoDTO;
+import com.haven.account.model.dto.LoginRequest;
+import com.haven.account.model.dto.LoginResponse;
+import com.haven.account.model.dto.RegisterRequest;
+import com.haven.account.model.dto.UserInfoDTO;
 import com.haven.account.service.UserService;
 import com.haven.account.security.JwtTokenService;
 import com.haven.base.annotation.TraceLog;
@@ -15,8 +15,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
-
-import io.jsonwebtoken.Claims;
 
 /**
  * 认证控制器
@@ -97,11 +95,25 @@ public class AuthController {
             // 移除Bearer前缀
             String actualToken = token.replace("Bearer ", "");
 
+            // 验证Token有效性
+            if (!jwtTokenService.validateToken(actualToken)) {
+                log.warn("Token验证失败");
+                throw new BusinessException(ErrorCode.TOKEN_INVALID, "无效的访问令牌");
+            }
+
             // 从Token中解析用户ID
             Long userId = jwtTokenService.getUserIdFromToken(actualToken);
+            if (userId == null) {
+                log.warn("无法从Token中解析用户ID");
+                throw new BusinessException(ErrorCode.TOKEN_INVALID, "无法从令牌中解析用户ID");
+            }
+
             UserInfoDTO userDTO = userService.getUserById(userId);
 
-            return ResponseWrapper.success(userDTO);
+            return ResponseWrapper.success("获取用户信息成功", userDTO);
+        } catch (BusinessException e) {
+            log.warn("获取用户信息失败: {}", e.getMessage());
+            throw e;
         } catch (Exception e) {
             log.error("获取用户信息异常", e);
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "获取用户信息失败");

@@ -1,7 +1,7 @@
 package com.haven.account.security;
 
-import com.haven.account.entity.User;
-import com.haven.common.security.JwtUtils;
+import com.haven.account.model.entity.User;
+import com.haven.base.security.JwtUtils;
 import io.jsonwebtoken.Claims;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * JWT Token 服务类

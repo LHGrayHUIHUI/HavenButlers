@@ -25,28 +25,11 @@ import java.util.List;
 })
 public class FileMetadata extends BaseEntity {
 
-    @Id
-    @Column(name = "file_id", length = 64, nullable = false)
+    // 业务文件ID（非主键，唯一标识）
+    @Column(name = "file_id", length = 64, nullable = false, unique = true)
     private String fileId;
 
-    /**
-     * 数字辅助ID，用于高性能查询和排序
-     * 提供比字符串主键更好的索引性能
-     */
-    @Column(name = "numeric_id", nullable = false, unique = true)
-    private Long numericId;
-
-    // 基础字段的 getter/setter 方法
-    // 基础字段
-    @Column(name = "id")
-    private Long id;
-
-    @Column(name = "create_time")
-    private LocalDateTime createTime;
-
-    @Column(name = "update_time")
-    private LocalDateTime updateTime;
-
+    // 业务状态字段
     @Column(name = "deleted")
     private Integer deleted;
 
@@ -96,7 +79,7 @@ public class FileMetadata extends BaseEntity {
     private int accessCount;
 
     @ElementCollection
-    @CollectionTable(name = "file_tags", joinColumns = @JoinColumn(name = "file_id"))
+    @CollectionTable(name = "file_tags", joinColumns = @JoinColumn(name = "file_id", referencedColumnName = "file_id", foreignKey = @ForeignKey(name = "none", value = ConstraintMode.NO_CONSTRAINT)))
     @Column(name = "tag", length = 100)
     private List<String> tags;
 
@@ -375,16 +358,11 @@ public class FileMetadata extends BaseEntity {
     // JPA 生命周期回调
     @PrePersist
     protected void onCreate() {
-        LocalDateTime now = LocalDateTime.now();
-        this.createTime = now;
-        this.updateTime = now;
-        this.deleted = 0;  // 默认未删除
-        this.status = 1;   // 默认正常状态
-
-        // 生成数字辅助ID，基于时间戳确保唯一性
-        if (this.numericId == null) {
-            // 使用毫秒级时间戳，确保在数据库重启后的唯一性
-            this.numericId = System.currentTimeMillis();
+        if (this.deleted == null) {
+            this.deleted = 0;  // 默认未删除
+        }
+        if (this.status == null) {
+            this.status = 1;   // 默认正常状态
         }
     }
 
@@ -400,6 +378,5 @@ public class FileMetadata extends BaseEntity {
         }
         return fileId;
     }
-
 
 }

@@ -1,6 +1,6 @@
 package com.haven.account.repository;
 
-import com.haven.account.entity.Family;
+import com.haven.account.model.entity.Family;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

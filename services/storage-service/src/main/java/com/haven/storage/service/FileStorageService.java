@@ -10,8 +10,6 @@ import com.haven.storage.domain.builder.FileMetadataBuilder;
 import com.haven.storage.domain.model.file.*;
 import com.haven.storage.exception.FileUploadException;
 import com.haven.storage.repository.FileMetadataRepository;
-import com.haven.storage.service.base.BaseService;
-import com.haven.storage.service.cache.FileMetadataCacheService;
 import com.haven.storage.utils.FileUtils;
 import com.haven.storage.validator.UnifiedFileValidator;
 import lombok.RequiredArgsConstructor;
@@ -52,15 +50,14 @@ import com.haven.storage.security.UserContext;
 @Slf4j
 @RequiredArgsConstructor
 @Service
-public class FileStorageService extends BaseService {
+public class FileStorageService {
 
 
     private final StorageAdapter storageAdapter;// 存储适配器实例（使用策略模式，Spring会自动选择合适的实现）
     private final UnifiedFileValidator unifiedFileValidator; // 统一文件验证器
     private final FileMetadataBuilder metadataBuilder;// 文件元数据构建器
     private final FileMetadataRepository fileMetadataRepository; // Spring Data JPA数据访问层
-    private final FileMetadataCacheService cacheService;// Redis缓存服务
-
+    
     // 家庭存储统计服务
     private final FamilyStorageStatsService familyStorageStatsService;
 
@@ -113,14 +110,14 @@ public class FileStorageService extends BaseService {
             // 5. 更新最终元数据（可能包含存储路径等信息）
             fileMetadata = updateFileMetadata(storageResult.getFileMetadata());
             // 6. 缓存文件元数据到Redis（提升后续查询性能）
-            cacheService.cacheFileMetadata(fileMetadata);
+            // cacheService.cacheFileMetadata(fileMetadata);
             // 7. 更新家庭存储统计信息（文件上传成功）
             familyStorageStatsService.onFileUploaded(fileMetadata);
 
             // 8. 清理家庭相关缓存（因为文件列表发生变化）
             // 清理所有缓存以确保数据一致性
-            cacheService.evictFileMetadata(fileMetadata.getFileId());
-            cacheService.evictAllCache();
+            // cacheService.evictFileMetadata(fileMetadata.getFileId());
+            // cacheService.evictAllCache();
 
             log.info("文件上传完成: fileId={}, fileName={}, family={}, traceId={}",
                     fileMetadata.getFileId(), fileMetadata.getOriginalFileName(),
@@ -237,8 +234,8 @@ public class FileStorageService extends BaseService {
                 familyStorageStatsService.onFileDeleted(metadata);
 
                 // 6. 清理Redis相关缓存
-                cacheService.evictFileMetadata(fileId);
-                cacheService.evictAllCache();
+                // cacheService.evictFileMetadata(fileId);
+                // cacheService.evictAllCache();
 
                 log.info("文件删除成功: family={}, fileId={}, storageType={}, traceId={}",
                         familyId, fileId, storageAdapter.getStorageType(), traceId);
@@ -325,7 +322,8 @@ public class FileStorageService extends BaseService {
 
         try {
             // 1. 先检查Redis缓存
-            Optional<Object> cachedResult = cacheService.getCachedSearchResult(familyId, keyword);
+            // Optional<Object> cachedResult = cacheService.getCachedSearchResult(familyId, keyword);
+            Optional<Object> cachedResult = Optional.empty();
             if (cachedResult.isPresent() && cachedResult.get() instanceof FileSearchResult) {
                 return (FileSearchResult) cachedResult.get();
             }
@@ -342,7 +340,7 @@ public class FileStorageService extends BaseService {
             searchResult.setTraceId(traceId);
 
             // 4. 缓存搜索结果
-            cacheService.cacheSearchResult(familyId, keyword, searchResult);
+            // cacheService.cacheSearchResult(familyId, keyword, searchResult);
 
             log.info("文件搜索完成: family={}, keyword={}, matches={}, traceId={}",
                     familyId, keyword, matchedFiles.size(), traceId);
@@ -404,7 +402,7 @@ public class FileStorageService extends BaseService {
             fileMetadata = fileMetadataRepository.save(fileMetadata);
 
             // 缓存文件元数据
-            cacheService.cacheFileMetadata(fileMetadata);
+            // cacheService.cacheFileMetadata(fileMetadata);
 
             log.debug("文件元数据保存成功: fileMetadata={}", fileMetadata);
             return fileMetadata;
@@ -423,7 +421,7 @@ public class FileStorageService extends BaseService {
         String traceId = TraceIdUtil.getCurrentOrGenerate();
 
         try {
-            return fileMetadataRepository.findActiveFileByIdAndFamily(fileId, familyId)
+            return fileMetadataRepository.findActiveFileByFileIdAndFamily(fileId, familyId)
                     .orElse(null);
 
         } catch (Exception e) {
@@ -444,7 +442,7 @@ public class FileStorageService extends BaseService {
             FileMetadata updated = fileMetadataRepository.save(fileMetadata);
 
             // 更新缓存
-            cacheService.cacheFileMetadata(updated);
+            // cacheService.cacheFileMetadata(updated);
 
             log.info("文件元数据更新成功: fileId={}, fileName={}, traceId={}",
                     updated.getFileId(), updated.getOriginalFileName(), traceId);
@@ -498,7 +496,8 @@ public class FileStorageService extends BaseService {
         FileMetadata fileMetadata = null;
         try {
             // 先从缓存获取
-            Optional<FileMetadata> metadataOptional = cacheService.getCachedFileMetadata(fileId);
+            // Optional<FileMetadata> metadataOptional = cacheService.getCachedFileMetadata(fileId);
+            Optional<FileMetadata> metadataOptional = Optional.empty();
             if (metadataOptional.isPresent()) {
                 fileMetadata = metadataOptional.get();
             }
@@ -506,12 +505,12 @@ public class FileStorageService extends BaseService {
                 return fileMetadata;
             }
 
-            Optional<FileMetadata> metadataRepository = fileMetadataRepository.findById(fileId);
+            Optional<FileMetadata> metadataRepository = fileMetadataRepository.findByFileId(fileId);
             if (metadataRepository.isPresent()) {
                 fileMetadata = metadataRepository.get();
             }
             if (fileMetadata != null) {
-                cacheService.cacheFileMetadata(fileMetadata);
+                // cacheService.cacheFileMetadata(fileMetadata);
                 return fileMetadata;
             }
             // 缓存未命中，从数据库获取
@@ -588,4 +587,5 @@ public class FileStorageService extends BaseService {
         return storageAdapter.getFileAccessUrl(fileId, familyId, expireMinutes);
     }
 
+    
 }

@@ -1,6 +1,6 @@
 package com.haven.account.repository;
 
-import com.haven.account.entity.User;
+import com.haven.account.model.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -65,7 +65,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     /**
      * 查找在指定时间之后注册的用户
      */
-    @Query("SELECT u FROM User u WHERE u.createdAt >= :since")
+    @Query("SELECT u FROM User u WHERE u.createTime >= :since")
     List<User> findUsersRegisteredSince(@Param("since") LocalDateTime since);
 
     /**
@@ -91,6 +91,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     /**
      * 查找最近登录的用户
      */
-    @Query("SELECT u FROM User u WHERE u.updatedAt >= :since ORDER BY u.updatedAt DESC")
+    @Query("SELECT u FROM User u WHERE u.updateTime >= :since ORDER BY u.updateTime DESC")
     List<User> findRecentlyActiveUsers(@Param("since") LocalDateTime since, Pageable pageable);
 }

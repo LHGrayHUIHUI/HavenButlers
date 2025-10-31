@@ -1,7 +1,7 @@
 package com.haven.account.controller;
 
-import com.haven.account.dto.AccountFamily;
-import com.haven.account.dto.AccountFamilyMember;
+import com.haven.account.model.dto.AccountFamily;
+import com.haven.account.model.dto.AccountFamilyMember;
 import com.haven.account.security.JwtTokenService;
 import com.haven.account.service.FamilyService;
 import com.haven.base.annotation.TraceLog;

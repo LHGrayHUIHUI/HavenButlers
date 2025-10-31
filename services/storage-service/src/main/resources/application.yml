@@ -6,6 +6,13 @@ spring:
   application:
     name: storage-service
 
+  # 禁用不需要的自动配置
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration
+      - org.springframework.boot.autoconfigure.thymeleaf.ThymeleafAutoConfiguration
+
   # Nacos配置 - 支持环境变量控制
   cloud:
     nacos:
@@ -66,11 +73,11 @@ spring:
 
   # JPA配置
   jpa:
+    open-in-view: false  # 明确禁用Open-in-View，避免潜在的N+1查询问题
     hibernate:
-      ddl-auto: update
+      ddl-auto: none
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
     show-sql: false
 
@@ -118,12 +125,10 @@ management:
 # 日志配置
 logging:
   level:
-    com.haven.storage: DEBUG
-    com.haven.base: DEBUG
-    org.springframework.data: INFO
+    com.haven.storage: INFO
+    com.haven.base: INFO
+    org.springframework.data: WARN
+    org.hibernate.SQL: WARN
     root: INFO
-base-model:
-  trace:
-    exclude-paths: "/**"  # 通配符表示所有路径都无需认证
-  security:
-    jwt-secret: fJmSbo7pBY8teyzVDyv7YxW1aXPKHSx0uFWxsomMJ4I=
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] [%X{traceId}] %-5level %logger{36} - %msg%n"

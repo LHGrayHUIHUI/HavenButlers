@@ -1,6 +1,6 @@
 package com.haven.account.repository;
 
-import com.haven.account.entity.FamilyMember;
+import com.haven.account.model.entity.FamilyMember;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -44,12 +44,12 @@ public interface FamilyMemberRepository extends JpaRepository<FamilyMember, Long
     /**
      * 根据家庭ID和角色查找成员
      */
-    List<FamilyMember> findByFamilyIdAndRole(Long familyId, String role);
+    List<FamilyMember> findByFamilyIdAndFamilyRole(Long familyId, String familyRole);
 
     /**
      * 查找家庭管理员
      */
-    @Query("SELECT fm FROM FamilyMember fm WHERE fm.familyId = :familyId AND fm.role = 'ADMIN' AND fm.status = 'ACTIVE'")
+    @Query("SELECT fm FROM FamilyMember fm WHERE fm.familyId = :familyId AND fm.familyRole = 'ADMIN' AND fm.status = 'ACTIVE'")
     List<FamilyMember> findFamilyAdmins(@Param("familyId") Long familyId);
 
     /**
@@ -61,13 +61,13 @@ public interface FamilyMemberRepository extends JpaRepository<FamilyMember, Long
     /**
      * 查找指定角色的家庭成员
      */
-    @Query("SELECT fm FROM FamilyMember fm WHERE fm.role = :role AND fm.status = 'ACTIVE'")
+    @Query("SELECT fm FROM FamilyMember fm WHERE fm.familyRole = :role AND fm.status = 'ACTIVE'")
     Page<FamilyMember> findMembersByRole(@Param("role") String role, Pageable pageable);
 
     /**
      * 检查用户是否为家庭管理员
      */
-    @Query("SELECT COUNT(fm) > 0 FROM FamilyMember fm WHERE fm.familyId = :familyId AND fm.userId = :userId AND fm.role = 'ADMIN' AND fm.status = 'ACTIVE'")
+    @Query("SELECT COUNT(fm) > 0 FROM FamilyMember fm WHERE fm.familyId = :familyId AND fm.userId = :userId AND fm.familyRole = 'ADMIN' AND fm.status = 'ACTIVE'")
     boolean isFamilyAdmin(@Param("familyId") Long familyId, @Param("userId") Long userId);
 
     /**

@@ -1,221 +1,308 @@
 package com.haven.base.aspect;
 
 import com.haven.base.annotation.RateLimit;
-import com.haven.base.cache.CacheService;
-import com.haven.base.common.exception.RateLimitException;
+import com.haven.base.cache.RedisUtils;
+import com.haven.base.common.exception.BusinessException;
 import com.haven.base.common.response.ErrorCode;
 import com.haven.base.utils.TraceIdUtil;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
-import org.springframework.core.Ordered;
+import org.aspectj.lang.reflect.MethodSignature;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.expression.MethodBasedEvaluationContext;
+import org.springframework.core.DefaultParameterNameDiscoverer;
+import org.springframework.core.ParameterNameDiscoverer;
 import org.springframework.core.annotation.Order;
+import org.springframework.expression.EvaluationContext;
+import org.springframework.expression.Expression;
+import org.springframework.expression.ExpressionParser;
+import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-import java.time.Duration;
-import java.util.Optional;
+import jakarta.servlet.http.HttpServletRequest;
+import java.lang.reflect.Method;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * 限流切面实现
- * 基于CacheService实现分布式限流，支持全局、IP、用户三种限流类型
+ * 限流切面（从common模块迁移和精简）
+ * 支持SpEL表达式解析和指标收集
  *
  * @author HavenButler
+ * @version 1.0.0
  */
 @Slf4j
 @Aspect
-// 移除@Component注解，改由BaseModelAutoConfiguration中@Bean方式注册
+@Component
+@Order(1)
 @RequiredArgsConstructor
-@Order(Ordered.HIGHEST_PRECEDENCE + 10)
-@ConditionalOnClass({CacheService.class})
+@ConditionalOnProperty(prefix = "base-model.rate-limit", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class RateLimitAspect {
 
-    private final CacheService cacheService;
+    private final RedisUtils redisUtils;
 
-    /**
-     * 限流切面方法
-     * 根据注解配置进行限流检查
-     */
+    @Value("${base-model.rate-limit.key-prefix:haven:rate_limit:}")
+    private String rateLimitKeyPrefix;
+
+    @Value("${base-model.rate-limit.enable-metrics:true}")
+    private boolean enableMetrics;
+
+    // SpEL表达式解析器
+    private final ExpressionParser expressionParser = new SpelExpressionParser();
+    private final ParameterNameDiscoverer parameterNameDiscoverer = new DefaultParameterNameDiscoverer();
+
+    // 表达式缓存
+    private final ConcurrentHashMap<String, Expression> expressionCache = new ConcurrentHashMap<>();
+
+    // 限流指标
+    private final AtomicLong rateLimitHits = new AtomicLong(0);
+    private final AtomicLong rateLimitPassed = new AtomicLong(0);
+    private final AtomicLong rateLimitBlocked = new AtomicLong(0);
+
     @Around("@annotation(rateLimit)")
-    public Object rateLimit(ProceedingJoinPoint point, RateLimit rateLimit) throws Throwable {
-        String traceId = TraceIdUtil.getCurrentOrGenerate();
+    public Object around(ProceedingJoinPoint point, RateLimit rateLimit) throws Throwable {
+        String traceId = TraceIdUtil.getCurrent();
+        String key = generateKeyWithSpEL(point, rateLimit);
+
+        long startTime = System.currentTimeMillis();
+
+        // 更新指标
+        if (enableMetrics) {
+            rateLimitHits.incrementAndGet();
+        }
 
         try {
-            // 生成限流键
-            String rateLimitKey = generateRateLimitKey(rateLimit, point);
+            // 原子递增
+            Long count = redisUtils.increment(key);
 
-            // 检查限流
-            checkRateLimit(rateLimitKey, rateLimit, traceId);
+            // 第一次访问，设置过期时间
+            if (count == 1) {
+                redisUtils.expire(key, rateLimit.window(), java.util.concurrent.TimeUnit.SECONDS);
+            }
 
-            // 执行原方法
-            Object result = point.proceed();
+            // 检查是否超过限制
+            if (count > rateLimit.limit()) {
+                if (enableMetrics) {
+                    rateLimitBlocked.incrementAndGet();
+                }
 
-            log.debug("限流检查通过，方法执行成功: key={}, traceId={}", rateLimitKey, traceId);
-            return result;
+                log.warn("限流触发: key={}, count={}, limit={}, window={}s, traceId={}",
+                        key, count, rateLimit.limit(), rateLimit.window(), traceId);
 
-        } catch (RateLimitException e) {
-            log.warn("请求被限流拒绝: method={}, traceId={}, reason={}",
-                    point.getSignature().getName(), traceId, e.getMessage());
+                throw new BusinessException(ErrorCode.RATE_LIMIT_ERROR,
+                        StringUtils.defaultIfBlank(rateLimit.message(), "请求过于频繁，请稍后再试"));
+            }
+
+            // 限流检查通过
+            if (enableMetrics) {
+                rateLimitPassed.incrementAndGet();
+            }
+
+            long duration = System.currentTimeMillis() - startTime;
+            log.debug("限流检查通过: key={}, count={}, limit={}, duration={}ms, traceId={}",
+                     key, count, rateLimit.limit(), duration, traceId);
+
+            return point.proceed();
+
+        } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            log.error("限流切面执行异常: method={}, traceId={}, error={}",
-                    point.getSignature().getName(), traceId, e.getMessage(), e);
-            // 限流组件异常时，为了不影响业务，选择放行
+            log.error("限流处理异常: key={}, traceId={}", key, traceId, e);
+            // 限流异常不影响业务执行
             return point.proceed();
         }
     }
 
     /**
-     * 生成限流键
-     * 格式：rate_limit:{type}:{identifier}
+     * 生成限流键 - 支持SpEL表达式
      */
-    private String generateRateLimitKey(RateLimit rateLimit, ProceedingJoinPoint point) {
-        String prefix = "rate_limit:";
-        String type = rateLimit.type().name().toLowerCase();
-        String identifier;
+    private String generateKeyWithSpEL(ProceedingJoinPoint point, RateLimit rateLimit) {
+        String keyExpression = rateLimit.key();
 
-        // 优先使用注解中指定的key
-        if (rateLimit.key() != null && !rateLimit.key().isEmpty()) {
-            return prefix + type + ":" + rateLimit.key();
+        // 如果没有指定key，使用默认格式
+        if (StringUtils.isBlank(keyExpression)) {
+            MethodSignature signature = (MethodSignature) point.getSignature();
+            Method method = signature.getMethod();
+            String className = method.getDeclaringClass().getSimpleName();
+            String methodName = method.getName();
+            return rateLimitKeyPrefix + className + ":" + methodName;
         }
 
-        switch (rateLimit.type()) {
-            case GLOBAL:
-                // 全局限流：使用方法签名
-                identifier = point.getSignature().toShortString();
-                break;
-
-            case IP:
-                // IP限流：获取客户端IP
-                identifier = getClientIP();
-                break;
-
-            case USER:
-                // 用户限流：从请求中提取用户ID
-                identifier = getCurrentUserId();
-                break;
-
-            case IP_USER:
-                // IP+用户组合限流：使用IP:用户ID组合
-                String ip = getClientIP();
-                String userId = getCurrentUserId();
-                identifier = ip + ":" + userId;
-                break;
-
-            default:
-                identifier = "default";
-        }
-
-        return prefix + type + ":" + identifier;
-    }
-
-    /**
-     * 检查是否超过限流阈值
-     */
-    private void checkRateLimit(String key, RateLimit rateLimit, String traceId) {
+        // 解析SpEL表达式
         try {
-            // 获取当前计数
-            Optional<Long> currentCount = cacheService.get(key, Long.class);
-            long count = currentCount.orElse(0L);
-
-            if (count >= rateLimit.limit()) {
-                // 超过限制，抛出限流异常
-                String message = rateLimit.message().isEmpty() ?
-                    String.format("请求过于频繁，请%d秒后重试", rateLimit.window()) :
-                    rateLimit.message();
-
-                throw new RateLimitException(ErrorCode.RATE_LIMIT_EXCEEDED, message);
-            }
-
-            // 增加计数
-            long newCount = cacheService.increment(key, 1);
-
-            // 第一次访问时设置过期时间
-            if (newCount == 1) {
-                cacheService.expire(key, Duration.ofSeconds(rateLimit.window()));
-            }
-
-            log.debug("限流计数更新: key={}, count={}/{}, window={}s, traceId={}",
-                    key, newCount, rateLimit.limit(), rateLimit.window(), traceId);
-
-        } catch (RateLimitException e) {
-            throw e;
+            String evaluatedKey = evaluateSpELExpression(keyExpression, point);
+            return rateLimitKeyPrefix + evaluatedKey;
         } catch (Exception e) {
-            log.error("限流检查异常: key={}, traceId={}, error={}", key, traceId, e.getMessage(), e);
-            // 缓存异常时放行，避免影响业务
+            log.warn("SpEL表达式解析失败，使用原始key: expression={}, error={}", keyExpression, e.getMessage());
+            return rateLimitKeyPrefix + keyExpression;
         }
     }
 
     /**
-     * 获取客户端IP地址
+     * 解析SpEL表达式
      */
-    private String getClientIP() {
+    private String evaluateSpELExpression(String expressionString, ProceedingJoinPoint point) {
+        // 从缓存获取或创建表达式
+        Expression expression = expressionCache.computeIfAbsent(expressionString,
+            key -> expressionParser.parseExpression(key));
+
+        // 创建评估上下文
+        EvaluationContext context = createEvaluationContext(point);
+
+        // 评估表达式
+        Object result = expression.getValue(context);
+        return result != null ? result.toString() : "null";
+    }
+
+    /**
+     * 创建SpEL评估上下文
+     */
+    private EvaluationContext createEvaluationContext(ProceedingJoinPoint point) {
+        MethodSignature signature = (MethodSignature) point.getSignature();
+        Method method = signature.getMethod();
+        Object[] args = point.getArgs();
+
+        // 基于方法的评估上下文
+        EvaluationContext context = new MethodBasedEvaluationContext(
+            point.getTarget(), method, args, parameterNameDiscoverer);
+
+        // 添加常用变量
+        context.setVariable("ip", getClientIp());
+        context.setVariable("user", getUserId());
+        context.setVariable("traceId", TraceIdUtil.getCurrent());
+        context.setVariable("className", method.getDeclaringClass().getSimpleName());
+        context.setVariable("methodName", method.getName());
+
+        // 添加请求相关变量
+        HttpServletRequest request = getCurrentRequest();
+        if (request != null) {
+            context.setVariable("uri", request.getRequestURI());
+            context.setVariable("method", request.getMethod());
+            context.setVariable("userAgent", request.getHeader("User-Agent"));
+        }
+
+        return context;
+    }
+
+    /**
+     * 获取当前HTTP请求
+     */
+    private HttpServletRequest getCurrentRequest() {
         try {
             ServletRequestAttributes attributes =
-                (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
-            HttpServletRequest request = attributes.getRequest();
-
-            String ip = request.getHeader("X-Forwarded-For");
-            if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-                ip = request.getHeader("X-Real-IP");
-            }
-            if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-                ip = request.getHeader("Proxy-Client-IP");
-            }
-            if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-                ip = request.getHeader("WL-Proxy-Client-IP");
-            }
-            if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-                ip = request.getRemoteAddr();
-            }
-
-            // 处理多个IP的情况，取第一个
-            if (ip != null && ip.contains(",")) {
-                ip = ip.split(",")[0].trim();
-            }
-
-            return ip != null ? ip : "unknown";
-
+                (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            return attributes != null ? attributes.getRequest() : null;
         } catch (Exception e) {
-            log.warn("获取客户端IP失败: {}", e.getMessage());
+            log.debug("获取当前请求失败", e);
+            return null;
+        }
+    }
+
+    /**
+     * 获取客户端IP - 支持多种代理头
+     */
+    private String getClientIp() {
+        HttpServletRequest request = getCurrentRequest();
+        if (request == null) {
+            return "unknown";
+        }
+
+        try {
+            String[] ipHeaders = {
+                "X-Forwarded-For",
+                "X-Real-IP",
+                "Proxy-Client-IP",
+                "WL-Proxy-Client-IP",
+                "HTTP_CLIENT_IP",
+                "HTTP_X_FORWARDED_FOR"
+            };
+
+            for (String header : ipHeaders) {
+                String ip = request.getHeader(header);
+                if (StringUtils.isNotBlank(ip) && !"unknown".equalsIgnoreCase(ip)) {
+                    // X-Forwarded-For可能包含多个IP，取第一个
+                    return ip.split(",")[0].trim();
+                }
+            }
+
+            return request.getRemoteAddr();
+        } catch (Exception e) {
+            log.error("获取客户端IP失败", e);
             return "unknown";
         }
     }
 
     /**
-     * 获取当前用户ID
-     * 这里提供默认实现，实际项目中应该从认证信息中获取
+     * 获取用户ID - 支持多种获取方式
      */
-    private String getCurrentUserId() {
-        try {
-            ServletRequestAttributes attributes =
-                (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
-            HttpServletRequest request = attributes.getRequest();
-
-            // 尝试从请求头获取用户ID
-            String userId = request.getHeader("X-User-Id");
-            if (userId != null && !userId.isEmpty()) {
-                return userId;
-            }
-
-            // 尝试从请求参数获取
-            userId = request.getParameter("userId");
-            if (userId != null && !userId.isEmpty()) {
-                return userId;
-            }
-
-            // TODO: 实际项目中应该从Spring Security上下文或JWT Token中获取用户ID
-            // 这里返回IP作为fallback
-            return getClientIP();
-
-        } catch (Exception e) {
-            log.warn("获取用户ID失败: {}", e.getMessage());
-            return "anonymous";
+    private String getUserId() {
+        HttpServletRequest request = getCurrentRequest();
+        if (request == null) {
+            return null;
         }
+
+        try {
+            // 1. 从请求头获取
+            String userId = request.getHeader("X-User-ID");
+            if (StringUtils.isNotBlank(userId)) {
+                return userId;
+            }
+
+            // 2. 从请求属性获取（AuthFilter设置）
+            Object userIdAttr = request.getAttribute("userId");
+            if (userIdAttr != null) {
+                return userIdAttr.toString();
+            }
+
+            // 3. 从JWT Token解析（如果存在）
+            String token = request.getHeader("Authorization");
+            if (StringUtils.isNotBlank(token) && token.startsWith("Bearer ")) {
+                // 这里可以调用JwtUtils解析用户ID，但为避免循环依赖暂时省略
+            }
+
+            return null;
+        } catch (Exception e) {
+            log.error("获取用户ID失败", e);
+            return null;
+        }
+    }
+
+    /**
+     * 获取限流指标
+     */
+    public java.util.Map<String, Long> getRateLimitMetrics() {
+        java.util.Map<String, Long> metrics = new java.util.HashMap<>();
+        metrics.put("rateLimitHits", rateLimitHits.get());
+        metrics.put("rateLimitPassed", rateLimitPassed.get());
+        metrics.put("rateLimitBlocked", rateLimitBlocked.get());
+
+        // 计算通过率和阻塞率
+        long total = rateLimitHits.get();
+        if (total > 0) {
+            metrics.put("passRate", (rateLimitPassed.get() * 100) / total);
+            metrics.put("blockRate", (rateLimitBlocked.get() * 100) / total);
+        } else {
+            metrics.put("passRate", 0L);
+            metrics.put("blockRate", 0L);
+        }
+
+        return metrics;
+    }
+
+    /**
+     * 重置限流指标
+     */
+    public void resetMetrics() {
+        rateLimitHits.set(0);
+        rateLimitPassed.set(0);
+        rateLimitBlocked.set(0);
+        log.info("限流指标已重置");
     }
 }

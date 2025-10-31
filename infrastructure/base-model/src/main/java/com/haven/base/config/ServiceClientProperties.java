@@ -1,6 +1,7 @@
 package com.haven.base.config;
 
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
@@ -11,10 +12,12 @@ import java.time.Duration;
  *
  * @author HavenButler
  */
-@Data
+@Setter
+@Getter
 @ConfigurationProperties(prefix = "base-model.service-client")
 public class ServiceClientProperties {
 
+    // Getters and Setters
     /**
      * 是否启用ServiceClient
      */
@@ -58,8 +61,10 @@ public class ServiceClientProperties {
     /**
      * 重试配置
      */
-    @Data
+    @Setter
+    @Getter
     public static class Retry {
+        // Getters and Setters
         /**
          * 是否启用重试
          */
@@ -98,13 +103,16 @@ public class ServiceClientProperties {
             "java.net.ConnectException",
             "org.springframework.web.client.ResourceAccessException"
         };
+
     }
 
     /**
      * 连接池配置
      */
-    @Data
+    @Setter
+    @Getter
     public static class ConnectionPool {
+        // Getters and Setters
         /**
          * 最大连接数
          */
@@ -129,13 +137,16 @@ public class ServiceClientProperties {
          * 验证连接间隔（毫秒）
          */
         private int validateAfterInactivity = 2000;
+
     }
 
     /**
      * 请求头配置
      */
-    @Data
+    @Setter
+    @Getter
     public static class Headers {
+        // Getters and Setters
         /**
          * 默认User-Agent
          */
@@ -155,13 +166,16 @@ public class ServiceClientProperties {
          * 自定义请求头
          */
         private java.util.Map<String, String> custom = new java.util.HashMap<>();
+
     }
 
     /**
      * 日志配置
      */
-    @Data
+    @Setter
+    @Getter
     public static class Logging {
+        // Getters and Setters
         /**
          * 是否启用请求日志
          */
@@ -191,5 +205,6 @@ public class ServiceClientProperties {
          * 慢请求阈值（毫秒）
          */
         private long slowRequestThreshold = 3000;
+
     }
 }

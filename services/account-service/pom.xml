@@ -24,11 +24,6 @@
             <artifactId>base-model</artifactId>
         </dependency>
 
-        <dependency>
-            <groupId>com.haven</groupId>
-            <artifactId>common</artifactId>
-        </dependency>
-
         <!-- Spring Boot Web -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

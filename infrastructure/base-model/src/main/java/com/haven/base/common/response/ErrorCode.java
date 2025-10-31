@@ -1,7 +1,5 @@
 package com.haven.base.common.response;
 
-import lombok.Getter;
-
 /**
  * 错误码枚举
  * 错误码规范：
@@ -13,7 +11,6 @@ import lombok.Getter;
  *
  * @author HavenButler
  */
-@Getter
 public enum ErrorCode {
 
     // ========== 成功响应 ==========
@@ -109,6 +106,20 @@ public enum ErrorCode {
     ErrorCode(int code, String message) {
         this.code = code;
         this.message = message;
+    }
+
+    /**
+     * 获取错误码
+     */
+    public int getCode() {
+        return code;
+    }
+
+    /**
+     * 获取错误消息
+     */
+    public String getMessage() {
+        return message;
     }
 
     /**

@@ -120,5 +120,45 @@ public final class SystemConstants {
         public static final int PASSWORD_MAX_LENGTH = 32;
         public static final int MAX_LOGIN_ATTEMPTS = 5;
         public static final long ACCOUNT_LOCK_DURATION = 1800L; // 30分钟
+
+        // 验证码和Token长度配置（从common模块迁移）
+        public static final int VERIFY_CODE_LENGTH = 6;
+        public static final int TOKEN_LENGTH = 32;
+    }
+
+    /**
+     * 消息队列常量（从common模块迁移）
+     */
+    public static final class MQ {
+        // 队列名称
+        public static final String QUEUE_DEVICE_EVENT = "device.event";
+        public static final String QUEUE_USER_MESSAGE = "user.message";
+        public static final String QUEUE_SYSTEM_LOG = "system.log";
+        public static final String QUEUE_ALERT_NOTIFY = "alert.notify";
+
+        // 路由键
+        public static final String ROUTING_DEVICE = "device.*";
+        public static final String ROUTING_USER = "user.*";
+        public static final String ROUTING_SYSTEM = "system.*";
+        public static final String ROUTING_ALERT = "alert.*";
+    }
+
+    /**
+     * 线程池配置常量（从common模块迁移）
+     */
+    public static final class ThreadPool {
+        public static final int CORE_POOL_SIZE = 10;
+        public static final int MAX_POOL_SIZE = 50;
+        public static final int QUEUE_CAPACITY = 100;
+        public static final int KEEP_ALIVE_SECONDS = 60;
+        public static final String NAME_PREFIX = "haven-thread-";
+    }
+
+    /**
+     * 系统状态常量（从common模块迁移）
+     */
+    public static final class Status {
+        public static final String PENDING = "PENDING";
+        public static final String PROCESSING = "PROCESSING";
     }
 }

@@ -2,14 +2,28 @@ package com.haven.base.config;
 
 import com.haven.base.aspect.*;
 import com.haven.base.cache.*;
-import com.haven.base.client.*;
+import com.haven.base.client.DefaultServiceDiscovery;
+import com.haven.base.client.ServiceClient;
+import com.haven.base.client.ServiceDiscovery;
 import com.haven.base.common.exception.GlobalExceptionHandler;
-import com.haven.base.config.*;
 import com.haven.base.configuration.DefaultDynamicConfigManager;
 import com.haven.base.interceptor.TraceIdInterceptor;
-import com.haven.base.lock.*;
-import com.haven.base.messaging.*;
-import com.haven.base.monitor.*;
+import com.haven.base.lock.DistributedLock;
+import com.haven.base.lock.RedisDistributedLock;
+import com.haven.base.messaging.DefaultMessageProducer;
+import com.haven.base.messaging.MessageProducer;
+import com.haven.base.monitor.DefaultMetricsCollector;
+import com.haven.base.monitoring.SimpleMonitoringService;
+import com.haven.base.resilience.SimpleResilienceService;
+import com.haven.base.security.ConfigCenterKeyManager;
+import com.haven.base.security.JwtUtils;
+import com.haven.base.security.KeyManager;
+import com.haven.base.utils.EnhancedEncryptUtil;
+import com.haven.base.utils.IdGenerator;
+import com.haven.base.i18n.I18nAutoConfiguration;
+import jakarta.annotation.PostConstruct;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
@@ -17,19 +31,20 @@ import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.core5.util.TimeValue;
 import org.apache.hc.core5.util.Timeout;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
-
-import jakarta.annotation.PostConstruct;
 
 /**
  * BaseModel自动配置类
@@ -47,19 +62,43 @@ import jakarta.annotation.PostConstruct;
  */
 @Slf4j
 @Configuration
-// 移除ComponentScan，改用@Bean方式注册避免Bean冲突
-@EnableConfigurationProperties({BaseModelAutoConfiguration.BaseModelProperties.class, ServiceClientProperties.class})
+// 支持新地简化配置结构
+@EnableConfigurationProperties({HavenBaseProperties.class, BaseModelAutoConfiguration.BaseModelProperties.class, ServiceClientProperties.class, KeyManagerProperties.class, ResilienceProperties.class, CacheProperties.class, SentryProperties.class, com.haven.base.i18n.I18nProperties.class, DefaultServiceDiscovery.class, SecurityProperties.class})
 public class BaseModelAutoConfiguration implements WebMvcConfigurer {
 
+    private final HavenBaseProperties havenBaseProperties;
     private final BaseModelProperties properties;
+    private final KeyManagerProperties keyManagerProperties;
+    private final DefaultServiceDiscovery serviceDiscovery;
+    private final SecurityProperties securityProperties;
 
-    public BaseModelAutoConfiguration(BaseModelProperties properties) {
+    public BaseModelAutoConfiguration(
+            HavenBaseProperties havenBaseProperties,
+            BaseModelProperties properties,
+            KeyManagerProperties keyManagerProperties,
+            DefaultServiceDiscovery serviceDiscovery,
+            SecurityProperties securityProperties) {
+        this.havenBaseProperties = havenBaseProperties;
         this.properties = properties;
+        this.keyManagerProperties = keyManagerProperties;
+        this.serviceDiscovery = serviceDiscovery;
+        this.securityProperties = securityProperties;
     }
 
     @PostConstruct
     public void init() {
-        log.info("BaseModel自动配置已加载，版本: {}", properties.getVersion());
+        log.info("HavenBase自动配置已加载，版本: {}", properties.getVersion());
+
+        // 显示简化配置状态
+        HavenBaseProperties.QuickStart quickStart = havenBaseProperties.getQuickStart();
+        log.info("快速配置模式: {} | 环境: {} | 缓存: {} | 监控: {} | 容错: {} | 安全: {}",
+                quickStart.isEnabled() ? "启用" : "禁用",
+                quickStart.getProfile(),
+                quickStart.isEnableCache() ? "启用" : "禁用",
+                quickStart.isEnableMonitoring() ? "启用" : "禁用",
+                quickStart.isEnableResilience() ? "启用" : "禁用",
+                quickStart.isEnableSecurity() ? "启用" : "禁用");
+
         log.info("配置详情: TraceID={}, 全局异常处理={}, 日志追踪={}",
                 properties.getTrace().isEnabled(),
                 properties.getException().isEnabled(),
@@ -110,7 +149,6 @@ public class BaseModelAutoConfiguration implements WebMvcConfigurer {
      */
     @Bean
     @ConditionalOnMissingBean
-
     public RestTemplate restTemplate(ServiceClientProperties serviceClientProperties) {
         ServiceClientProperties.ConnectionPool poolConfig = serviceClientProperties.getConnectionPool();
 
@@ -182,11 +220,11 @@ public class BaseModelAutoConfiguration implements WebMvcConfigurer {
      * 服务发现组件
      */
     @Bean
+    @Primary
     @ConditionalOnMissingBean
-    
     public ServiceDiscovery serviceDiscovery() {
-        log.info("注册默认服务发现组件");
-        return new DefaultServiceDiscovery();
+        log.info("注册默认服务发现组件，配置的服务: {}", serviceDiscovery.getServices());
+        return serviceDiscovery;
     }
 
     /**
@@ -207,24 +245,12 @@ public class BaseModelAutoConfiguration implements WebMvcConfigurer {
      */
     @Bean
     @ConditionalOnMissingBean
-    
     @ConditionalOnProperty(prefix = "base-model.cache", name = "enabled", havingValue = "true", matchIfMissing = true)
     public CacheService cacheService() {
         log.info("注册默认缓存服务（内存实现）");
         return new DefaultCacheService();
     }
 
-    /**
-     * 分布式锁
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    
-    @ConditionalOnProperty(prefix = "base-model.distributed-lock", name = "enabled", havingValue = "true", matchIfMissing = true)
-    public DistributedLock distributedLock(CacheService cacheService) {
-        log.info("注册分布式锁服务");
-        return new DefaultDistributedLock(cacheService);
-    }
 
     /**
      * 动态配置管理
@@ -269,11 +295,11 @@ public class BaseModelAutoConfiguration implements WebMvcConfigurer {
      */
     @Bean
     @ConditionalOnMissingBean
-    
+
     @ConditionalOnProperty(prefix = "base-model.rate-limit", name = "enabled", havingValue = "true", matchIfMissing = true)
-    public RateLimitAspect rateLimitAspect(CacheService cacheService) {
+    public RateLimitAspect rateLimitAspect(RedisUtils redisUtils) {
         log.info("注册限流切面");
-        return new RateLimitAspect(cacheService);
+        return new RateLimitAspect(redisUtils);
     }
 
     /**
@@ -293,13 +319,153 @@ public class BaseModelAutoConfiguration implements WebMvcConfigurer {
      */
     @Bean
     @ConditionalOnMissingBean
-    
+
     @ConditionalOnProperty(prefix = "base-model.encrypt", name = "enabled", havingValue = "true", matchIfMissing = true)
     public EncryptAdvice encryptAdvice(com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
         log.info("注册加密响应通知");
         return new EncryptAdvice(objectMapper);
     }
 
+    /**
+     * 容错保护切面
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "base-model.resilience", name = "enabled", havingValue = "true", matchIfMissing = true)
+    public ResilientAspect resilientAspect() {
+        log.info("注册容错保护切面");
+        return new ResilientAspect();
+    }
+
+    /**
+     * 监控切面
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "base-model.sentry", name = "enabled", havingValue = "true")
+    public SimpleMonitoringAspect monitoringAspect() {
+        log.info("注册简化版监控切面");
+        return new SimpleMonitoringAspect();
+    }
+
+    // ========== 从common模块迁移的工具类 ==========
+
+    /**
+     * ID生成器（从common模块迁移）
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "base-model.id-generator", name = "enabled", havingValue = "true", matchIfMissing = true)
+    public IdGenerator idGenerator() {
+        log.info("注册ID生成器（从common模块迁移）");
+        return IdGenerator.getInstance();
+    }
+
+    /**
+     * Redis工具类（从common模块迁移）
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnClass(StringRedisTemplate.class)
+    @ConditionalOnProperty(prefix = "base-model.cache", name = "enabled", havingValue = "true", matchIfMissing = true)
+    public RedisUtils redisUtils() {
+        log.info("注册Redis工具类（从common模块迁移）");
+        return new RedisUtils();
+    }
+
+    /**
+     * JWT工具类（从common模块迁移）
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "base-model.security", name = "enabled", havingValue = "true", matchIfMissing = true)
+    public JwtUtils jwtUtils() {
+        log.info("注册JWT工具类，使用SecurityProperties配置");
+        return new JwtUtils(securityProperties);
+    }
+
+    /**
+     * 密钥管理器
+     * 提供统一的密钥管理功能，支持密钥轮换和生命周期管理
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "base-model.security.key-manager", name = "enabled", havingValue = "true", matchIfMissing = true)
+    public KeyManager keyManager(com.haven.base.configuration.DynamicConfigManager dynamicConfigManager) {
+        log.info("注册密钥管理器");
+        ConfigCenterKeyManager keyManager = new ConfigCenterKeyManager(dynamicConfigManager);
+
+        // 设置密钥管理器到增强加密工具
+        EnhancedEncryptUtil.setKeyManager(keyManager);
+
+        log.info("密钥管理器已启用，增强加密工具已初始化");
+        log.info("密钥管理器配置: 缓存TTL={}分钟, 轮换启用={}",
+            keyManagerProperties.getCache().getTtlMinutes(),
+            keyManagerProperties.getRotation().isEnabled());
+
+        return keyManager;
+    }
+
+    /**
+     * Redis高级缓存管理器（从common模块迁移）
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnClass(StringRedisTemplate.class)
+    @ConditionalOnProperty(prefix = "base-model.cache", name = "enabled", havingValue = "true", matchIfMissing = true)
+    public RedisCache redisCache(RedisUtils redisUtils, StringRedisTemplate redisTemplate) {
+        log.info("注册Redis高级缓存管理器（从common模块迁移）");
+        return new RedisCache(redisUtils, redisTemplate);
+    }
+
+    /**
+     * 分布式锁（从common模块迁移）
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnClass(StringRedisTemplate.class)
+    @ConditionalOnProperty(prefix = "base-model.distributed-lock", name = "enabled", havingValue = "true", matchIfMissing = true)
+    public DistributedLock distributedLock(RedisUtils redisUtils, StringRedisTemplate redisTemplate) {
+        log.info("注册分布式锁（从common模块迁移）");
+        return new RedisDistributedLock(redisUtils, redisTemplate);
+    }
+
+    /**
+     * 容错服务
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "base-model.resilience", name = "enabled", havingValue = "true", matchIfMissing = true)
+    public SimpleResilienceService resilienceService(ResilienceProperties resilienceProperties) {
+        log.info("注册简化版容错服务");
+        return new SimpleResilienceService(resilienceProperties);
+    }
+
+    /**
+     * 多级缓存服务
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnClass(RedisTemplate.class)
+    @ConditionalOnProperty(prefix = "base-model.cache", name = "enabled", havingValue = "true", matchIfMissing = true)
+    public SimpleCacheService simpleCacheService(CacheProperties cacheProperties,
+                                                RedisTemplate<String, Object> redisTemplate) {
+        log.info("注册简化版多级缓存服务");
+        return new SimpleCacheService(cacheProperties, redisTemplate);
+    }
+
+    /**
+     * 简化监控服务
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "base-model.sentry", name = "enabled", havingValue = "true")
+    public SimpleMonitoringService simpleMonitoringService(SentryProperties sentryProperties) {
+        log.info("注册简化版监控服务");
+        return new SimpleMonitoringService(sentryProperties);
+    }
+
+    
     /**
      * 注册TraceID拦截器
      */
@@ -401,139 +567,69 @@ public class BaseModelAutoConfiguration implements WebMvcConfigurer {
         /**
          * TraceID配置
          */
+        @Setter
+        @Getter
         public static class TraceProperties {
             private boolean enabled = true;
             private String prefix = "tr";
             private String[] excludePaths = {"/health", "/actuator/**"};
 
-            public boolean isEnabled() {
-                return enabled;
-            }
-
-            public void setEnabled(boolean enabled) {
-                this.enabled = enabled;
-            }
-
-            public String getPrefix() {
-                return prefix;
-            }
-
-            public void setPrefix(String prefix) {
-                this.prefix = prefix;
-            }
-
-            public String[] getExcludePaths() {
-                return excludePaths;
-            }
-
-            public void setExcludePaths(String[] excludePaths) {
-                this.excludePaths = excludePaths;
-            }
         }
 
         /**
          * 异常处理配置
          */
+        @Setter
+        @Getter
         public static class ExceptionProperties {
             private boolean enabled = true;
             private boolean includeStackTrace = false;
 
-            public boolean isEnabled() {
-                return enabled;
-            }
-
-            public void setEnabled(boolean enabled) {
-                this.enabled = enabled;
-            }
-
-            public boolean isIncludeStackTrace() {
-                return includeStackTrace;
-            }
-
-            public void setIncludeStackTrace(boolean includeStackTrace) {
-                this.includeStackTrace = includeStackTrace;
-            }
         }
 
         /**
          * 日志配置
          */
+        @Setter
+        @Getter
         public static class LogProperties {
             private boolean enabled = true;
             private String level = "INFO";
             private String format = "JSON";
 
-            public boolean isEnabled() {
-                return enabled;
-            }
-
-            public void setEnabled(boolean enabled) {
-                this.enabled = enabled;
-            }
-
-            public String getLevel() {
-                return level;
-            }
-
-            public void setLevel(String level) {
-                this.level = level;
-            }
-
-            public String getFormat() {
-                return format;
-            }
-
-            public void setFormat(String format) {
-                this.format = format;
-            }
         }
 
         /**
          * 响应配置
          */
+        @Setter
+        @Getter
         public static class ResponseProperties {
             private boolean includeTimestamp = true;
             private boolean includeTraceId = true;
 
-            public boolean isIncludeTimestamp() {
-                return includeTimestamp;
-            }
-
-            public void setIncludeTimestamp(boolean includeTimestamp) {
-                this.includeTimestamp = includeTimestamp;
-            }
-
-            public boolean isIncludeTraceId() {
-                return includeTraceId;
-            }
-
-            public void setIncludeTraceId(boolean includeTraceId) {
-                this.includeTraceId = includeTraceId;
-            }
         }
 
         /**
          * 加密配置
          */
+        @Setter
+        @Getter
         public static class EncryptProperties {
             private boolean enabled = true;
             private String algorithm = "AES";
 
-            public boolean isEnabled() {
-                return enabled;
-            }
-
-            public void setEnabled(boolean enabled) {
-                this.enabled = enabled;
-            }
-
-            public String getAlgorithm() {
-                return algorithm;
-            }
-
-            public void setAlgorithm(String algorithm) {
-                this.algorithm = algorithm;
-            }
         }
+    }
+
+    /**
+     * 配置向导Bean
+     * 提供配置建议和模板，降低用户配置复杂度
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public ConfigurationWizard configurationWizard() {
+        log.info("注册配置向导");
+        return new ConfigurationWizard();
     }
 }

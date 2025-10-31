@@ -29,7 +29,7 @@ import java.util.Optional;
  * @author HavenButler
  */
 @Repository
-public interface FileMetadataRepository extends JpaRepository<FileMetadata, String> {
+public interface FileMetadataRepository extends JpaRepository<FileMetadata, Long> {
 
     /**
      * 根据家庭ID查找未删除的文件列表
@@ -124,8 +124,13 @@ public interface FileMetadataRepository extends JpaRepository<FileMetadata, Stri
     /**
      * 根据文件ID和家庭ID查找未删除的文件
      */
-    @Query("SELECT f FROM FileMetadata f WHERE f.fileId = :fileId AND f.familyId = :familyId AND f.deleted != 1")
-    Optional<FileMetadata> findActiveFileByIdAndFamily(@Param("fileId") String fileId, @Param("familyId") String familyId);
+    @Query("SELECT f FROM FileMetadata f WHERE f.fileId = :fileId AND f.familyId = :familyId AND (f.deleted IS NULL OR f.deleted != 1)")
+    Optional<FileMetadata> findActiveFileByFileIdAndFamily(@Param("fileId") String fileId, @Param("familyId") String familyId);
+
+    /**
+     * 根据文件ID查找文件
+     */
+    Optional<FileMetadata> findByFileId(String fileId);
 
     /**
      * 批量软删除文件
@@ -239,42 +244,7 @@ public interface FileMetadataRepository extends JpaRepository<FileMetadata, Stri
            "GROUP BY f.familyId")
     List<Object[]> batchAggregateStatsByFamilies(@Param("familyIds") List<String> familyIds);
 
-    // ==================== 数字辅助ID查询方法 ====================
-
-    /**
-     * 根据数字辅助ID查找文件
-     * <p>
-     * 用于高性能的文件查找操作
-     *
-     * @param numericId 数字辅助ID
-     * @return 文件元数据
-     */
-    @Query("SELECT f FROM FileMetadata f WHERE f.numericId = :numericId AND f.deleted != 1")
-    Optional<FileMetadata> findByNumericId(@Param("numericId") Long numericId);
-
-    /**
-     * 根据数字辅助ID和用户ID查找文件
-     * <p>
-     * 用于用户权限验证的高性能查询
-     *
-     * @param numericId 数字辅助ID
-     * @param userId 用户ID
-     * @return 文件元数据
-     */
-    @Query("SELECT f FROM FileMetadata f WHERE f.numericId = :numericId AND f.ownerId = :userId AND f.deleted != 1")
-    Optional<FileMetadata> findByNumericIdAndOwner(@Param("numericId") Long numericId, @Param("userId") String userId);
-
-    /**
-     * 根据数字辅助ID列表批量查找文件
-     * <p>
-     * 用于批量操作的高性能查询
-     *
-     * @param numericIds 数字辅助ID列表
-     * @return 文件元数据列表
-     */
-    @Query("SELECT f FROM FileMetadata f WHERE f.numericId IN :numericIds AND f.deleted != 1 ORDER BY f.numericId")
-    List<FileMetadata> findByNumericIdIn(@Param("numericIds") List<Long> numericIds);
-
+    
     /**
      * 获取家庭的最新文件（按数字辅助ID排序）
      * <p>
@@ -285,22 +255,7 @@ public interface FileMetadataRepository extends JpaRepository<FileMetadata, Stri
      * @return 最新文件列表
      */
     @Query("SELECT f FROM FileMetadata f WHERE f.familyId = :familyId AND f.deleted != 1 " +
-           "ORDER BY f.numericId DESC")
+           "ORDER BY f.uploadTime DESC")
     List<FileMetadata> findLatestFilesByFamily(@Param("familyId") String familyId, Pageable pageable);
 
-    /**
-     * 根据数字辅助ID范围查询文件
-     * <p>
-     * 支持分页和范围查询的高性能操作
-     *
-     * @param familyId 家庭ID
-     * @param startNumericId 起始数字ID
-     * @param endNumericId 结束数字ID
-     * @return 文件元数据列表
-     */
-    @Query("SELECT f FROM FileMetadata f WHERE f.familyId = :familyId AND f.numericId BETWEEN :startNumericId AND :endNumericId AND f.deleted != 1 " +
-           "ORDER BY f.numericId")
-    List<FileMetadata> findByFamilyAndNumericIdRange(@Param("familyId") String familyId,
-                                                         @Param("startNumericId") Long startNumericId,
-                                                         @Param("endNumericId") Long endNumericId);
-}
+    }
