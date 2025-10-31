@@ -1,0 +1,30 @@
+# HavenBase 最小化配置模板
+# 适用于快速原型、测试或简单场景
+
+haven:
+  base:
+    # 最简化配置
+    quick-start:
+      enabled: true
+      profile: "development"
+      enable-cache: true                # 基础缓存
+      enable-monitoring: false         # 禁用监控
+      enable-resilience: false         # 禁用容错
+      enable-security: false           # 禁用安全功能
+      enable-service-discovery: false   # 禁用服务发现
+      preset: "simple"                 # 简单模板
+
+    # 基础配置
+    advanced:
+      cache:
+        local:
+          maximum-size: 500            # 小容量缓存
+          expire-after-write: 600      # 10分钟过期
+        distributed:
+          enabled: false               # 禁用分布式缓存
+      resilience:
+        enabled: false                 # 禁用容错
+      monitoring:
+        enabled: false                 # 禁用监控
+      security:
+        enabled: false                 # 禁用安全功能
