@@ -1,0 +1,82 @@
+# HavenBase 生产环境配置模板
+# 适用于生产环境部署，注重性能和安全性
+
+haven:
+  base:
+    # 快速配置模式
+    quick-start:
+      enabled: true
+      profile: "production"            # 生产环境
+      enable-cache: true                # 启用缓存
+      enable-monitoring: true           # 启用监控
+      enable-resilience: true           # 启用容错保护
+      enable-security: true             # 启用安全功能
+      enable-service-discovery: true   # 启用服务发现
+      preset: "microservice"            # 微服务模板
+
+    # 生产环境优化配置
+    advanced:
+      cache:
+        local:
+          maximum-size: 50000          # 大容量本地缓存
+          expire-after-write: 3600      # 1小时过期
+          expire-after-access: 1800     # 30分钟访问过期
+        distributed:
+          default-ttl: 7200             # 2小时分布式缓存
+          key-prefix: "prod:cache:"     # 生产环境前缀
+          enable-cache-penetration-protection: true
+          null-value-ttl: 300            # 5分钟空值缓存
+
+      resilience:
+        time-limiter:
+          enabled: true
+          timeout-duration: 3000       # 3秒超时，生产环境严格
+        retry:
+          enabled: true
+          max-attempts: 3              # 最多重试3次
+          wait-duration: 1000          # 1秒重试间隔
+        circuit-breaker:
+          enabled: true
+          failure-rate-threshold: 30   # 30%失败率触发熔断
+          wait-duration-in-open-state: 60000  # 1分钟恢复时间
+          minimum-number-of-calls: 20   # 最少20次调用开始统计
+
+      monitoring:
+        enabled: true
+        sentry:
+          enabled: true
+          dsn: "${SENTRY_DSN}"          # 从环境变量获取
+          environment: "production"
+          traces-sample-rate: 0.05      # 5%采样率，控制成本
+          performance:
+            enabled: true
+            slow-request-threshold: 1000   # 1秒慢请求阈值
+            slow-query-threshold: 500       # 500ms慢查询阈值
+
+      security:
+        enabled: true
+        key-manager:
+          enabled: true
+          cache:
+            enabled: true
+            ttl: 300                   # 5分钟密钥缓存
+          rotation:
+            enabled: true              # 启用自动密钥轮换
+            check-interval: 86400      # 每天检查
+            key-validity-days: 30       # 30天密钥有效期
+          strength-validation:
+            enabled: true
+            min-key-length: 64         # 生产环境强密钥
+            require-numbers: true
+            require-special-chars: true
+
+      service-client:
+        connect-timeout: 3000          # 3秒连接超时
+        read-timeout: 8000             # 8秒读取超时
+        max-total: 200                 # 最大200连接
+        default-max-per-route: 50      # 每路由最大50连接
+
+      distributed-lock:
+        wait-time: 5000                # 5秒等待时间
+        lease-time: 30000              # 30秒锁持有时间
+        retry-interval: 100            # 100ms重试间隔
