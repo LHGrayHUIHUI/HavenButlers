@@ -11,7 +11,6 @@ import com.haven.storage.domain.model.file.*;
 import com.haven.storage.exception.FileUploadException;
 import com.haven.storage.repository.FileMetadataRepository;
 import com.haven.storage.utils.FileUtils;
-import com.haven.storage.validator.UnifiedFileValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -558,7 +557,7 @@ public class FileStorageService {
         stats.setTotalFiles(0);
         stats.setTotalSize(0L);
         stats.setFilesByType(new HashMap<>());
-        stats.setLastUpdated(LocalDateTime.now());
+        // setLastUpdated 由Spring Data JPA审计自动处理
         stats.setStorageType(storageAdapter.getStorageType());
         stats.setStorageHealthy(storageAdapter.isHealthy());
         return stats;
@@ -587,5 +586,49 @@ public class FileStorageService {
         return storageAdapter.getFileAccessUrl(fileId, familyId, expireMinutes);
     }
 
-    
+    /**
+     * 构建文件下载响应头
+     * <p>
+     * 根据文件元数据构建标准的HTTP下载响应头，包括：
+     * - 文件名编码（支持中文和特殊字符）
+     * - 内容类型设置
+     * - 文件大小信息
+     * - 缓存控制策略
+     *
+     * @param metadata 文件元数据
+     * @return HTTP响应头
+     */
+    public org.springframework.http.HttpHeaders buildDownloadHeaders(FileMetadata metadata) {
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+
+        // 1. 设置文件名（使用RFC 5987编码）
+        String originalFileName = metadata.getOriginalFileName();
+        if (originalFileName != null) {
+            // URL编码文件名以支持中文和特殊字符
+            String encodedFileName = java.net.URLEncoder.encode(originalFileName, java.nio.charset.StandardCharsets.UTF_8);
+            headers.add(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                    "attachment; filename=\"" + originalFileName + "\"; filename*=UTF-8''" + encodedFileName);
+        }
+
+        // 2. 设置内容类型
+        String contentType = metadata.getContentType();
+        if (contentType == null || contentType.isEmpty()) {
+            contentType = metadata.getMimeType();
+        }
+        if (contentType == null || contentType.isEmpty()) {
+            contentType = "application/octet-stream";
+        }
+        headers.add(org.springframework.http.HttpHeaders.CONTENT_TYPE, contentType);
+
+        // 3. 设置文件大小
+        if (metadata.getFileSize() > 0) {
+            headers.add(org.springframework.http.HttpHeaders.CONTENT_LENGTH, String.valueOf(metadata.getFileSize()));
+        }
+
+        // 4. 添加缓存控制
+        headers.add(org.springframework.http.HttpHeaders.CACHE_CONTROL, "private, max-age=3600");
+
+        return headers;
+    }
+
 }

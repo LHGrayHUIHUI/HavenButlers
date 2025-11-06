@@ -34,6 +34,7 @@
         <commons-lang3.version>3.17.0</commons-lang3.version>
         <lombok.version>1.18.30</lombok.version>
         <postgresql.version>42.7.1</postgresql.version>
+        <kotlin.version>1.9.20</kotlin.version>
 
         <!-- Maven插件版本 -->
         <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
@@ -155,6 +156,17 @@
                 <groupId>net.coobird</groupId>
                 <artifactId>thumbnailator</artifactId>
                 <version>0.4.20</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib-jdk8</artifactId>
+                <version>${kotlin.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.squareup.okio</groupId>
+                <artifactId>okio</artifactId>
+                <version>3.8.0</version> <!-- 最新稳定版 -->
             </dependency>
 
             <dependency>

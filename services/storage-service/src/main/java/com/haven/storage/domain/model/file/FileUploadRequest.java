@@ -1,5 +1,6 @@
 package com.haven.storage.domain.model.file;
 
+import com.haven.storage.model.enums.FileVisibility;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
@@ -102,43 +103,4 @@ public class FileUploadRequest {
         return file != null ? file.getContentType() : null;
     }
 
-    /**
-     * 获取文件扩展名
-     */
-    public String getFileExtension() {
-        if (file == null || file.getOriginalFilename() == null) {
-            return null;
-        }
-        String fileName = file.getOriginalFilename();
-        int lastDotIndex = fileName.lastIndexOf('.');
-        return lastDotIndex > 0 ? fileName.substring(lastDotIndex + 1) : "";
-    }
-
-    /**
-     * 检查是否为图片文件
-     */
-    public boolean isImageFile() {
-        if (file == null || file.getContentType() == null) {
-            return false;
-        }
-        String contentType = file.getContentType().toLowerCase();
-        return contentType.startsWith("image/");
-    }
-
-    /**
-     * 检查是否为文档文件
-     */
-    public boolean isDocumentFile() {
-        if (file == null || file.getContentType() == null) {
-            return false;
-        }
-        String contentType = file.getContentType().toLowerCase();
-        return contentType.startsWith("text/") ||
-               contentType.contains("document") ||
-               contentType.equals("application/pdf") ||
-               contentType.contains("office") ||
-               contentType.contains("word") ||
-               contentType.contains("excel") ||
-               contentType.contains("powerpoint");
-    }
 }

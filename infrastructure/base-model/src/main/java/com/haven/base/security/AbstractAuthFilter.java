@@ -1,6 +1,5 @@
 package com.haven.base.security;
 
-import com.haven.base.common.response.ErrorCode;
 import com.haven.base.common.response.ResponseWrapper;
 import com.haven.base.utils.JsonUtil;
 import com.haven.base.utils.TraceIdUtil;
@@ -11,7 +10,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
