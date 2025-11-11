@@ -1,8 +1,8 @@
 package com.haven.storage.permission;
 
-import com.haven.storage.model.enums.FileOperation;
-import com.haven.storage.model.enums.FileVisibility;
-import com.haven.storage.model.enums.UserRole;
+import com.haven.storage.domain.model.enums.FileOperation;
+import com.haven.storage.domain.model.enums.FileVisibility;
+import com.haven.storage.domain.model.enums.UserRole;
 
 import java.util.EnumSet;
 import java.util.Set;

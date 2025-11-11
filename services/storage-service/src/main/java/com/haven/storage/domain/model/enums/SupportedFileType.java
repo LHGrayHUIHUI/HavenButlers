@@ -1,4 +1,4 @@
-package com.haven.storage.model.enums;
+package com.haven.storage.domain.model.enums;
 
 import lombok.Getter;
 

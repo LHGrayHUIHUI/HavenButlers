@@ -1,6 +1,6 @@
 package com.haven.storage.repository;
 
-import com.haven.storage.domain.model.file.FamilyStorageStats;
+import com.haven.storage.domain.model.entity.FamilyStorageStats;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

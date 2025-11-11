@@ -1,7 +1,7 @@
 package com.haven.storage.service;
 
-import com.haven.storage.domain.model.file.FamilyStorageStats;
-import com.haven.storage.domain.model.file.FileMetadata;
+import com.haven.storage.domain.model.entity.FamilyStorageStats;
+import com.haven.storage.domain.model.entity.FileMetadata;
 import com.haven.storage.repository.FamilyStorageStatsRepository;
 import com.haven.storage.security.UserContext;
 import lombok.RequiredArgsConstructor;

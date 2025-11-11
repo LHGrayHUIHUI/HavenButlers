@@ -1,12 +1,11 @@
-package com.haven.storage.model.bean;
+package com.haven.storage.domain.model.file;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.haven.base.model.entity.BaseModel;
-import com.haven.storage.model.enums.FileCategory;
-import com.haven.storage.model.enums.FileOperation;
-import com.haven.storage.model.enums.FileStatus;
-import com.haven.storage.model.enums.FileVisibility;
+import com.haven.storage.domain.model.enums.FileCategory;
+import com.haven.storage.domain.model.enums.FileVisibility;
 import lombok.Data;
+import okio.BufferedSource;
 
 import java.time.LocalDateTime;
 
@@ -14,9 +13,10 @@ import java.time.LocalDateTime;
  * 文件基础元数据模型
  * 作为项目中所有文件处理操作（上传、下载、权限控制、存储管理等）的基础数据载体，
  * 存储文件的核心属性，供全流程复用。
+ * 在拓展的过程中需要继承这个类来进行实现的
  */
 @Data
-public class FileBasicMetadata implements BaseModel {
+public abstract class FileBasicMetadata implements BaseModel {
 
     /**
      * 文件唯一标识（全局唯一）
@@ -96,13 +96,14 @@ public class FileBasicMetadata implements BaseModel {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime lastModifiedTime;
 
+
+
     /**
-     * 文件状态（如正常、已删除、过期、审核中等）
-     * 管理文件生命周期，控制文件是否可访问、是否需要清理
+     * 获取文件的data数据
+     *
+     * @return
      */
-    private FileStatus fileStatus;
-    /**
-     * 当前操作的动作是
-     */
-    private FileOperation fileOperation;
+
+    public abstract BufferedSource getFileData();
+
 }

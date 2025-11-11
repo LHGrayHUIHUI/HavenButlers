@@ -1,5 +1,6 @@
 package com.haven.storage.domain.model.file;
 
+import com.haven.storage.domain.model.entity.FileMetadata;
 import lombok.Data;
 
 import java.util.List;

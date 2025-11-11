@@ -1,4 +1,4 @@
-package com.haven.storage.domain.model.file;
+package com.haven.storage.domain.model.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;

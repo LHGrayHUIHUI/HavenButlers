@@ -1,6 +1,6 @@
 package com.haven.storage.repository;
 
-import com.haven.storage.domain.model.file.FileMetadata;
+import com.haven.storage.domain.model.entity.FileMetadata;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

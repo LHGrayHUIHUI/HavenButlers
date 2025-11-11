@@ -1,8 +1,7 @@
 package com.haven.storage.validator;
 
-import com.haven.storage.domain.model.file.FileUploadRequest;
-import com.haven.storage.model.bean.FileBasicMetadata;
-import com.haven.storage.model.bean.FileProcessingResult;
+import com.haven.storage.domain.model.file.FileBasicMetadata;
+import com.haven.storage.domain.model.file.FileProcessingResult;
 
 /**
  * 必填字段校验器

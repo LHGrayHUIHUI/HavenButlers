@@ -1,9 +1,9 @@
-package com.haven.storage.domain.model.file;
+package com.haven.storage.domain.model.entity;
 
 import com.haven.base.model.entity.BaseEntity;
-import com.haven.storage.model.enums.FileOperation;
-import com.haven.storage.model.enums.FileVisibility;
-import com.haven.storage.model.enums.UserRole;
+import com.haven.storage.domain.model.enums.FileOperation;
+import com.haven.storage.domain.model.enums.FileVisibility;
+import com.haven.storage.domain.model.enums.UserRole;
 import com.haven.storage.permission.PermissionMatrix;
 import com.haven.storage.security.UserContext;
 import com.haven.storage.security.UserInfo;

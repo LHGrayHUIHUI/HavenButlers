@@ -1,6 +1,6 @@
 package com.haven.storage.utils;
 
-import com.haven.storage.model.enums.SupportedFileType;
+import com.haven.storage.domain.model.enums.SupportedFileType;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.tika.Tika;
 import org.springframework.stereotype.Component;

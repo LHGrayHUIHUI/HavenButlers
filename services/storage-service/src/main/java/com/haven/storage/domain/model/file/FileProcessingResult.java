@@ -1,4 +1,4 @@
-package com.haven.storage.model.bean;
+package com.haven.storage.domain.model.file;
 
 import org.jetbrains.annotations.NotNull;
 

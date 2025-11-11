@@ -3,7 +3,7 @@ package com.haven.storage.adapter.storage;
 
 import com.haven.base.utils.TraceIdUtil;
 import com.haven.storage.domain.model.file.FileDownloadResult;
-import com.haven.storage.domain.model.file.FileMetadata;
+import com.haven.storage.domain.model.entity.FileMetadata;
 import com.haven.storage.domain.model.file.FileUploadResult;
 import io.minio.*;
 import io.minio.http.Method;

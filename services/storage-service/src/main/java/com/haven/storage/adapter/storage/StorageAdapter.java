@@ -1,7 +1,7 @@
 package com.haven.storage.adapter.storage;
 
 import com.haven.storage.domain.model.file.FileDownloadResult;
-import com.haven.storage.domain.model.file.FileMetadata;
+import com.haven.storage.domain.model.entity.FileMetadata;
 import com.haven.storage.domain.model.file.FileUploadResult;
 import org.springframework.web.multipart.MultipartFile;
 

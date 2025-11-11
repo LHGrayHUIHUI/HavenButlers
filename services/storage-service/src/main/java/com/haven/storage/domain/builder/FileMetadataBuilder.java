@@ -3,7 +3,7 @@ package com.haven.storage.domain.builder;
 import com.haven.base.common.exception.SystemException;
 import com.haven.base.common.response.ErrorCode;
 import com.haven.base.utils.TraceIdUtil;
-import com.haven.storage.domain.model.file.FileMetadata;
+import com.haven.storage.domain.model.entity.FileMetadata;
 import com.haven.storage.domain.model.file.FileUploadRequest;
 import com.haven.storage.security.UserContext;
 import com.haven.storage.utils.FileUtils;

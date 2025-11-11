@@ -1,6 +1,6 @@
 package com.haven.storage.domain.model.file;
 
-import com.haven.storage.model.enums.FileVisibility;
+import com.haven.storage.domain.model.enums.FileVisibility;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
@@ -45,6 +45,7 @@ public class FileUploadRequest {
     @NotNull(message = "上传文件不能为空")
     @Schema(description = "上传的文件", required = true)
     private MultipartFile file;
+
 
     @NotBlank(message = "上传用户ID不能为空")
     @Size(min = 3, max = 50, message = "上传用户ID长度必须在3-50个字符之间")
