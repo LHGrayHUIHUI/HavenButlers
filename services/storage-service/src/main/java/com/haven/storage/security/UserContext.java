@@ -34,12 +34,9 @@ import java.util.function.Supplier;
 public final class UserContext {
 
     // ==================== 常量定义 ====================
-    public static final String USER_ID_HEADER = SystemConstants.USER_ID_HEADER;
-    public static final String FAMILY_ID_HEADER = SystemConstants.FAMILY_ID_HEADER;
-    public static final String USER_NAME_HEADER = SystemConstants.USER_NAME_HEADER;
-    public static final String USER_ROLE_HEADER = SystemConstants.USER_ROLE_HEADER;
-    public static final String USER_PERMISSIONS_HEADER = SystemConstants.USER_PERMISSIONS_HEADER;
-    public static final String TRACE_ID_HEADER = SystemConstants.TRACE_ID_HEADER;
+    public static final String USER_ID_HEADER = SystemConstants.Header.USER_ID;
+    public static final String FAMILY_ID_HEADER = SystemConstants.Header.FAMILY_ID;
+    public static final String TRACE_ID_HEADER = SystemConstants.Header.TRACE_ID;
 
     // ==================== 线程安全存储 ====================
     private static final ThreadLocal<UserInfo> USER_INFO_HOLDER = new InheritableThreadLocal<>();
@@ -353,10 +350,9 @@ public final class UserContext {
         }
 
         String familyId = extractHeader(request, FAMILY_ID_HEADER);
-        String userName = extractHeader(request, USER_NAME_HEADER);
 
         try {
-            UserInfo userInfo = new UserInfo(userId, familyId, userName);
+            UserInfo userInfo = new UserInfo(userId, familyId);
             log.debug("从请求头加载用户信息: {}", userInfo.toSummaryString());
             return Optional.of(userInfo);
         } catch (IllegalArgumentException e) {

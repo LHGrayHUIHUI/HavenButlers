@@ -29,8 +29,7 @@ import java.util.Objects;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record UserInfo(
         @JsonProperty("userId") String userId,
-        @JsonProperty("familyId") String familyId,
-        @JsonProperty("userName") String userName
+        @JsonProperty("familyId") String familyId
 ) implements Serializable {
 
     @Serial
@@ -40,7 +39,7 @@ public record UserInfo(
      * 紧凑构造函数 - 只需用户ID
      */
     public UserInfo(String userId) {
-        this(userId, null, null);
+        this(userId, null);
     }
 
     /**
@@ -49,13 +48,12 @@ public record UserInfo(
     @JsonCreator
     public UserInfo(
             @JsonProperty("userId") String userId,
-            @JsonProperty("familyId") String familyId,
-            @JsonProperty("userName") String userName
+            @JsonProperty("familyId") String familyId
+
     ) {
         // 参数验证
         this.userId = validateAndTrim("userId", userId, true);
         this.familyId = validateAndTrim("familyId", familyId, false);
-        this.userName = validateAndTrim("userName", userName, false);
 
         // 验证用户ID的合法性
         if (!isValidUserId(this.userId)) {
@@ -130,9 +128,6 @@ public record UserInfo(
             summary.append(", familyId=").append(maskSensitiveInfo(familyId));
         }
 
-        if (StringUtils.hasText(userName)) {
-            summary.append(", userName=").append(maskSensitiveInfo(userName));
-        }
 
         return summary.toString();
     }
@@ -142,7 +137,7 @@ public record UserInfo(
      */
     public String toFullString() {
         return String.format("UserInfo{userId='%s', familyId='%s', userName='%s'}",
-                userId, familyId, userName);
+                userId, familyId);
     }
 
     /**
@@ -160,24 +155,16 @@ public record UserInfo(
         return info.charAt(0) + "*".repeat(info.length() - 2) + info.charAt(info.length() - 1);
     }
 
-    /**
-     * 检查用户信息是否完整
-     */
-    public boolean isComplete() {
-        return StringUtils.hasText(userId) &&
-                StringUtils.hasText(familyId) &&
-                StringUtils.hasText(userName);
-    }
 
     /**
      * 创建用户信息的副本（可选更新某些字段）
      */
     public UserInfo withFamilyId(String newFamilyId) {
-        return new UserInfo(this.userId, newFamilyId, this.userName);
+        return new UserInfo(this.userId, newFamilyId);
     }
 
     public UserInfo withUserName(String newUserName) {
-        return new UserInfo(this.userId, this.familyId, newUserName);
+        return new UserInfo(this.userId, this.familyId);
     }
 
     /**
@@ -191,9 +178,6 @@ public record UserInfo(
         return familyId;
     }
 
-    public String getValidUserName() {
-        return userName;
-    }
 
     /**
      * 静态工厂方法
@@ -203,11 +187,7 @@ public record UserInfo(
     }
 
     public static UserInfo of(String userId, String familyId) {
-        return new UserInfo(userId, familyId, null);
-    }
-
-    public static UserInfo of(String userId, String familyId, String userName) {
-        return new UserInfo(userId, familyId, userName);
+        return new UserInfo(userId, familyId);
     }
 
     /**
@@ -227,7 +207,7 @@ public record UserInfo(
         String familyId = parts.length > 1 ? parts[1] : null;
         String userName = parts.length > 2 ? parts[2] : null;
 
-        return new UserInfo(userId, familyId, userName);
+        return new UserInfo(userId, familyId);
     }
 
     /**
