@@ -5,7 +5,10 @@ import com.haven.storage.domain.model.file.ProcessResult;
 import com.haven.storage.processor.context.FileProcessContext;
 import com.haven.storage.processor.interceptor.FileInterceptorChain;
 import com.haven.storage.processor.interceptor.FileProcessInterceptor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
 
 import java.util.EnumSet;
 import java.util.Set;
@@ -20,6 +23,9 @@ import java.util.Set;
  * 5.文件的持有人和家庭id的信息
  */
 @Slf4j
+@Component
+@Order(1)
+@RequiredArgsConstructor
 public class BasicValidationInterceptor implements FileProcessInterceptor {
     /**
      * 文件的基础认证的

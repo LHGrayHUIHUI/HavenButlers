@@ -5,6 +5,7 @@ import com.haven.base.utils.TraceIdUtil;
 import com.haven.storage.domain.model.file.FileDownloadResult;
 import com.haven.storage.domain.model.entity.FileMetadata;
 import com.haven.storage.domain.model.file.FileUploadResult;
+import com.haven.storage.operation.storage.StorageAdapter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;

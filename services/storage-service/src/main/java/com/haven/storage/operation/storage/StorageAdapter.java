@@ -1,10 +1,14 @@
-package com.haven.storage.adapter.storage;
+package com.haven.storage.operation.storage;
 
+import com.haven.storage.domain.model.enums.StorageType;
 import com.haven.storage.domain.model.file.FileDownloadResult;
 import com.haven.storage.domain.model.entity.FileMetadata;
+import com.haven.storage.domain.model.file.FileStorageInfo;
 import com.haven.storage.domain.model.file.FileUploadResult;
+import okio.BufferedSource;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.net.URI;
 import java.util.List;
 
 /**
@@ -32,46 +36,54 @@ import java.util.List;
  */
 public interface StorageAdapter {
 
+
+    /**
+     * 构建家庭专用桶名
+     */
+    String buildFamilyBucketName(String familyId);
+
+    /**
+     * 构建文件存储路径（不含文件名）
+     *
+     * @param familyId 家庭ID
+     * @param fileType 文件类型（如"image"、"video"，可选）
+     * @return 路径（如"family/123/image/202405/"）
+     */
+    String buildFilePath(String familyId, String fileType);
+
+
+
     /**
      * 上传文件
      * <p>
      * 统一的文件上传接口，支持各种存储后端。
      * 实现类必须进行完整的参数验证和错误处理。
      *
-     * @param fileMetadata 包含所有必要文件信息的元数据对象
-     *                      必须包含：familyId, folderPath, fileId, uploaderUserId
-     * @param file 待上传的文件对象，不能为空
+     * @param fileStorageInfo 包含所有必要文件信息的元数据对象
+     *                        必须包含：familyId, folderPath, fileId, uploaderUserId
+     * @param bufferedSource  待上传的文件对象，不能为空
      * @return 文件上传结果，包含上传后的文件元数据和操作状态
      * @throws IllegalArgumentException 当参数验证失败时抛出
      */
-    FileUploadResult uploadFile(FileMetadata fileMetadata, MultipartFile file);
+    boolean uploadFile(FileStorageInfo fileStorageInfo, BufferedSource bufferedSource);
 
     /**
      * 下载文件
      *
-     * @param fileId 文件ID
+     * @param fileId   文件ID
      * @param familyId 家庭ID（权限验证）
      * @return 下载结果
      */
-    FileDownloadResult downloadFile(String fileId, String familyId);
+    BufferedSource downloadFile(String fileId, String familyId);
 
     /**
      * 删除文件
      *
-     * @param fileId 文件ID
+     * @param fileId   文件ID
      * @param familyId 家庭ID（权限验证）
      * @return 是否删除成功
      */
     boolean deleteFile(String fileId, String familyId);
-
-    /**
-     * 获取文件列表
-     *
-     * @param familyId 家庭ID
-     * @param folderPath 文件夹路径
-     * @return 文件列表
-     */
-    List<String> listFiles(String familyId, String folderPath);
 
     /**
      * 检查存储健康状态
@@ -85,15 +97,13 @@ public interface StorageAdapter {
      *
      * @return 存储类型（local, minio, cloud）
      */
-    String getStorageType();
+    StorageType getStorageType();
 
     /**
      * 获取文件访问URL
      *
-     * @param fileId 文件ID
-     * @param familyId 家庭ID
-     * @param expireMinutes 过期时间（分钟）
+     * @param fileStorageInfo 文件的存储对象
      * @return 访问URL
      */
-    String getFileAccessUrl(String fileId, String familyId, int expireMinutes);
+    URI getFileAccessUrl(FileStorageInfo fileStorageInfo);
 }

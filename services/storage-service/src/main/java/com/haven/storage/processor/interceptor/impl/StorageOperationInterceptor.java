@@ -5,28 +5,20 @@ import com.haven.storage.processor.context.FileProcessContext;
 import com.haven.storage.processor.interceptor.FileInterceptorChain;
 import com.haven.storage.processor.interceptor.FileProcessInterceptor;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /**
- * 权限验证流程
+ * 文件存储的
  */
-@Slf4j
 @Component
-@Order(10)
+@Order(40)
 @RequiredArgsConstructor
-public class PermissionValidationInterceptor implements FileProcessInterceptor {
-
+public class StorageOperationInterceptor implements FileProcessInterceptor {
 
     @Override
     public ProcessResult intercept(FileProcessContext context, FileInterceptorChain chain) {
-        log.info("【权限校验拦截器】开始执行，操作类型: {}", context.getOperationType());
+        return null;
 
-        // 根据不同操作类型进行权限验证
-        // TODO: 实际项目中实现具体的权限检查逻辑
-
-        log.info("【权限校验拦截器】校验通过");
-        return chain.proceed(context);
     }
 }

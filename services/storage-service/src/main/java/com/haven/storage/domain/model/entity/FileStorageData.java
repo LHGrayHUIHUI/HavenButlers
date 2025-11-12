@@ -2,6 +2,7 @@ package com.haven.storage.domain.model.entity;
 
 import com.haven.base.model.entity.BaseEntity;
 import com.haven.storage.domain.model.enums.StorageType;
+import com.haven.storage.operation.storage.StorageAdapter;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -29,7 +30,7 @@ import java.time.LocalDateTime;
  * @see FileMetadata 文件元数据实体，通过 fileId 关联
  * @see FamilyStorageStats 家庭存储统计，基于本实体数据统计
  * @see StorageType 存储类型枚举，定义支持的存储后端类型
- * @see com.haven.storage.adapter.storage.StorageAdapter 存储适配器接口
+ * @see StorageAdapter 存储适配器接口
  * @since 2024-01-01
  */
 @EqualsAndHashCode(callSuper = true)

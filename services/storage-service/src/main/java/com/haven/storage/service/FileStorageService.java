@@ -5,7 +5,7 @@ import com.haven.base.common.exception.AuthException;
 import com.haven.base.common.exception.BusinessException;
 import com.haven.base.common.exception.ValidationException;
 import com.haven.base.utils.TraceIdUtil;
-import com.haven.storage.adapter.storage.StorageAdapter;
+import com.haven.storage.operation.storage.StorageAdapter;
 import com.haven.storage.domain.builder.FileMetadataBuilder;
 import com.haven.storage.domain.model.entity.FamilyStorageStats;
 import com.haven.storage.domain.model.entity.FileMetadata;

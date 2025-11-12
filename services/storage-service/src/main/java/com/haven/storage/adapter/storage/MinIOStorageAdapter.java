@@ -5,6 +5,7 @@ import com.haven.base.utils.TraceIdUtil;
 import com.haven.storage.domain.model.file.FileDownloadResult;
 import com.haven.storage.domain.model.entity.FileMetadata;
 import com.haven.storage.domain.model.file.FileUploadResult;
+import com.haven.storage.operation.storage.StorageAdapter;
 import io.minio.*;
 import io.minio.http.Method;
 import io.minio.messages.Item;
