@@ -1,5 +1,7 @@
 package com.haven.storage.utils;
 
+import com.haven.storage.domain.model.enums.StorageType;
+
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ThreadLocalRandom;
@@ -30,6 +32,15 @@ public class FileUtils {
         int randomNum = ThreadLocalRandom.current().nextInt(1000, 9999);
 
         return String.format("file_%d_%d", timestamp, randomNum);
+    }
+
+    /**
+     * 生成存储ID
+     */
+    public static String generateStorageId(StorageType storageType) {
+        String timestamp = String.valueOf(System.currentTimeMillis());
+        String random = String.format("%03d", (int)(Math.random() * 1000));
+        return String.format("storage_%s_%s_%s", storageType.name().toLowerCase(), timestamp, random);
     }
 
     /**

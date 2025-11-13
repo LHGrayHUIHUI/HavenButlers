@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.haven.base.model.entity.BaseModel;
 import com.haven.storage.domain.model.enums.FileCategory;
 import com.haven.storage.domain.model.enums.FileVisibility;
+import com.haven.storage.domain.model.enums.SupportedFileType;
 import lombok.Data;
 import okio.BufferedSource;
 
@@ -44,7 +45,8 @@ public abstract class FileBasicMetadata implements BaseModel {
      * 文件分类（如文档、图片、视频等宏观分类）
      * 用于文件归类管理，对应业务中的大类别划分
      */
-    private FileCategory fileCategory;
+
+    private SupportedFileType  fileType;
 
     /**
      * 文件可见性（如私有、家庭可见、公开等）

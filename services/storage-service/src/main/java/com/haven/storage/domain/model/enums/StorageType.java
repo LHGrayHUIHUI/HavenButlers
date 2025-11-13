@@ -15,21 +15,19 @@ public enum StorageType {
     OTHER("其他存储", 5);
 
     private final String desc;
-    private final int minvalue;
+    private final int code;
 
-    StorageType(String desc, int minvalue) {
+    StorageType(String desc, int code) {
         this.desc = desc;
-        this.minvalue = minvalue;
+        this.code = code;
     }
 
     public static StorageType getByCode(int minvalue) {
         for (StorageType type : values()) {
-            if (type.minvalue == minvalue) {
+            if (type.code == minvalue) {
                 return type;
             }
         }
         return null;
     }
-
-
 }

@@ -4,6 +4,7 @@ import com.haven.storage.domain.model.entity.FileMetadata;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -135,6 +136,7 @@ public interface FileMetadataRepository extends JpaRepository<FileMetadata, Long
     /**
      * 批量软删除文件
      */
+    @Modifying
     @Query("UPDATE FileMetadata f SET f.deleted = 1, f.updateTime = :updateTime " +
            "WHERE f.fileId IN :fileIds")
     int batchSoftDelete(@Param("fileIds") List<String> list, @Param("updateTime") LocalDateTime updateTime);
@@ -142,6 +144,7 @@ public interface FileMetadataRepository extends JpaRepository<FileMetadata, Long
     /**
      * 根据文件ID软删除文件
      */
+    @Modifying
     @Query("UPDATE FileMetadata f SET f.deleted = 1, f.updateTime = :updateTime " +
            "WHERE f.fileId = :fileId")
     int softDeleteById(@Param("fileId") String fileId, @Param("updateTime") LocalDateTime updateTime);
@@ -149,9 +152,10 @@ public interface FileMetadataRepository extends JpaRepository<FileMetadata, Long
     /**
      * 批量更新访问统计
      */
+    @Modifying
     @Query("UPDATE FileMetadata f SET f.accessCount = f.accessCount + 1, f.lastAccessTime = :accessTime " +
            "WHERE f.fileId = :fileId")
-    int incrementAccessCount(@Param("fileId") String fileId, @Param("accessTime") LocalDateTime accessTime);
+    void incrementAccessCount(@Param("fileId") String fileId, @Param("accessTime") LocalDateTime accessTime);
 
     /**
      * 检查文件是否存在且未被删除

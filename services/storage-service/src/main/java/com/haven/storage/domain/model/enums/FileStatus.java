@@ -10,10 +10,10 @@ public enum FileStatus {
     AUDITING("审核中", 30);   // 需审核后可用
 
     private final String desc;
-    private final int intValue;
+    private final int code;
 
-    FileStatus(String desc, int intValue) {
+    FileStatus(String desc, int code) {
         this.desc = desc;
-        this.intValue = intValue;
+        this.code = code;
     }
 }
