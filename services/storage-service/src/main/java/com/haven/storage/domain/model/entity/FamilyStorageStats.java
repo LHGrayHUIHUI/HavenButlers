@@ -305,20 +305,6 @@ public class FamilyStorageStats {
 
     // ==================== 存储配置和健康状态 ====================
 
-    /**
-     * 当前存储类型 - 家庭使用的存储后端类型
-     * <p>
-     * 可能值：
-     * - local: 本地文件系统存储
-     * - minio: MinIO对象存储
-     * - oss: 阿里云OSS存储
-     * - s3: AWS S3存储
-     * - cos: 腾讯云COS存储
-     * - hybrid: 混合存储策略
-     */
-    @Column(name = "storage_type", length = 50)
-    @Comment("当前存储类型")
-    private String storageType;
 
     /**
      * 存储健康状态 - 存储后端的可用性和性能状态

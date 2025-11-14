@@ -6,9 +6,9 @@ import com.haven.storage.domain.model.enums.FileOperation;
 import com.haven.storage.domain.model.file.ProcessResult;
 import com.haven.storage.operation.database.DatabaseOperationStrategy;
 import com.haven.storage.processor.context.FileProcessContext;
-import com.haven.storage.repository.FamilyStorageStatsRepository;
 import com.haven.storage.repository.FileMetadataRepository;
 import com.haven.storage.repository.FileStorageDataRepository;
+import com.haven.storage.service.FamilyStorageStatsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -38,10 +38,10 @@ import java.time.LocalDateTime;
  * </ul>
  *
  * @author HavenButler
- * @since 1.0.0
  * @see FileMetadata 文件元数据实体
  * @see FileStorageData 文件存储数据实体
  * @see FamilyStorageStatsRepository 家庭存储统计Repository
+ * @since 1.0.0
  */
 @Slf4j
 @Component
@@ -50,7 +50,7 @@ public class DeleteMetadataStrategy implements DatabaseOperationStrategy {
 
     private final FileMetadataRepository fileMetadataRepository;
     private final FileStorageDataRepository fileStorageDataRepository;
-    private final FamilyStorageStatsRepository familyStorageStatsRepository;
+    private final FamilyStorageStatsService familyStorageStatsService;
 
     /**
      * 执行文件元数据删除操作
@@ -71,7 +71,7 @@ public class DeleteMetadataStrategy implements DatabaseOperationStrategy {
      * @param context 文件处理上下文，包含文件基础元数据
      * @return 处理结果，成功时包含成功消息，失败时包含错误信息
      * @throws IllegalArgumentException 当上下文参数不完整时
-     * @throws Exception 当数据库操作失败时
+     * @throws Exception                当数据库操作失败时
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -149,7 +149,7 @@ public class DeleteMetadataStrategy implements DatabaseOperationStrategy {
      * <p>根据文件ID和家庭ID查询活跃的文件元数据记录。
      * 如果文件不存在或已被删除，返回null表示无需继续删除操作。
      *
-     * @param fileId 文件ID
+     * @param fileId   文件ID
      * @param familyId 家庭ID
      * @return 文件元数据记录，如果不存在或已删除则返回null
      */
@@ -208,48 +208,36 @@ public class DeleteMetadataStrategy implements DatabaseOperationStrategy {
     /**
      * 更新家庭存储统计信息
      *
-     * <p>减少家庭存储统计数据，包括文件数量、总大小和分类统计。
-     * 统计数据的更新确保家庭存储使用情况的准确性。
+     * <p>委托给专门的统计服务处理家庭存储统计数据的更新。
+     * 策略类专注于业务流程编排，将统计逻辑交由专门的服务处理。</p>
      *
-     * @param familyId 家庭ID
+     * <p>设计说明：
+     * <ul>
+     *   <li>职责分离：Strategy负责文件删除流程，Service负责统计计算</li>
+     *   <li>代码复用：统计服务可被其他删除场景复用</li>
+     *   <li>易于测试：统计逻辑可独立测试，删除逻辑也可单独测试</li>
+     * </ul>
+     *
+     * @param familyId     家庭ID
      * @param fileMetadata 被删除的文件元数据
      */
     private void updateFamilyStorageStats(String familyId, FileMetadata fileMetadata) {
-        if (!StringUtils.hasText(familyId)) {
-            log.warn("家庭ID为空，跳过存储统计更新 - fileId: {}", fileMetadata.getFileId());
-            return;
-        }
+        log.debug("委托统计服务更新家庭存储统计 - familyId: {}, fileId: {}",
+                familyId, fileMetadata.getFileId());
 
         try {
-            LocalDateTime updateTime = LocalDateTime.now();
-            long fileSize = fileMetadata.getFileSize();
-            String fileType = fileMetadata.getFileType();
+            // 委托给专门地统计服务进行统计更新
+            // 包含：参数验证 → 统计更新 → 容错处理 → 日志记录
+            familyStorageStatsService.updateStorageStats(getSupportOperation(), fileMetadata, fileMetadata.getFileSize());
 
-            log.debug("更新家庭存储统计 - familyId: {}, fileSize: {}, fileType: {}",
-                     familyId, fileSize, fileType);
-
-            // 减少总文件数量和总大小
-            int updatedRows = familyStorageStatsRepository.decrementFilesByFamily(familyId, fileSize, updateTime);
-            if (updatedRows == 0) {
-                log.warn("未找到需要更新的家庭统计记录 - familyId: {}", familyId);
-                return;
-            }
-
-            // 减少特定文件类型的分类统计
-            if (StringUtils.hasText(fileType)) {
-                familyStorageStatsRepository.incrementCategoryCountByFamily(familyId, fileType, -1, updateTime);
-            }
-
-            // 更新操作计数（删除计数+1，上传计数+0）
-            familyStorageStatsRepository.updateOperationCountsByFamily(familyId, 0, 1, updateTime);
-
-            log.debug("家庭存储统计更新成功 - familyId: {}", familyId);
+            log.debug("家庭存储统计委托更新完成 - familyId: {}", familyId);
 
         } catch (Exception e) {
-            log.error("更新家庭存储统计失败 - familyId: {}, fileId: {}, error: {}",
-                     familyId, fileMetadata.getFileId(), e.getMessage(), e);
+            log.error("委托更新家庭存储统计失败 - familyId: {}, fileId: {}, error: {}",
+                    familyId, fileMetadata.getFileId(), e.getMessage(), e);
+
             // 统计更新失败不应该影响文件删除的主要流程
-            // 可以在这里添加异步重试机制或告警通知
+            // 但需要记录错误信息，避免静默失败
         }
     }
 
