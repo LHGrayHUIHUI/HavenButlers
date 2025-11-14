@@ -276,7 +276,7 @@ public class CreateMetadataStrategy implements DatabaseOperationStrategy {
      * <ul>
      *   <li>增量更新：如果统计记录存在，进行增量更新</li>
      *   <li>创建新记录：如果统计记录不存在，创建初始记录</li>
-     *   <li>异步容错：统计更新失败不影响主流程</li>
+     *   <li>异步容错：统计更新失败不影响主流程</li>   
      *   <li>分类统计：按文件类型维护详细统计</li>
      * </ul>
      *

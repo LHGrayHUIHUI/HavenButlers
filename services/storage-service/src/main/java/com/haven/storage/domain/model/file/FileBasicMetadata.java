@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
  * 在拓展的过程中需要继承这个类来进行实现的
  */
 @Data
-public abstract class FileBasicMetadata implements BaseModel {
+public  class FileBasicMetadata implements BaseModel {
 
     /**
      * 文件唯一标识（全局唯一）
@@ -97,15 +97,5 @@ public abstract class FileBasicMetadata implements BaseModel {
      */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime lastModifiedTime;
-
-
-
-    /**
-     * 获取文件的data数据
-     *
-     * @return
-     */
-
-    public abstract BufferedSource getFileData();
 
 }
